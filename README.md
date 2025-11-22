@@ -1,73 +1,115 @@
-# React + TypeScript + Vite
+# Race Replay
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A high-performance telemetry visualization tool for racing data. Built with React, TypeScript, Vite, and Three.js.
 
-Currently, two official plugins are available:
+![Race Replay Screenshot](https://via.placeholder.com/800x450?text=Race+Replay+Screenshot)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Features
 
-## React Compiler
+- **Interactive Track Map**:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+  - **2D View**: Top-down view of the track with the car's current position.
+  - **3D View**: Immersive 3D visualization showing track elevation changes (exaggerated for visibility).
+  - **Performance Optimized**: Uses `Float32Array` and efficient rendering to handle large datasets smoothly.
 
-## Expanding the ESLint configuration
+- **Comprehensive Telemetry Gauges**:
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+  - **Analog Gauges**: Speed and RPM.
+  - **G-Force Meter**: Visualizes lateral and longitudinal G-forces.
+  - **Steering Wheel**: Real-time steering angle visualization.
+  - **Pedal Inputs**: Throttle and Brake pressure bars.
+  - **Running Graphs**: Real-time graphs for:
+    - Combined Acceleration (G)
+    - Vertical Velocity
+    - Turn Radius
+    - Gear
+    - Gradient & Altitude
+    - Temperatures (Coolant, Oil, Exhaust/Combo)
+    - Battery Voltage & Fuel Level
+    - Oil Pressure
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- **Playback Controls**:
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+  - Play/Pause
+  - Seek/Scrub through the timeline
+  - Variable Playback Speed (0.1x to 10x)
+  - Skip Forward/Back (100 frames)
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- **Dynamic File Loading**:
+  - Automatically lists CSV files from the `data/` directory.
+  - Select files via a dropdown menu.
+  - Upload local CSV files directly from your computer.
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js (v16 or higher)
+- npm (v7 or higher)
+
+### Installation
+
+1. Clone the repository:
+
+   ```bash
+   git clone git@github.com:gemini-fieldtest/replay.git
+   cd replay
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+### Running the Application
+
+Start the development server:
+
+```bash
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+This command will:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+1. Generate a file manifest from the `data/` directory.
+2. Start the Vite development server (usually at `http://localhost:5173`).
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Building for Production
+
+Build the application for deployment:
+
+```bash
+npm run build
 ```
+
+This will generate static assets in the `dist/` directory.
+
+## Data Format
+
+The application expects CSV files with specific headers. See `src/utils/telemetryParser.ts` for the full list of expected columns, which generally include:
+
+- `Time` (or `Elapsed time (s)`)
+- `Latitude`
+- `Longitude`
+- `Speed (km/h)`
+- `Engine Speed (rpm)`
+- `Throttle Position (%)`
+- `Brake Pressure (bar)`
+- `Steering Angle (Degrees)`
+- `Lateral acceleration (g)`
+- `Longitudinal acceleration (g)`
+- `Height (m)` (Altitude)
+
+## Technologies Used
+
+- **React**: UI Framework
+- **TypeScript**: Type Safety
+- **Vite**: Build Tool & Dev Server
+- **Three.js / React Three Fiber**: 3D Visualization
+- **Tailwind CSS**: Styling
+- **Recharts / Custom SVG**: Graphs and Gauges
+- **Lucide React**: Icons
+
+## License
+
+MIT
