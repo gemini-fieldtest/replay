@@ -35,10 +35,21 @@ A high-performance telemetry visualization tool for racing data. Built with Reac
   - Variable Playback Speed (0.1x to 10x)
   - Skip Forward/Back (100 frames)
 
+- **Ideal Lap Analysis**:
+
+  - **Ghost Car**: Visualizes the theoretical best lap as a ghost car racing alongside you.
+  - **Lap Stitching**: Automatically calculates the ideal lap by combining the fastest sectors from all laps.
+
+- **Performance Coach**:
+
+  - **Real-time Feedback**: AI-powered coach provides live advice on throttle, brake, steering, and gear selection.
+  - **Advanced Analysis**: Detects coasting, understeer, and brake aggression issues.
+  - **Streaming Chat**: Interactive chat interface with diverse, personality-driven feedback.
+
 - **Dynamic File Loading**:
   - Automatically lists CSV files from the `data/` directory.
   - Select files via a dropdown menu.
-  - Upload local CSV files directly from your computer.
+  - **Local Upload**: prominent "Upload CSV" button to load your own telemetry files.
 
 ## Getting Started
 
