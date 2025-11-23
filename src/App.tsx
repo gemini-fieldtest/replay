@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useTelemetry } from './hooks/useTelemetry';
-import { Play, Pause, SkipForward, SkipBack, FileText, Upload, LayoutDashboard, Car, GripVertical, RotateCcw, Repeat } from 'lucide-react';
+import { Play, Pause, SkipForward, SkipBack, FileText, Upload, LayoutDashboard, RotateCcw, Repeat, Trophy } from 'lucide-react';
 import { PitView } from './pages/PitView';
 import { DriverView } from './pages/DriverView';
+import { PerformanceCoach } from './pages/PerformanceCoach';
 
 interface ManifestFile {
   name: string;
@@ -18,8 +19,9 @@ function App() {
   // Layout State
   const [showPitView, setShowPitView] = useState(true);
   const [showDriverView, setShowDriverView] = useState(true);
+  const [showCoachView, setShowCoachView] = useState(true);
   const [splitPosition, setSplitPosition] = useState(50); // Percentage
-  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Load manifest
@@ -48,13 +50,18 @@ function App() {
     playbackSpeed,
     setPlaybackSpeed,
     isLooping,
-    setIsLooping
+    setIsLooping,
+    idealLap,
+    laps,
+    getGhostFrame
   } = useTelemetry(selectedSource);
 
-  const trackPositions = useMemo(() => {
-    if (!data || data.length === 0) return new Float32Array(0);
+  const [showGhost, setShowGhost] = useState(true);
 
-    // Find bounds to center the track
+  // Calculate projection parameters
+  const projectionParams = useMemo(() => {
+    if (!data || data.length === 0) return null;
+
     let minLat = Infinity, maxLat = -Infinity;
     let minLon = Infinity, maxLon = -Infinity;
     let minAlt = Infinity, maxAlt = -Infinity;
@@ -76,6 +83,14 @@ function App() {
     const latScale = 111000;
     const lonScale = 111000 * Math.cos(centerLat * Math.PI / 180);
 
+    return { centerLat, centerLon, centerAlt, latScale, lonScale };
+  }, [data]);
+
+  const trackPositions = useMemo(() => {
+    if (!data || data.length === 0 || !projectionParams) return new Float32Array(0);
+
+    const { centerLat, centerLon, centerAlt, latScale, lonScale } = projectionParams;
+
     const pos = new Float32Array(data.length * 3);
     
     data.forEach((f, i) => {
@@ -85,7 +100,29 @@ function App() {
     });
     
     return pos;
-  }, [data]);
+  }, [data, projectionParams]);
+
+  // Calculate Ghost Position
+  const ghostFrame = useMemo(() => getGhostFrame(currentFrame), [currentFrame, getGhostFrame]);
+  
+  const ghostPosition = useMemo(() => {
+    if (!ghostFrame || !projectionParams) return null;
+    const { centerLat, centerLon, latScale, lonScale } = projectionParams;
+    const x = (ghostFrame.longitude - centerLon) * lonScale;
+    const z = -(ghostFrame.latitude - centerLat) * latScale; // Negate Z for correct orientation
+    // console.log('Ghost:', { t: ghostFrame.time, x, z });
+    return [x, 0.5, z] as [number, number, number]; // Lift slightly
+  }, [ghostFrame, projectionParams]);
+
+  const startLinePos = useMemo(() => {
+      if (!laps.length || !projectionParams) return null;
+      const startFrame = laps[0].frames[0];
+      const { centerLat, centerLon, latScale, lonScale } = projectionParams;
+      const x = (startFrame.longitude - centerLon) * lonScale;
+      const z = -(startFrame.latitude - centerLat) * latScale;
+      return [x, 0, z] as [number, number, number];
+  }, [laps, projectionParams]);
+
 
   const getHistory = useMemo(() => {
     return () => {
@@ -101,27 +138,27 @@ function App() {
   };
 
   // Drag Handling
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const startResizing = (e: React.MouseEvent) => {
     e.preventDefault();
-    setIsDragging(true);
+    setIsResizing(true);
   };
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isDragging || !containerRef.current) return;
+    if (!isResizing || !containerRef.current) return;
     
     const containerRect = containerRef.current.getBoundingClientRect();
     const newSplit = ((e.clientX - containerRect.left) / containerRect.width) * 100;
     
     // Clamp between 20% and 80%
     setSplitPosition(Math.min(Math.max(newSplit, 20), 80));
-  }, [isDragging]);
+  }, [isResizing]);
 
   const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
+    setIsResizing(false);
   }, []);
 
   useEffect(() => {
-    if (isDragging) {
+    if (isResizing) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
     } else {
@@ -132,116 +169,172 @@ function App() {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, handleMouseMove, handleMouseUp]);
+  }, [isResizing, handleMouseMove, handleMouseUp]);
 
 
   if (loading && !data.length) return <div className="flex items-center justify-center h-screen bg-gray-900 text-white">Loading Telemetry...</div>;
   if (error) return <div className="flex items-center justify-center h-screen bg-gray-900 text-red-500">Error: {error.message}</div>;
 
+  // Helper to determine active views count for layout
+  const activeViews = [showPitView, showDriverView, showCoachView].filter(Boolean).length;
+
   return (
-    <div className="min-h-screen bg-gray-950 text-white flex flex-col">
-      <header className="p-4 bg-gray-900 border-b border-gray-800 flex justify-between items-center">
-        <div className="flex items-center gap-6">
-          <h1 className="text-2xl font-bold text-blue-500">Race Replay</h1>
+    <div className="h-screen w-screen bg-black text-white flex flex-col overflow-hidden font-sans selection:bg-blue-500/30">
+      
+      {/* Header */}
+      <header className="h-14 border-b border-gray-800 bg-gray-900/50 backdrop-blur flex items-center justify-between px-4 shrink-0 z-50">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 text-blue-500">
+            <LayoutDashboard size={20} />
+            <span className="font-bold tracking-tight">RACE<span className="text-white">REPLAY</span></span>
+          </div>
           
-          {/* View Toggles */}
-          <div className="flex bg-gray-800 rounded-lg p-1 gap-1">
-            <button 
+          <div className="h-6 w-px bg-gray-800 mx-2" />
+          
+          <div className="flex items-center bg-gray-800 rounded-lg p-1 gap-1">
+            <button
               onClick={() => setShowPitView(!showPitView)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                showPitView ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                showPitView ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
               }`}
             >
-              <LayoutDashboard size={16} />
-              Pit View
+              Pit Wall
             </button>
-            <button 
+            <button
               onClick={() => setShowDriverView(!showDriverView)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                showDriverView ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                showDriverView ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
               }`}
             >
-              <Car size={16} />
-              Driver View
+              Driver Cam
+            </button>
+            <button
+              onClick={() => setShowCoachView(!showCoachView)}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                showCoachView ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+              }`}
+            >
+              Coach
             </button>
           </div>
-
-          {/* File Selector */}
-          <div className="flex items-center gap-2 bg-gray-800 rounded px-2 py-1 ml-4">
-            <FileText size={16} className="text-gray-400" />
-            <select 
-              className="bg-transparent text-sm focus:outline-none max-w-[200px]"
-              value={typeof selectedSource === 'string' ? selectedSource : ''}
-              onChange={(e) => setSelectedSource(e.target.value)}
-            >
-              {manifest.map(file => (
-                <option key={file.url} value={file.url}>{file.name}</option>
-              ))}
-              {selectedSource instanceof File && <option value="">{selectedSource.name} (Local)</option>}
-            </select>
-          </div>
-
-          {/* Local File Upload */}
-          <label className="cursor-pointer bg-gray-800 hover:bg-gray-700 p-1.5 rounded text-gray-400 hover:text-white transition">
-            <Upload size={16} />
-            <input type="file" accept=".csv" className="hidden" onChange={handleFileChange} />
-          </label>
         </div>
 
-        <div className="text-sm text-gray-400">
-          {currentFrame?.time.toFixed(2)}s / {data[data.length-1]?.time.toFixed(2)}s
+        <div className="flex items-center gap-4">
+            {idealLap && (
+                <div className="flex items-center gap-2 bg-gray-800/50 px-3 py-1 rounded border border-gray-700">
+                    <Trophy size={14} className="text-yellow-500" />
+                    <span className="text-xs text-gray-400">Ideal Lap:</span>
+                    <span className="text-sm font-mono font-bold text-yellow-400">{idealLap.lapTime.toFixed(3)}s</span>
+                </div>
+            )}
+            <div className="text-sm text-gray-400">
+              {currentFrame?.time.toFixed(2)}s / {data[data.length-1]?.time.toFixed(2)}s
+            </div>
+            {/* File Selector */}
+            <div className="flex items-center gap-2 bg-gray-800 rounded px-2 py-1">
+              <FileText size={16} className="text-gray-400" />
+              <select 
+                className="bg-transparent text-sm focus:outline-none max-w-[200px]"
+                value={typeof selectedSource === 'string' ? selectedSource : ''}
+                onChange={(e) => setSelectedSource(e.target.value)}
+              >
+                {manifest.map(file => (
+                  <option key={file.url} value={file.url}>{file.name}</option>
+                ))}
+                {selectedSource instanceof File && <option value="">{selectedSource.name} (Local)</option>}
+              </select>
+            </div>
+
+            {/* Local File Upload */}
+            <label className="cursor-pointer bg-gray-800 hover:bg-gray-700 p-1.5 rounded text-gray-400 hover:text-white transition">
+              <Upload size={16} />
+              <input type="file" accept=".csv" className="hidden" onChange={handleFileChange} />
+            </label>
         </div>
       </header>
 
+      {/* Main Content */}
       <main className="flex-grow p-4 flex gap-4 overflow-hidden" ref={containerRef}>
-        {/* Split Screen Layout */}
         
-        {/* Left: Pit View */}
+        {/* Pit View */}
         {showPitView && (
           <div 
             className="flex flex-col min-w-0 overflow-hidden"
             style={{ 
-              width: showDriverView ? `${splitPosition}%` : '100%',
-              flex: showDriverView ? 'none' : '1'
+              width: activeViews === 1 ? '100%' : (activeViews === 2 && showDriverView && !showCoachView ? `${splitPosition}%` : `${100/activeViews}%`),
+              flex: (activeViews === 2 && showDriverView && !showCoachView) ? 'none' : '1'
             }}
           >
             <PitView 
-              currentFrame={currentFrame}
-              trackPositions={trackPositions}
+              currentFrame={currentFrame} 
+              trackPositions={trackPositions} 
               currentIndex={currentIndex}
               getHistory={getHistory}
+              ghostFrame={ghostFrame}
+              ghostPosition={ghostPosition}
+              showGhost={showGhost}
+              idealLap={idealLap}
+              laps={laps}
             />
           </div>
         )}
 
-        {/* Divider Handle */}
-        {showPitView && showDriverView && (
-          <div 
-            className="w-2 bg-gray-800 hover:bg-blue-500 cursor-col-resize flex items-center justify-center transition-colors rounded hover:shadow-[0_0_10px_rgba(59,130,246,0.5)] z-10"
-            onMouseDown={handleMouseDown}
+        {/* Resizer (Only if Pit + Driver are the ONLY two views, or maybe just between first and second?) 
+            For simplicity, let's only enable resizer if exactly Pit and Driver are active.
+        */}
+        {showPitView && showDriverView && !showCoachView && (
+          <div
+            className="w-1 bg-gray-800 hover:bg-blue-500 cursor-col-resize flex items-center justify-center transition-colors group z-10"
+            onMouseDown={startResizing}
           >
-            <GripVertical size={12} className="text-gray-500" />
+            <div className="h-8 w-1 bg-gray-600 group-hover:bg-white rounded-full" />
           </div>
         )}
 
-        {/* Right: Driver View */}
+        {/* Driver View */}
         {showDriverView && (
           <div 
             className="flex flex-col min-w-0 overflow-hidden"
             style={{ 
-              width: showPitView ? `${100 - splitPosition}%` : '100%',
-              flex: showPitView ? 'none' : '1'
+              width: activeViews === 1 ? '100%' : (activeViews === 2 && showPitView && !showCoachView ? `${100 - splitPosition}%` : `${100/activeViews}%`),
+              flex: (activeViews === 2 && showPitView && !showCoachView) ? 'none' : '1'
             }}
           >
-            <DriverView 
-              telemetryData={data} 
-              currentTime={currentFrame?.time || 0} 
-              currentFrame={currentFrame}
-            />
+            <div className="flex-grow relative h-full flex flex-col">
+                <DriverView 
+                    positions={trackPositions} 
+                    currentIndex={currentIndex} 
+                    currentFrame={currentFrame}
+                    ghostFrame={ghostFrame}
+                    ghostPosition={ghostPosition}
+                    showGhost={showGhost}
+                    setShowGhost={setShowGhost}
+                    startLinePos={startLinePos}
+                />
+            </div>
           </div>
         )}
 
-        {!showPitView && !showDriverView && (
+        {/* Coach View */}
+        {showCoachView && (
+             <div 
+                className="flex flex-col min-w-0 overflow-hidden"
+                style={{ 
+                  width: activeViews === 1 ? '100%' : `${100/activeViews}%`,
+                  flex: '1'
+                }}
+              >
+                <PerformanceCoach 
+                    currentFrame={currentFrame}
+                    ghostFrame={ghostFrame}
+                    idealLap={idealLap}
+                    currentIndex={currentIndex}
+                    laps={laps}
+                />
+              </div>
+        )}
+
+        {!showPitView && !showDriverView && !showCoachView && (
           <div className="flex-grow flex items-center justify-center text-gray-500">
             Select a view from the toolbar
           </div>

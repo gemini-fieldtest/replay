@@ -1,8 +1,8 @@
-import React, { useMemo, useRef, useEffect, useState } from 'react';
+import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera, Line } from '@react-three/drei';
 import * as THREE from 'three';
-import { Video, Globe, ZoomIn } from 'lucide-react';
+import { Video, Globe, ZoomIn, Ghost } from 'lucide-react';
 
 // ... (Imports and other components)
 import type { TelemetryFrame } from '../utils/telemetryParser';
@@ -94,43 +94,53 @@ interface CarProps {
   position: [number, number, number];
   rotation: THREE.Euler;
   telemetry?: TelemetryFrame | null;
+  opacity?: number;
+  transparent?: boolean;
+  color?: string;
 }
 
-const Car: React.FC<CarProps> = ({ position, rotation, telemetry }) => {
+const Car: React.FC<CarProps> = ({ position, rotation, telemetry, opacity = 1, transparent = false, color = "#3b82f6" }) => {
   return (
     <group position={position} rotation={rotation}>
       {/* Car Body */}
       <mesh>
         <boxGeometry args={[2.5, 1.5, 5]} />
-        <meshStandardMaterial color="#3b82f6" metalness={0.6} roughness={0.2} />
+        <meshStandardMaterial color={color} metalness={0.6} roughness={0.2} transparent={transparent} opacity={opacity} />
       </mesh>
+      {/* Wireframe Overlay for better visibility when transparent */}
+      {transparent && (
+        <mesh>
+            <boxGeometry args={[2.52, 1.52, 5.02]} />
+            <meshBasicMaterial color="white" wireframe opacity={0.3} transparent />
+        </mesh>
+      )}
       
       {/* Windshield */}
       <mesh position={[0, 0.5, 1]}>
         <boxGeometry args={[2.1, 0.8, 1.5]} />
-        <meshStandardMaterial color="#1e293b" metalness={0.9} roughness={0.1} />
+        <meshStandardMaterial color="#1e293b" metalness={0.9} roughness={0.1} transparent={transparent} opacity={opacity} />
       </mesh>
       
       {/* Headlights */}
       <mesh position={[0.8, 0, 2.4]}>
         <boxGeometry args={[0.5, 0.2, 0.2]} />
-        <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={2} />
+        <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={2} transparent={transparent} opacity={opacity} />
       </mesh>
       <mesh position={[-0.8, 0, 2.4]}>
         <boxGeometry args={[0.5, 0.2, 0.2]} />
-        <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={2} />
+        <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={2} transparent={transparent} opacity={opacity} />
       </mesh>
       
       {/* Taillights */}
       <mesh position={[0, 0, -2.5]}>
         <boxGeometry args={[2.2, 0.3, 0.1]} />
-        <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={1} />
+        <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={1} transparent={transparent} opacity={opacity} />
       </mesh>
 
       {/* Dynamics Cage - Large wireframe box to visualize tilt/roll */}
       <mesh>
         <boxGeometry args={[12, 6, 16]} />
-        <meshBasicMaterial color="white" wireframe opacity={0.1} transparent />
+        <meshBasicMaterial color="white" wireframe opacity={0.05} transparent />
       </mesh>
 
       {/* G-Force Vector Arrow */}
@@ -170,17 +180,32 @@ const Car: React.FC<CarProps> = ({ position, rotation, telemetry }) => {
   );
 };
 
+interface GhostCarProps {
+  position: [number, number, number];
+  rotation: THREE.Euler;
+}
+
+const GhostCar: React.FC<GhostCarProps> = ({ position, rotation }) => {
+  // Reuse Car component but with specific props for "Ideal Lap" look (Solid, Gold)
+  return (
+      <Car position={position} rotation={rotation} color="#fbbf24" />
+  );
+};
+
 interface SceneContentProps {
   positions: Float32Array;
   currentIndex: number;
   followMode: boolean;
   currentFrame: TelemetryFrame | null;
+  ghostPosition: [number, number, number] | null;
+  showGhost: boolean;
   zoomLevel: number;
 }
 
-const SceneContent: React.FC<SceneContentProps> = ({ positions, currentIndex, followMode, currentFrame, zoomLevel }) => {
+const SceneContent: React.FC<SceneContentProps> = ({ positions, currentIndex, followMode, currentFrame, ghostPosition, showGhost, zoomLevel }) => {
   const { camera } = useThree();
-  const controlsRef = useRef<any>(null); // OrbitControls type is tricky to import directly from drei without issues, keeping any for now but acknowledging it.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const controlsRef = useRef<any>(null);
   
   const targetLookAt = useRef(new THREE.Vector3());
 
@@ -192,71 +217,62 @@ const SceneContent: React.FC<SceneContentProps> = ({ positions, currentIndex, fo
     }
   }, [camera, followMode]);
 
-  // Get current car position from the flat array
+  // Calculate car position
   const currentPosVector = useMemo(() => {
-    if (currentIndex * 3 + 2 >= positions.length) return new THREE.Vector3(0, 0, 0);
-    return new THREE.Vector3(
-      positions[currentIndex * 3],
-      positions[currentIndex * 3 + 1],
-      positions[currentIndex * 3 + 2]
-    );
+     if (positions.length === 0) return new THREE.Vector3(0,0,0);
+     const idx = Math.min(currentIndex, (positions.length / 3) - 1);
+     return new THREE.Vector3(positions[idx * 3], positions[idx * 3 + 1], positions[idx * 3 + 2]);
   }, [positions, currentIndex]);
 
   // Calculate Car Rotation
+  const getCarRotation = useCallback((frame: TelemetryFrame | null, pos: THREE.Vector3, idx: number) => {
+      if (!frame) return new THREE.Euler(0, 0, 0);
+      
+      // 1. Calculate Yaw (Heading) from track geometry
+      let heading = 0;
+      if (idx < (positions.length / 3) - 1) {
+          const nextX = positions[(idx + 1) * 3];
+          const nextZ = positions[(idx + 1) * 3 + 2];
+          const dx = nextX - pos.x;
+          const dz = nextZ - pos.z;
+          heading = Math.atan2(dx, dz);
+      } else if (idx > 0) { // If at the end, use previous point
+          const prevX = positions[(idx - 1) * 3];
+          const prevZ = positions[(idx - 1) * 3 + 2];
+          const dx = pos.x - prevX;
+          const dz = pos.z - prevZ;
+          heading = Math.atan2(dx, dz);
+      }
+
+      // 2. Pitch & Roll (same as before)
+      let slopePitch = 0;
+      if (idx < (positions.length / 3) - 1) {
+         const nextY = positions[(idx + 1) * 3 + 1];
+         const nextX = positions[(idx + 1) * 3];
+         const nextZ = positions[(idx + 1) * 3 + 2];
+         const dy = nextY - pos.y;
+         const dist = Math.sqrt(Math.pow(nextX - pos.x, 2) + Math.pow(nextZ - pos.z, 2));
+         if (dist > 0.01) slopePitch = -Math.atan2(dy, dist);
+      }
+
+      const dynamicPitch = (frame.gForceLong || 0) * 0.08;
+      const dynamicRoll = (frame.gForceLat || 0) * 0.15;
+
+      return new THREE.Euler(slopePitch + dynamicPitch, heading, dynamicRoll);
+  }, [positions]);
+
   const carRotation = useMemo(() => {
-    if (!currentFrame || positions.length === 0) return new THREE.Euler(0, 0, 0);
-
-    // 1. Calculate Yaw (Heading) from track geometry
-    // Look at next point to determine heading
-    let heading = 0;
-    if (currentIndex * 3 + 5 < positions.length) {
-      const nextX = positions[(currentIndex + 1) * 3];
-      const nextZ = positions[(currentIndex + 1) * 3 + 2];
-      const dx = nextX - currentPosVector.x;
-      const dz = nextZ - currentPosVector.z;
-      heading = Math.atan2(dx, dz); // Standard 3D heading (Y-rotation)
-    } else if (currentIndex > 0) {
-      // End of track, look back
-      const prevX = positions[(currentIndex - 1) * 3];
-      const prevZ = positions[(currentIndex - 1) * 3 + 2];
-      const dx = currentPosVector.x - prevX;
-      const dz = currentPosVector.z - prevZ;
-      heading = Math.atan2(dx, dz);
-    }
-
-    // 2. Calculate Pitch (Slope + Dynamics)
-    // Base pitch from slope can be derived from Y difference
-    let slopePitch = 0;
-    if (currentIndex * 3 + 5 < positions.length) {
-       const nextY = positions[(currentIndex + 1) * 3 + 1];
-       const nextX = positions[(currentIndex + 1) * 3];
-       const nextZ = positions[(currentIndex + 1) * 3 + 2];
-       const dy = nextY - currentPosVector.y;
-       const dist = Math.sqrt(Math.pow(nextX - currentPosVector.x, 2) + Math.pow(nextZ - currentPosVector.z, 2));
-       if (dist > 0.01) slopePitch = -Math.atan2(dy, dist);
-    }
-
-    // Dynamic Pitch from Longitudinal G (Accel/Brake)
-    // Accel (Positive G) -> Pitch Up (Negative rotation X)
-    // Brake (Negative G) -> Pitch Down (Positive rotation X)
-    // Scale factor needs tuning. Let's say 1G = 5 degrees (0.08 rad)
-    const dynamicPitch = (currentFrame.gForceLong || 0) * 0.08;
-
-    // 3. Calculate Roll (Dynamics)
-    // Turning Right (Positive Lat G) -> Roll Left (Positive rotation Z? No, usually roll out)
-    // Actually, Lat G pushes car OUT. So turning right -> Lat G is Left (Negative)?
-    // Standard convention: Lat G is positive when turning right?
-    // Let's assume Lat G is positive when turning right. Car rolls LEFT (Z rotation positive).
-    // Scale factor: 1G = 5 degrees
-    const dynamicRoll = (currentFrame.gForceLat || 0) * 0.15; // Exaggerate roll a bit
-
-    return new THREE.Euler(slopePitch + dynamicPitch, heading, dynamicRoll);
-  }, [currentFrame, currentPosVector, currentIndex, positions]);
+      return getCarRotation(currentFrame, currentPosVector, currentIndex);
+  }, [currentFrame, currentPosVector, currentIndex, getCarRotation]);
 
 
   useFrame((_, delta) => {
     if (!followMode) {
-       if (controlsRef.current) controlsRef.current.update();
+       if (controlsRef.current) {
+           // Keep target focused on the car even in orbit mode
+           controlsRef.current.target.lerp(currentPosVector, 0.5);
+           controlsRef.current.update();
+       }
        return;
     }
 
@@ -343,7 +359,20 @@ const SceneContent: React.FC<SceneContentProps> = ({ positions, currentIndex, fo
         fade="out"
       />
       
-      <Car position={[currentPosVector.x, currentPosVector.y, currentPosVector.z]} rotation={carRotation} telemetry={currentFrame} />
+      {/* Main Car - Now Transparent/Ghost-like */}
+      <Car 
+        position={[currentPosVector.x, currentPosVector.y, currentPosVector.z]} 
+        rotation={carRotation} 
+        telemetry={currentFrame} 
+        transparent 
+        opacity={0.5} 
+        color="#3b82f6"
+      />
+
+      {/* Ghost Car - Now Solid (Ideal Lap) */}
+      {showGhost && ghostPosition && (
+        <GhostCar position={ghostPosition} rotation={carRotation} />
+      )}
 
       {/* Ground Plane */}
       <gridHelper args={[2000, 50, 0x444444, 0x222222]} position={[0, -50, 0]} />
@@ -351,13 +380,48 @@ const SceneContent: React.FC<SceneContentProps> = ({ positions, currentIndex, fo
   );
 };
 
+interface StartLineProps {
+  position: [number, number, number];
+}
+
+const StartLine: React.FC<StartLineProps> = ({ position }) => {
+  return (
+    <group position={position}>
+      {/* Checkered Line */}
+      <mesh position={[0, 2.5, 0]}>
+        <boxGeometry args={[1, 5, 20]} /> {/* Wide line across track */}
+        <meshBasicMaterial color="white" opacity={0.5} transparent />
+      </mesh>
+      {/* Poles */}
+      <mesh position={[0, 5, 10]}>
+        <cylinderGeometry args={[0.5, 0.5, 10]} />
+        <meshStandardMaterial color="#333" />
+      </mesh>
+      <mesh position={[0, 5, -10]}>
+        <cylinderGeometry args={[0.5, 0.5, 10]} />
+        <meshStandardMaterial color="#333" />
+      </mesh>
+      {/* Banner */}
+      <mesh position={[0, 10, 0]}>
+        <boxGeometry args={[1, 2, 22]} />
+        <meshStandardMaterial color="#cc0000" />
+      </mesh>
+    </group>
+  );
+};
+
 interface TrackMap3DProps {
   positions: Float32Array;
   currentIndex: number;
   currentFrame?: TelemetryFrame | null;
+  ghostFrame?: TelemetryFrame | null;
+  ghostPosition?: [number, number, number] | null;
+  showGhost: boolean;
+  setShowGhost: (show: boolean) => void;
+  startLinePos?: [number, number, number] | null;
 }
 
-export const TrackMap3D: React.FC<TrackMap3DProps> = ({ positions, currentIndex, currentFrame = null }) => {
+export const TrackMap3D: React.FC<TrackMap3DProps> = ({ positions, currentIndex, currentFrame = null, ghostPosition = null, showGhost, setShowGhost, startLinePos }) => {
   const [followMode, setFollowMode] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1); // Default to Mid
 
@@ -367,9 +431,21 @@ export const TrackMap3D: React.FC<TrackMap3DProps> = ({ positions, currentIndex,
 
   return (
     <div className="w-full h-full bg-black rounded-lg overflow-hidden border border-gray-800 relative group">
-      <Canvas>
-        <PerspectiveCamera makeDefault position={[0, 200, 200]} fov={60} />
-        <SceneContent positions={positions} currentIndex={currentIndex} followMode={followMode} currentFrame={currentFrame} zoomLevel={zoomLevel} />
+      <Canvas shadows dpr={[1, 2]} gl={{ antialias: true }}>
+        <PerspectiveCamera makeDefault position={[0, 50, 0]} fov={50} />
+        <SceneContent 
+            positions={positions} 
+            currentIndex={currentIndex} 
+            followMode={followMode} 
+            currentFrame={currentFrame} 
+            ghostPosition={ghostPosition}
+            showGhost={showGhost}
+            zoomLevel={zoomLevel} 
+        />
+        {showGhost && ghostPosition && (
+            <GhostCar position={ghostPosition} rotation={new THREE.Euler(0,0,0)} /> 
+        )}
+        {startLinePos && <StartLine position={startLinePos} />}
       </Canvas>
       
       <div className="absolute top-4 left-4 z-10 flex bg-gray-900/90 backdrop-blur-sm rounded-lg p-1 border border-gray-700 gap-1">
@@ -409,6 +485,18 @@ export const TrackMap3D: React.FC<TrackMap3DProps> = ({ positions, currentIndex,
             </button>
           </>
         )}
+        
+        <div className="w-px bg-gray-700 mx-1" />
+        <button
+            onClick={() => setShowGhost(!showGhost)}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-2 transition-colors ${
+                showGhost ? 'bg-purple-600 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+            }`}
+            title="Toggle Ideal Lap Ghost"
+        >
+            <Ghost size={14} />
+            Ghost
+        </button>
       </div>
 
       {/* ... (Rest of component) */}
