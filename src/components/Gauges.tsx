@@ -128,7 +128,7 @@ const SteeringWheel: React.FC<SteeringWheelProps> = ({ angle }) => {
     <div className="flex flex-col items-center">
       <div 
         className="w-24 h-24 rounded-full border-4 border-gray-600 relative flex items-center justify-center transition-transform duration-100 ease-linear"
-        style={{ transform: `rotate(${angle}deg)` }}
+        style={{ transform: `rotate(${-angle}deg)` }}
       >
         {/* Spokes */}
         <div className="absolute w-full h-2 bg-gray-600"></div>

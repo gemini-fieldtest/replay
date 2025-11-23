@@ -10,6 +10,8 @@ export function useTelemetry(source: string | File | null) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   
+  const [isLooping, setIsLooping] = useState(false);
+  
   const requestRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
   const playbackTimeRef = useRef<number>(0);
@@ -60,12 +62,14 @@ export function useTelemetry(source: string | File | null) {
     currentIndex: 0,
     data: [] as TelemetryFrame[],
     isPlaying: false,
+    isLooping: false,
   });
   
   // Update refs when state changes
   useEffect(() => {
     stateRef.current.data = data;
-  }, [data]);
+    stateRef.current.isLooping = isLooping;
+  }, [data, isLooping]);
   
   const loopRef = useRef<(time: number) => void>(() => {});
 
@@ -96,15 +100,21 @@ export function useTelemetry(source: string | File | null) {
         newIndex++;
       }
       
-      // If we advanced, update state
+      // If we reached the end
+      if (newIndex >= stateRef.current.data.length - 1) {
+        if (stateRef.current.isLooping) {
+           // Loop back to start
+           newIndex = 0;
+           playbackTimeRef.current = stateRef.current.data[0].time;
+        } else {
+           setIsPlaying(false);
+        }
+      }
+
+      // If we advanced (or looped), update state
       if (newIndex !== stateRef.current.currentIndex) {
         stateRef.current.currentIndex = newIndex;
         setCurrentIndex(newIndex);
-      }
-      
-      // If we reached the end
-      if (newIndex >= stateRef.current.data.length - 1) {
-        setIsPlaying(false);
       }
     }
     
@@ -113,7 +123,7 @@ export function useTelemetry(source: string | File | null) {
   }, [playbackSpeed]);
 
   useEffect(() => {
-    console.log('Loop updated', playbackSpeed);
+    // console.log('Loop updated', playbackSpeed);
     loopRef.current = loop;
   }, [loop, playbackSpeed]);
 
@@ -162,5 +172,7 @@ export function useTelemetry(source: string | File | null) {
     seek,
     playbackSpeed,
     setPlaybackSpeed,
+    isLooping,
+    setIsLooping,
   };
 }
