@@ -246,8 +246,9 @@ function App() {
             </div>
 
             {/* Local File Upload */}
-            <label className="cursor-pointer bg-gray-800 hover:bg-gray-700 p-1.5 rounded text-gray-400 hover:text-white transition">
-              <Upload size={16} />
+            <label className="cursor-pointer flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors shadow-sm hover:shadow group" title="Upload local telemetry CSV file">
+              <Upload size={16} className="group-hover:scale-110 transition-transform" />
+              <span>Upload CSV</span>
               <input type="file" accept=".csv" className="hidden" onChange={handleFileChange} />
             </label>
         </div>
