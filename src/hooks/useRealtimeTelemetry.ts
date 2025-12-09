@@ -7,6 +7,9 @@ export function useRealtimeTelemetry(sourceUrl: string | null) {
   const [laps, setLaps] = useState<LapData[]>([]);
   const [idealLap, setIdealLap] = useState<LapData | null>(null);
   
+  // Keep a separate state for the absolute latest frame for gauges (60fps allowed)
+  const [currentFrame, setCurrentFrame] = useState<TelemetryFrame | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [isLive, setIsLive] = useState(true);
@@ -52,6 +55,7 @@ export function useRealtimeTelemetry(sourceUrl: string | null) {
              setData([]);
              setLaps([]);
              bufferRef.current = [];
+             setCurrentFrame(null); // Clear current frame on new connection
         }
 
         console.log(`Connecting to SSE: ${sourceUrl} (Attempt ${failedAttemptsRef.current + 1})`);
@@ -72,6 +76,7 @@ export function useRealtimeTelemetry(sourceUrl: string | null) {
 
                 try {
                     const rawFrame = JSON.parse(event.data);
+                    let frame: TelemetryFrame | null = null;
                     
                     // GPSD Protocol Handling
                     if (rawFrame.class === 'TPV') {
@@ -98,7 +103,7 @@ export function useRealtimeTelemetry(sourceUrl: string | null) {
                         // GPSD speed is m/s. Convert to km/h for the app
                         const speedKmh = (typeof speed === 'number') ? speed * 3.6 : 0;
 
-                         const frame: TelemetryFrame = {
+                         frame = {
                             time,
                             latitude: lat,
                             longitude: lon,
@@ -124,9 +129,6 @@ export function useRealtimeTelemetry(sourceUrl: string | null) {
                             verticalVelocity: rawFrame.climb || 0, // climb is m/s
                             radiusOfTurn: 0
                         };
-                        
-                        setData(prev => [...prev, frame]);
-                        bufferRef.current.push(frame);
 
                     } else if (rawFrame.class === 'SKY') {
                         // Satellite view - ignored for now
@@ -148,7 +150,7 @@ export function useRealtimeTelemetry(sourceUrl: string | null) {
                                  return;
                             }
         
-                            const frame: TelemetryFrame = {
+                            frame = {
                                 ...rawFrame,
                                 latitude,
                                 longitude,
@@ -166,10 +168,19 @@ export function useRealtimeTelemetry(sourceUrl: string | null) {
                                 steering: rawFrame.steering || 0,
                                 batteryVoltage: 0, coolantTemp: 0, oilPressure: 0, oilTemp: 0, fuelLevel: 0, brakePressure: 0, exhaustTemp: 0, comboG: 0, verticalVelocity: 0, radiusOfTurn: 0
                             };
-                            
-                            setData(prev => [...prev, frame]);
-                            bufferRef.current.push(frame);
                          }
+                    }
+
+                    if (frame) {
+                        // Always update the buffer
+                        bufferRef.current.push(frame);
+                        
+                        // Update current frame immediately for smooth gauges
+                        setCurrentFrame(frame);
+
+                        // Update full history immediately (User requested realtime)
+                        // Note: As this array grows, performance impacting is inevitable in React 
+                        setData(prev => [...prev, frame!]);
                     }
 
                 } catch (e) {
@@ -204,12 +215,14 @@ export function useRealtimeTelemetry(sourceUrl: string | null) {
     return cleanup;
   }, [sourceUrl]); // Removed isLive from dependency to prevent reconnects on pause, handled via ref check
 
+
   // Analyze Laps when data changes
   // Note: For long sessions, running this on every frame might become expensive.
   // Consider throttling or optimizing in future.
   useEffect(() => {
     if (data.length === 0) return;
     
+    // Also laps calculation could be expensive on big array, good thing data is throttled now
     const detected = detectLaps(data);
     setLaps(detected);
     if (detected.length > 0) {
@@ -217,22 +230,18 @@ export function useRealtimeTelemetry(sourceUrl: string | null) {
     }
   }, [data]);
 
-  const getGhostFrame = (): TelemetryFrame | null => {
-      // Future: Implement ghost comparison based on ideal lap
-      return null; 
-  };
   
   return {
-    data,
+    data, // This is now throttled history (good for map)
     laps,
     idealLap,
     loading,
     error,
     currentIndex: data.length - 1,
-    currentFrame: data[data.length - 1],
-    getGhostFrame,
+    currentFrame, // This needs to be the latest
+    getGhostFrame: () => null,
     isPlaying: isLive,
     togglePlay: () => setIsLive(!isLive),
-    fullTrackBuffer: data 
+    fullTrackBuffer: data // Expose full buffer if needed
   };
 }
