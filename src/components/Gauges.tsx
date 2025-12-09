@@ -25,7 +25,8 @@ const AnalogGauge: React.FC<AnalogGaugeProps> = ({
   const angleRange = endAngle - startAngle;
   
   // Calculate needle angle
-  const percentage = Math.min(Math.max(value / max, 0), 1);
+  const safeValue = isNaN(value) ? 0 : value;
+  const percentage = Math.min(Math.max(safeValue / max, 0), 1);
   const needleAngle = startAngle + (percentage * angleRange);
   
   // Generate ticks
@@ -62,7 +63,7 @@ const AnalogGauge: React.FC<AnalogGaugeProps> = ({
   return (
     <div className="flex flex-col items-center justify-center">
       <div className="mb-2 text-center">
-        <span className="text-3xl font-bold font-mono text-white">{Math.round(value)}</span>
+        <span className="text-3xl font-bold font-mono text-white">{Math.round(isNaN(value) ? 0 : value)}</span>
       </div>
       <div className="relative" style={{ width: size, height: size }}>
         <svg width={size} height={size}>
@@ -210,8 +211,15 @@ const TelemetryGraph: React.FC<TelemetryGraphProps> = ({ data, label, unit, colo
   const height = 40;
   const points = values.map((v, i) => {
     const x = values.length > 1 ? (i / (values.length - 1)) * width : width;
-    if (isNaN(x)) return `${width},${height}`; // Fallback
-    const y = height - ((v - minValue) / range) * height;
+    
+    // Sanitize value for Y calculation
+    const safeV = isNaN(v) ? minValue : v;
+    const y = height - ((safeV - minValue) / range) * height;
+    
+    if (isNaN(x) || isNaN(y)) {
+        return `${x || 0},${height}`; // Fallback to bottom
+    }
+    
     return `${x},${y}`;
   }).join(' ');
 
@@ -220,7 +228,7 @@ const TelemetryGraph: React.FC<TelemetryGraphProps> = ({ data, label, unit, colo
       <div className="flex justify-between items-end mb-1">
         <span className="text-xs text-gray-400">{label}</span>
         <span className="text-sm font-bold font-mono" style={{ color }}>
-          {currentValue.toFixed(1)}{unit}
+          {(currentValue ?? 0).toFixed(1)}{unit}
         </span>
       </div>
       
@@ -275,8 +283,8 @@ export const Gauges: React.FC<GaugesProps> = ({ frame, getHistory }) => {
           <div className="flex flex-col items-center">
              <GForceMeter lat={frame.gForceLat} long={frame.gForceLong} />
              <div className="flex gap-2 mt-1 text-[10px] text-gray-400">
-              <span>L:{frame.gForceLat.toFixed(1)}</span>
-              <span>Lo:{frame.gForceLong.toFixed(1)}</span>
+              <span>L:{frame.gForceLat?.toFixed(1) ?? '0.0'}</span>
+              <span>Lo:{frame.gForceLong?.toFixed(1) ?? '0.0'}</span>
             </div>
           </div>
         </div>
@@ -303,7 +311,7 @@ export const Gauges: React.FC<GaugesProps> = ({ frame, getHistory }) => {
         <div className="flex-grow flex flex-col gap-2">
           <div className="flex justify-between items-end mb-1">
              <span className="text-sm font-medium text-gray-300">Brake</span>
-             <span className="text-xs text-gray-500">{frame.brakePressure.toFixed(1)} bar</span>
+             <span className="text-xs text-gray-500">{frame.brakePressure?.toFixed(1) ?? '0.0'} bar</span>
           </div>
           <div className="w-full bg-gray-800 rounded-full h-4">
             <div 

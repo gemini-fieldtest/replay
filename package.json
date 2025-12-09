@@ -14,9 +14,11 @@
   "dependencies": {
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.4.0",
-    "@types/papaparse": "^5.5.0",
+    "@types/papaparse": "^5.5.1",
     "@types/three": "^0.181.0",
     "clsx": "^2.1.1",
+    "cors": "^2.8.5",
+    "express": "^5.2.1",
     "lucide-react": "^0.554.0",
     "papaparse": "^5.5.3",
     "react": "^19.2.0",

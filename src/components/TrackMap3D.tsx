@@ -513,23 +513,23 @@ export const TrackMap3D: React.FC<TrackMap3DProps> = ({ positions, currentIndex,
           </div>
           <div className="flex justify-between gap-4">
             <span className="text-gray-400">Speed</span>
-            <span className="font-bold text-blue-400 text-lg">{currentFrame.speed.toFixed(0)} <span className="text-xs text-gray-500">km/h</span></span>
+            <span className="font-bold text-blue-400 text-lg">{currentFrame.speed?.toFixed(0) ?? '0'} <span className="text-xs text-gray-500">km/h</span></span>
           </div>
           <div className="flex justify-between gap-4">
             <span className="text-gray-400">G-Lat</span>
-            <span className={`font-bold ${Math.abs(currentFrame.gForceLat) > 0.5 ? 'text-red-400' : 'text-white'}`}>
-              {currentFrame.gForceLat.toFixed(2)}
+            <span className={`font-bold ${Math.abs(currentFrame.gForceLat ?? 0) > 0.5 ? 'text-red-400' : 'text-white'}`}>
+              {currentFrame.gForceLat?.toFixed(2) ?? '0.00'}
             </span>
           </div>
           <div className="flex justify-between gap-4">
             <span className="text-gray-400">G-Long</span>
-            <span className={`font-bold ${Math.abs(currentFrame.gForceLong) > 0.5 ? 'text-yellow-400' : 'text-white'}`}>
-              {currentFrame.gForceLong.toFixed(2)}
+            <span className={`font-bold ${Math.abs(currentFrame.gForceLong ?? 0) > 0.5 ? 'text-yellow-400' : 'text-white'}`}>
+              {currentFrame.gForceLong?.toFixed(2) ?? '0.00'}
             </span>
           </div>
           <div className="flex justify-between gap-4">
             <span className="text-gray-400">Slope</span>
-            <span className="font-bold text-green-400">{currentFrame.gradient.toFixed(1)}%</span>
+            <span className="font-bold text-green-400">{currentFrame.gradient?.toFixed(1) ?? '0.0'}%</span>
           </div>
         </div>
       )}
