@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { type TelemetryFrame } from '../utils/telemetryParser';
 import { detectLaps, calculateIdealLap, type LapData } from '../utils/lapAnalysis';
 
-export function useRealtimeTelemetry(sourceUrl: string | null) {
+export function useRealtimeTelemetry(sourceUrl: string | null, simulationData?: number[][]) {
   const [data, setData] = useState<TelemetryFrame[]>([]);
   const [laps, setLaps] = useState<LapData[]>([]);
   const [idealLap, setIdealLap] = useState<LapData | null>(null);
@@ -12,7 +12,7 @@ export function useRealtimeTelemetry(sourceUrl: string | null) {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const [isLive, setIsLive] = useState(true);
+  const [isLive, setIsLive] = useState(false);
 
   // Internal buffer of the full session history (for static map/track bounds)
   const bufferRef = useRef<TelemetryFrame[]>([]);
@@ -145,7 +145,8 @@ export function useRealtimeTelemetry(sourceUrl: string | null) {
         
                             if (
                                 typeof latitude !== 'number' || isNaN(latitude) ||
-                                typeof longitude !== 'number' || isNaN(longitude)
+                                typeof longitude !== 'number' || isNaN(longitude) ||
+                                (Math.abs(latitude) < 0.01 && Math.abs(longitude) < 0.01)
                             ) {
                                  return;
                             }
@@ -214,6 +215,92 @@ export function useRealtimeTelemetry(sourceUrl: string | null) {
 
     return cleanup;
   }, [sourceUrl]); // Removed isLive from dependency to prevent reconnects on pause, handled via ref check
+  
+  // Simulation Effect
+  useEffect(() => {
+    if (sourceUrl !== 'simulation' || !simulationData || simulationData.length === 0) return;
+
+    let animationFrameId: number;
+    let lastTime = Date.now();
+    let index = 0;
+    const speedKmh = 120; // Simulated speed
+    const speedMs = speedKmh / 3.6;
+
+    // Reset state for simulation
+    setLoading(false);
+    setError(null);
+    setData([]);
+    setLaps([]);
+    bufferRef.current = [];
+    setCurrentFrame(null);
+
+    const animate = () => {
+        if (!isLiveRef.current) {
+            animationFrameId = requestAnimationFrame(animate);
+            return;
+        }
+
+        const now = Date.now();
+        const dt = (now - lastTime) / 1000;
+        lastTime = now;
+
+        // Simple simulation: advance index based on speed? 
+        // Or just iterate points? Let's just iterate points for smoothness if dense enough.
+        // Assuming simulationData is [lat, lon] array.
+        
+        // Let's emulate 10Hz data roughly
+        // If we just pick the next point every 100ms
+        
+        // Actually, let's just loop through points for now at 60Hz purely for visuals
+        if (simulationData.length > 0) {
+            const point = simulationData[index];
+            const lat = point[0];
+            const lon = point[1];
+            
+            const frame: TelemetryFrame = {
+                time: now / 1000,
+                latitude: lat,
+                longitude: lon,
+                altitude: 0,
+                speed: speedKmh,
+                rpm: 4000 + Math.random() * 500,
+                throttle: 0.8,
+                brake: 0,
+                gear: 3,
+                steering: 0,
+                gForceLat: 0,
+                gForceLong: 0,
+                batteryVoltage: 13.5,
+                coolantTemp: 90,
+                oilPressure: 45,
+                oilTemp: 100,
+                gradient: 0,
+                fuelLevel: 50,
+                brakePressure: 0,
+                exhaustTemp: 400,
+                comboG: 0,
+                verticalVelocity: 0,
+                radiusOfTurn: 0
+            };
+
+            bufferRef.current.push(frame);
+            setCurrentFrame(frame);
+            setData(prev => [...prev.slice(-300), frame]); // Keep last 300 points for trail
+
+            index = (index + 1) % simulationData.length;
+        }
+
+        // Throttle to approx 30fps to not overwhelm
+        setTimeout(() => {
+            animationFrameId = requestAnimationFrame(animate);
+        }, 33);
+    };
+    
+    animate();
+
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [sourceUrl, simulationData]);
+
 
 
   // Analyze Laps when data changes

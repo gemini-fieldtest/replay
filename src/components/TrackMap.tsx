@@ -4,33 +4,44 @@ interface TrackMapProps {
   positions: Float32Array;
   currentIndex: number;
   ghostPosition?: [number, number, number] | null;
+  staticMapPositions?: Float32Array | null;
+  sectorMarkers?: { id: string; name: string; x: number; z: number }[];
+  rotation?: number; // Radians
 }
 
-export const TrackMap: React.FC<TrackMapProps> = ({ positions, currentIndex, ghostPosition }) => {
+export const TrackMap: React.FC<TrackMapProps> = ({ positions, currentIndex, ghostPosition, staticMapPositions, sectorMarkers = [], rotation = 0 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Calculate bounds from positions (X and Z)
+  // Calculate bounds from positions (X and Z) - Include Static Map in bounds!
   const bounds = useMemo(() => {
-    if (positions.length === 0) return null;
+    if (positions.length === 0 && (!staticMapPositions || staticMapPositions.length === 0)) return null;
+    
     let minX = Infinity, maxX = -Infinity;
     let minZ = Infinity, maxZ = -Infinity;
 
-    for (let i = 0; i < positions.length; i += 3) {
-      const x = positions[i];
-      const z = positions[i + 2];
-      
-      if (x < minX) minX = x;
-      if (x > maxX) maxX = x;
-      if (z < minZ) minZ = z;
-      if (z > maxZ) maxZ = z;
-    }
+    const process = (arr: Float32Array) => {
+        for (let i = 0; i < arr.length; i += 3) {
+            const x = arr[i];
+            const z = arr[i + 2];
+            
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (z < minZ) minZ = z;
+            if (z > maxZ) maxZ = z;
+        }
+    };
+
+    if (positions.length > 0) process(positions);
+    if (staticMapPositions && staticMapPositions.length > 0) process(staticMapPositions);
+
+    if (minX === Infinity) return null;
 
     return { minX, maxX, minZ, maxZ };
-  }, [positions]);
+  }, [positions, staticMapPositions]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !bounds || positions.length === 0) return;
+    if (!canvas || !bounds) return;
 
     const draw = () => {
       const ctx = canvas.getContext('2d');
@@ -65,46 +76,104 @@ export const TrackMap: React.FC<TrackMapProps> = ({ positions, currentIndex, gho
       
       if (rangeX === 0 || rangeZ === 0) return;
 
-      const scaleX = drawWidth / rangeX;
-      const scaleZ = drawHeight / rangeZ;
+      // Calculate scale - accounting for rotation
+      // If rotated 90 or 270 degrees, swap width/height matching
+      const isRotated90 = Math.abs(Math.sin(rotation)) > 0.5;
+      
+      const fitWidth = isRotated90 ? drawHeight : drawWidth;
+      const fitHeight = isRotated90 ? drawWidth : drawHeight;
+
+      const scaleX = fitWidth / rangeX;
+      const scaleZ = fitHeight / rangeZ;
       const scale = Math.min(scaleX, scaleZ);
 
       // Center the map
-      const offsetX = (drawWidth - rangeX * scale) / 2 + padding;
-      const offsetY = (drawHeight - rangeZ * scale) / 2 + padding;
+      const centerLocalX = (bounds.minX + bounds.maxX) / 2;
+      const centerLocalZ = (bounds.minZ + bounds.maxZ) / 2;
+      
+      // We will translate to center of canvas, rotate, then scale/translate from map center
+      const centerX = width / 2;
+      const centerY = height / 2;
 
-      // Project local coordinates to canvas coordinates
+      // Project local coordinates to canvas coordinates (relative to map center)
       const project = (xLocal: number, zLocal: number) => {
-        // X maps to Canvas X
-        const x = (xLocal - bounds.minX) * scale + offsetX;
-        
-        // Z maps to Canvas Y. 
-        const y = (zLocal - bounds.minZ) * scale + offsetY;
-        
-        return { x, y };
+        const dx = (xLocal - centerLocalX) * scale;
+        const dy = (zLocal - centerLocalZ) * scale;
+        return { x: dx, y: dy };
       };
+      
+      // Apply transforms
+      ctx.translate(centerX, centerY);
+      ctx.rotate(rotation);
 
-      // Draw Track
-      ctx.beginPath();
-      ctx.strokeStyle = '#3b82f6'; // blue-500
-      ctx.lineWidth = 3;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
+      // Draw Static Track (if available)
+      if (staticMapPositions && staticMapPositions.length > 0) {
+          ctx.beginPath();
+          ctx.strokeStyle = '#22c55e'; // green-500
+          ctx.lineWidth = 2;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          ctx.globalAlpha = 0.3; // Faint
 
-      const start = project(positions[0], positions[2]);
-      ctx.moveTo(start.x, start.y);
+          const startStatic = project(staticMapPositions[0], staticMapPositions[2]);
+          ctx.moveTo(startStatic.x, startStatic.y);
 
-      for (let i = 3; i < positions.length; i += 3) {
-        const { x, y } = project(positions[i], positions[i + 2]);
-        ctx.lineTo(x, y);
+          for (let i = 3; i < staticMapPositions.length; i += 3) {
+            const { x, y } = project(staticMapPositions[i], staticMapPositions[i + 2]);
+            ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+          ctx.globalAlpha = 1.0; // Reset
       }
-      ctx.stroke();
+      
+      // Draw Sectors
+      if (sectorMarkers && sectorMarkers.length > 0) {
+          ctx.font = 'bold 10px monospace';
+          ctx.fillStyle = '#9ca3af'; // gray-400
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
 
-      // Start/Finish Line
-      ctx.beginPath();
-      ctx.fillStyle = '#ffffff';
-      ctx.arc(start.x, start.y, 4, 0, Math.PI * 2);
-      ctx.fill();
+          sectorMarkers.forEach(sector => {
+              const { x, y } = project(sector.x, sector.z);
+              
+              // Draw Marker Dot
+              ctx.beginPath();
+              ctx.fillStyle = '#6b7280'; // gray-500
+              ctx.arc(x, y, 3, 0, Math.PI * 2);
+              ctx.fill();
+
+              // Draw Label offset
+              ctx.fillStyle = '#9ca3af'; // gray-400
+              ctx.fillText(sector.id, x + 10, y - 10);
+          });
+      }
+
+      // Draw Main Track (Live Trail)
+      if (positions.length > 0) {
+        ctx.beginPath();
+        // If static map exists, make live trail distinct (e.g. Blue or White?) 
+        // Or keep it Blue as before
+        ctx.strokeStyle = '#3b82f6'; // blue-500
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        const start = project(positions[0], positions[2]);
+        ctx.moveTo(start.x, start.y);
+
+        for (let i = 3; i < positions.length; i += 3) {
+            const { x, y } = project(positions[i], positions[i + 2]);
+            ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // Start/Finish Line (of live track? or static?) 
+        // Usually Start/Finish is static.
+        ctx.beginPath();
+        ctx.fillStyle = '#ffffff';
+        ctx.arc(start.x, start.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
       // Draw Ghost Marker
       if (ghostPosition) {
@@ -124,7 +193,7 @@ export const TrackMap: React.FC<TrackMapProps> = ({ positions, currentIndex, gho
 
       // Draw Car Marker
       const carIndex = currentIndex * 3;
-      if (carIndex < positions.length) {
+      if (positions.length > 0 && carIndex < positions.length) {
         const cx = positions[carIndex];
         const cz = positions[carIndex + 2];
         
@@ -157,7 +226,7 @@ export const TrackMap: React.FC<TrackMapProps> = ({ positions, currentIndex, gho
       resizeObserver.disconnect();
     };
 
-  }, [bounds, positions, currentIndex, ghostPosition]);
+  }, [bounds, positions, currentIndex, ghostPosition, staticMapPositions, sectorMarkers, rotation]);
 
   return (
     <canvas 

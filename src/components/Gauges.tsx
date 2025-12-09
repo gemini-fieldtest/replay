@@ -256,15 +256,66 @@ const TelemetryGraph: React.FC<TelemetryGraphProps> = ({ data, label, unit, colo
 interface GaugesProps {
   frame: TelemetryFrame | null;
   getHistory: () => TelemetryFrame[];
+  gpsOnly?: boolean;
 }
 
-export const Gauges: React.FC<GaugesProps> = ({ frame, getHistory }) => {
+export const Gauges: React.FC<GaugesProps> = ({ frame, getHistory, gpsOnly = false }) => {
   if (!frame) return <div className="text-gray-500">No Data</div>;
 
   const history = getHistory();
 
   // Helper to extract data for graphs
   const getData = (key: keyof TelemetryFrame) => history.map(f => f[key] as number);
+
+  if (gpsOnly) {
+    return (
+      <div className="bg-gray-900 p-6 rounded-lg border border-gray-800 flex flex-col gap-6">
+          {/* GPS Only Layout - Centered Speed, specific valid graphs */}
+          <div className="flex justify-center items-center px-4 py-8">
+             <AnalogGauge 
+              value={frame.speed} 
+              max={200} 
+              label="Speed" 
+              unit="km/h" 
+              color="#3b82f6" 
+              size={240}
+            />
+          </div>
+
+          <div className="flex justify-center gap-4 h-40">
+             <div className="flex flex-col gap-2 h-full w-40">
+               <TelemetryGraph 
+                 data={getData('gradient')} 
+                 currentValue={frame.gradient}
+                 label="Gradient" 
+                 unit="%" 
+                 color="#a855f7" 
+                 min={-10} 
+                 max={10} 
+               />
+               <TelemetryGraph 
+                 data={getData('altitude')} 
+                 currentValue={frame.altitude}
+                 label="Altitude" 
+                 unit="m" 
+                 color="#3b82f6" 
+               />
+            </div>
+             <div className="flex flex-col gap-2 h-full w-40">
+               <TelemetryGraph 
+                 data={getData('verticalVelocity')} 
+                 currentValue={frame.verticalVelocity}
+                 label="Vert Vel" 
+                 unit="km/h" 
+                 color="#ec4899" 
+                 min={-20}
+                 max={20} 
+               />
+            </div>
+          </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gray-900 p-6 rounded-lg border border-gray-800 flex flex-col gap-6">

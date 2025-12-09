@@ -200,22 +200,47 @@ interface SceneContentProps {
   ghostPosition: [number, number, number] | null;
   showGhost: boolean;
   zoomLevel: number;
+  staticMapPositions?: Float32Array | null;
+  sectorMarkers?: { id: string; name: string; x: number; z: number }[];
+  rotation?: number; // Radians
 }
 
-const SceneContent: React.FC<SceneContentProps> = ({ positions, currentIndex, followMode, currentFrame, ghostPosition, showGhost, zoomLevel }) => {
+const SceneContent: React.FC<SceneContentProps> = ({ positions, currentIndex, followMode, currentFrame, ghostPosition, showGhost, zoomLevel, staticMapPositions, sectorMarkers = [], rotation = 0 }) => {
   const { camera } = useThree();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const controlsRef = useRef<any>(null);
   
   const targetLookAt = useRef(new THREE.Vector3());
 
-  // Initial camera position
+  // Initial camera position - rotate around 0,0 based on rotation prop
   useEffect(() => {
     if (!followMode) {
-      camera.position.set(0, 500, 500);
+      // Default: 0, 2000, 1000 (Looking from South)
+      // Rotate this vector by 'rotation' around Y axis
+      // Note: If map rotates LEFT (CCW), Camera should rotate LEFT (CCW) to stay relative? or stay fixed?
+      // Usually if map rotates, we want camera to move so "UP" on screen is still "Forward" on track??
+      // No, "Map Rotation" usually means rotating the map object. 
+      // But here we are rotating the VIEW.
+      // If we want 90 deg left rotation, we move camera to the right?
+      // Let's assume 'rotation' rotates the camera position around the Y axis.
+
+      const radius = 1000;
+      const height = 2000;
+      // Start at (0, 0, 1000) -> Angle 0
+      // Rotate by 'rotation'
+      
+      const angle = rotation; 
+      const x = radius * Math.sin(angle);
+      const z = radius * Math.cos(angle);
+      
+      camera.position.set(x, height, z);
       camera.lookAt(0, 0, 0);
+      
+      // Also need to rotate the camera UP vector if we want 2D rotation feel? No, orbit controls handles that?
+      // 3D map usually stays Y-up.
+      // By moving camera to (1000, 2000, 0) we see it from the side.
     }
-  }, [camera, followMode]);
+  }, [camera, followMode, rotation]);
 
   // Calculate car position
   const currentPosVector = useMemo(() => {
@@ -336,8 +361,38 @@ const SceneContent: React.FC<SceneContentProps> = ({ positions, currentIndex, fo
       <ambientLight intensity={0.5} />
       <directionalLight position={[10, 20, 5]} intensity={1} />
       
-      {/* Base Track - Green (Original) */}
-      <Track positions={positions} color="#00ff00" opacity={0.3} transparent />
+      {/* Static Map - White/Gray */}
+      {staticMapPositions && (
+        <Track 
+          positions={staticMapPositions} 
+          color="#888888" 
+          opacity={1} 
+          transparent 
+        />
+      )}
+      {/* Sector Markers */}
+      {sectorMarkers.map((sector) => (
+          <group key={sector.id} position={[sector.x, 0, sector.z]}>
+              {/* Vertical Pylon */}
+              <mesh position={[0, 10, 0]}>
+                  <cylinderGeometry args={[0.5, 0.5, 20]} />
+                  <meshStandardMaterial color="#4b5563" transparent opacity={0.5} />
+              </mesh>
+              {/* Floating Label (Simple Box for now, or just a colored sphere) */}
+              <mesh position={[0, 22, 0]}>
+                  <sphereGeometry args={[2]} />
+                  <meshStandardMaterial color="#6b7280" />
+              </mesh>
+              {/* Can't easily do 3D text without importing Text from drei. 
+                  For now, let's just use distinctive pylons. 
+              */}
+          </group>
+      ))}
+
+      {/* Live Base Track - Hidden if static map exists, or maybe shown faintly? Let's hide it if static map exists to avoid clutter, or keep it as the 'driven line' */}
+      {!staticMapPositions && (
+         <Track positions={positions} color="#00ff00" opacity={0.3} transparent />
+      )}
       
       {/* Past Trail - Orange (Where we have been) */}
       <PathSegment 
@@ -419,9 +474,13 @@ interface TrackMap3DProps {
   showGhost: boolean;
   setShowGhost: (show: boolean) => void;
   startLinePos?: [number, number, number] | null;
+  gpsOnly?: boolean;
+  staticMapPositions?: Float32Array | null;
+  sectorMarkers?: { id: string; name: string; x: number; z: number }[];
+  rotation?: number;
 }
 
-export const TrackMap3D: React.FC<TrackMap3DProps> = ({ positions, currentIndex, currentFrame = null, ghostPosition = null, showGhost, setShowGhost, startLinePos }) => {
+export const TrackMap3D: React.FC<TrackMap3DProps> = ({ positions, currentIndex, currentFrame = null, ghostPosition = null, showGhost, setShowGhost, startLinePos, gpsOnly = false, staticMapPositions, sectorMarkers, rotation = 0 }) => {
   const [followMode, setFollowMode] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1); // Default to Mid
 
@@ -432,7 +491,7 @@ export const TrackMap3D: React.FC<TrackMap3DProps> = ({ positions, currentIndex,
   return (
     <div className="w-full h-full bg-black rounded-lg overflow-hidden border border-gray-800 relative group">
       <Canvas shadows dpr={[1, 2]} gl={{ antialias: true }}>
-        <PerspectiveCamera makeDefault position={[0, 50, 0]} fov={50} />
+        <PerspectiveCamera makeDefault position={[0, 50, 0]} fov={50} far={10000} />
         <SceneContent 
             positions={positions} 
             currentIndex={currentIndex} 
@@ -441,6 +500,9 @@ export const TrackMap3D: React.FC<TrackMap3DProps> = ({ positions, currentIndex,
             ghostPosition={ghostPosition}
             showGhost={showGhost}
             zoomLevel={zoomLevel} 
+            staticMapPositions={staticMapPositions}
+            sectorMarkers={sectorMarkers}
+            rotation={rotation}
         />
         {showGhost && ghostPosition && (
             <GhostCar position={ghostPosition} rotation={new THREE.Euler(0,0,0)} /> 
@@ -515,18 +577,24 @@ export const TrackMap3D: React.FC<TrackMap3DProps> = ({ positions, currentIndex,
             <span className="text-gray-400">Speed</span>
             <span className="font-bold text-blue-400 text-lg">{currentFrame.speed?.toFixed(0) ?? '0'} <span className="text-xs text-gray-500">km/h</span></span>
           </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-gray-400">G-Lat</span>
-            <span className={`font-bold ${Math.abs(currentFrame.gForceLat ?? 0) > 0.5 ? 'text-red-400' : 'text-white'}`}>
-              {currentFrame.gForceLat?.toFixed(2) ?? '0.00'}
-            </span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-gray-400">G-Long</span>
-            <span className={`font-bold ${Math.abs(currentFrame.gForceLong ?? 0) > 0.5 ? 'text-yellow-400' : 'text-white'}`}>
-              {currentFrame.gForceLong?.toFixed(2) ?? '0.00'}
-            </span>
-          </div>
+          
+          {!gpsOnly && (
+            <>
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-400">G-Lat</span>
+                <span className={`font-bold ${Math.abs(currentFrame.gForceLat ?? 0) > 0.5 ? 'text-red-400' : 'text-white'}`}>
+                  {currentFrame.gForceLat?.toFixed(2) ?? '0.00'}
+                </span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-400">G-Long</span>
+                <span className={`font-bold ${Math.abs(currentFrame.gForceLong ?? 0) > 0.5 ? 'text-yellow-400' : 'text-white'}`}>
+                  {currentFrame.gForceLong?.toFixed(2) ?? '0.00'}
+                </span>
+              </div>
+            </>
+          )}
+
           <div className="flex justify-between gap-4">
             <span className="text-gray-400">Slope</span>
             <span className="font-bold text-green-400">{currentFrame.gradient?.toFixed(1) ?? '0.0'}%</span>

@@ -9,6 +9,7 @@ interface PerformanceCoachProps {
   idealLap?: LapData | null;
   currentIndex: number;
   laps: LapData[];
+  gpsOnly?: boolean;
 }
 
 interface CoachMessage {
@@ -18,7 +19,7 @@ interface CoachMessage {
   timestamp: number;
 }
 
-export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame, ghostFrame, currentIndex, laps }) => {
+export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame, ghostFrame, currentIndex, laps, gpsOnly = false }) => {
   const [messages, setMessages] = useState<CoachMessage[]>([]);
   const lastMessageTimeRef = useRef<number>(0);
 
@@ -36,9 +37,22 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
     // Calculate deltas
     const speedDelta = currentFrame.speed - ghostFrame.speed; // Positive means faster than ghost
     
+    // In GPS Only mode, we can only relax line matching criteria or ignore it?
+    // Actually we can still calculate it from GPS if we had heading? 
+    // But G-Force comes from GPSD Frame? 
+    // GPSD "TPV" frame does not have G-Force, we calculate it or it is 0. 
+    // In useRealtimeTelemetry, we set gForceLat/Long to 0. 
+    // So "isGoodLine" will always be true (0 == 0) if ghost is also 0? 
+    // Or valid if ghost has G-Force? 
+    // Ghost is distinct. Ghost likely comes from a previous session (maybe Replay file?).
+    // If Ghost has G-Force and Live has 0, delta is huge -> "Bad Line".
+    // So if gpsOnly, we should ignore line matching based on G-Force.
+    
     const speedMatch = Math.abs(speedDelta) < 5; // Within 5 km/h
-    const gLatMatch = Math.abs(currentFrame.gForceLat - ghostFrame.gForceLat) < 0.2;
-    const gLongMatch = Math.abs(currentFrame.gForceLong - ghostFrame.gForceLong) < 0.2;
+    
+    // GPS Only: Ignore G-Force matching
+    const gLatMatch = gpsOnly ? true : Math.abs(currentFrame.gForceLat - ghostFrame.gForceLat) < 0.2;
+    const gLongMatch = gpsOnly ? true : Math.abs(currentFrame.gForceLong - ghostFrame.gForceLong) < 0.2;
     
     const isGoodLine = gLatMatch && gLongMatch;
     const isGoodSpeed = speedMatch;
@@ -50,7 +64,7 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
       isGoodSpeed,
       isFaster
     };
-  }, [currentFrame, ghostFrame]);
+  }, [currentFrame, ghostFrame, gpsOnly]);
 
   // Message Generation Logic
   useEffect(() => {
@@ -119,7 +133,7 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
            ];
 
            // Specific Feedback Logic
-           if (ghostFrame) {
+           if (ghostFrame && !gpsOnly) {
                const throttleDelta = ghostFrame.throttle - currentFrame.throttle;
                const brakeDelta = currentFrame.brake - ghostFrame.brake;
                const isCornering = Math.abs(currentFrame.gForceLat) > 0.5;
@@ -238,7 +252,7 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
       lastMessageTimeRef.current = now;
     }
 
-  }, [performance, currentFrame, ghostFrame]);
+  }, [performance, currentFrame, ghostFrame, gpsOnly]);
 
   if (!currentFrame) {
     return (

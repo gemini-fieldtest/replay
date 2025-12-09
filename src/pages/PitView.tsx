@@ -14,6 +14,10 @@ interface PitViewProps {
   showGhost?: boolean;
   idealLap?: LapData | null;
   laps?: LapData[];
+  gpsOnly?: boolean;
+  staticMapPositions?: Float32Array | null;
+  sectorMarkers?: { id: string; name: string; x: number; z: number }[];
+  rotation?: number;
 }
 
 export const PitView: React.FC<PitViewProps> = ({ 
@@ -25,17 +29,20 @@ export const PitView: React.FC<PitViewProps> = ({
   ghostPosition,
   showGhost,
   idealLap,
-  laps = []
+  laps = [],
+  gpsOnly = false,
+  staticMapPositions,
+  sectorMarkers,
+  rotation = 0
 }) => {
   
   // Helper to get ghost history (ideal lap frames up to current ghost time)
   const getGhostHistory = useMemo(() => {
      return () => {
          if (!idealLap || !ghostFrame) return [];
-         // Return frames from ideal lap up to the ghost frame
-         // Assuming idealLap.frames are sorted
-         const idx = idealLap.frames.indexOf(ghostFrame);
-         if (idx === -1) return [];
+         // find index of ghostFrame in idel lap
+         const idx = idealLap.frames.findIndex(f => Math.abs(f.time - ghostFrame.time) < 0.001);
+         if (idx < 0) return [];
          return idealLap.frames.slice(0, idx + 1);
      };
   }, [idealLap, ghostFrame]);
@@ -46,7 +53,14 @@ export const PitView: React.FC<PitViewProps> = ({
         <div className="flex gap-4 h-96 shrink-0">
             {/* Track Map */}
             <div className="bg-gray-900 rounded-lg flex-grow border border-gray-800 overflow-hidden relative group min-w-0">
-               <TrackMap positions={trackPositions} currentIndex={currentIndex} ghostPosition={ghostPosition} />
+               <TrackMap 
+                 positions={trackPositions} 
+                 currentIndex={currentIndex} 
+                 ghostPosition={ghostPosition} 
+                 staticMapPositions={staticMapPositions}
+                 sectorMarkers={sectorMarkers}
+                 rotation={rotation}
+               />
             </div>
 
             {/* Lap Times Panel */}
@@ -83,16 +97,19 @@ export const PitView: React.FC<PitViewProps> = ({
                 <Gauges 
                   frame={currentFrame} 
                   getHistory={getHistory}
+                  gpsOnly={gpsOnly}
                 />
             </div>
 
-            {/* Ghost Telemetry */}
+            {/* Ghost Telemetry - Optional: Hide completely in GPS Only mode? No, maybe show speed comparison? */}
+            {/* For now keeping it consistent */}
             {showGhost && ghostFrame && (
                 <div className="flex-shrink-0 flex flex-col gap-2 border-t border-gray-800 pt-4">
                     <div className="text-sm font-bold text-yellow-400 mb-2">IDEAL LAP (GHOST)</div>
                     <Gauges 
                       frame={ghostFrame} 
                       getHistory={getGhostHistory}
+                      gpsOnly={gpsOnly} 
                     />
                 </div>
             )}
