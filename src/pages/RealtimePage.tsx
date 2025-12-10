@@ -2,8 +2,8 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useRealtimeTelemetry } from '../hooks/useRealtimeTelemetry';
 import { Play, Pause, Activity, Trophy, Radio, LayoutDashboard } from 'lucide-react';
-import { PitView } from './PitView';
-import { DriverView } from './DriverView';
+import { LiveVideoPlayer } from '../components/LiveVideoPlayer';
+import { RealtimePitView } from './RealtimePitView';
 import { PerformanceCoach } from './PerformanceCoach';
 
 
@@ -11,6 +11,7 @@ import { PerformanceCoach } from './PerformanceCoach';
 export const RealtimePage = () => {
   // Default to localhost telemetry server
   const [sourceUrl, setSourceUrl] = useState<string | null>('http://localhost:8000/events');
+  const [videoUrl, setVideoUrl] = useState<string>(''); // Default empty for now
   
   // Layout State
   const [showPitView, setShowPitView] = useState(true);
@@ -35,7 +36,7 @@ export const RealtimePage = () => {
     fullTrackBuffer // Use this for stable map projection
   } = useRealtimeTelemetry(sourceUrl);
 
-  const [showGhost, setShowGhost] = useState(true);
+  const [showGhost] = useState(true);
 
   // Calculate projection parameters from the FULL TRACK BUFFER (stable coordinates)
   const projectionParams = useMemo(() => {
@@ -95,23 +96,9 @@ export const RealtimePage = () => {
     return [x, 0.5, z] as [number, number, number]; 
   }, [ghostFrame, projectionParams]);
 
-  const startLinePos = useMemo(() => {
-      if (!laps.length || !projectionParams) return null;
-      const startFrame = laps[0].frames[0];
-      const { centerLat, centerLon, latScale, lonScale } = projectionParams;
-      const x = (startFrame.longitude - centerLon) * lonScale;
-      const z = -(startFrame.latitude - centerLat) * latScale;
-      return [x, 0, z] as [number, number, number];
-  }, [laps, projectionParams]);
 
 
-  const getHistory = useMemo(() => {
-    return () => {
-      if (!currentFrame) return [];
-      return data.filter(f => f.time <= currentFrame.time && f.time > currentFrame.time - 60);
-    };
-  }, [data, currentFrame]);
-
+  /* Removed getHistory memo as it is no longer used */
 
   // Drag Handling
   const startResizing = (e: React.MouseEvent) => {
@@ -229,6 +216,21 @@ export const RealtimePage = () => {
                 />
             </div>
 
+            <div className="flex items-center gap-2 bg-gray-800 rounded px-2 py-1 border border-gray-700">
+                <span className="text-gray-500 text-xs">VIDEO</span>
+                <input 
+                    type="file" 
+                    accept="video/*"
+                    onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                            setVideoUrl(URL.createObjectURL(file));
+                        }
+                    }}
+                    className="bg-transparent border-none text-xs text-white w-48 focus:outline-none file:mr-2 file:py-0 file:px-2 file:rounded file:border-0 file:text-xs file:font-medium file:bg-gray-700 file:text-white hover:file:bg-gray-600"
+                />
+            </div>
+
 
 
             <div className="flex items-center gap-2 px-3 py-1 rounded bg-red-500/10 border border-red-500/20 text-red-500">
@@ -260,11 +262,10 @@ export const RealtimePage = () => {
               flex: (activeViews === 2 && showDriverView && !showCoachView) ? 'none' : '1'
             }}
           >
-            <PitView 
+            <RealtimePitView 
               currentFrame={currentFrame} 
               trackPositions={trackPositions} 
               currentIndex={currentIndex}
-              getHistory={getHistory}
               ghostFrame={ghostFrame}
               ghostPosition={ghostPosition}
               showGhost={showGhost}
@@ -294,15 +295,8 @@ export const RealtimePage = () => {
             }}
           >
             <div className="flex-grow relative h-full flex flex-col">
-                <DriverView 
-                    positions={trackPositions} 
-                    currentIndex={currentIndex} 
-                    currentFrame={currentFrame}
-                    ghostFrame={ghostFrame}
-                    ghostPosition={ghostPosition}
-                    showGhost={showGhost}
-                    setShowGhost={setShowGhost}
-                    startLinePos={startLinePos}
+                <LiveVideoPlayer 
+                    streamUrl={videoUrl}
                 />
             </div>
           </div>
