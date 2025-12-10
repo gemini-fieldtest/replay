@@ -3,6 +3,7 @@ import { type TelemetryFrame } from '../utils/telemetryParser';
 
 interface AnalogGaugeProps {
   value: number;
+  ghostValue?: number;
   max: number;
   label: string;
   unit: string;
@@ -12,6 +13,7 @@ interface AnalogGaugeProps {
 
 const AnalogGauge: React.FC<AnalogGaugeProps> = ({
   value,
+  ghostValue,
   max,
   label,
   unit,
@@ -28,6 +30,13 @@ const AnalogGauge: React.FC<AnalogGaugeProps> = ({
   const safeValue = isNaN(value) ? 0 : value;
   const percentage = Math.min(Math.max(safeValue / max, 0), 1);
   const needleAngle = startAngle + (percentage * angleRange);
+
+  // Calculate ghost needle angle
+  let ghostNeedleAngle = null;
+  if (ghostValue !== undefined && !isNaN(ghostValue)) {
+      const ghostPercentage = Math.min(Math.max(ghostValue / max, 0), 1);
+      ghostNeedleAngle = startAngle + (ghostPercentage * angleRange);
+  }
 
   // Generate ticks
   const ticks = [];
@@ -53,7 +62,7 @@ const AnalogGauge: React.FC<AnalogGaugeProps> = ({
     ticks.push(
       <g key={i}>
         <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#4b5563" strokeWidth="2" />
-        <text x={tx} y={ty} textAnchor="middle" dominantBaseline="middle" className="text-[10px] fill-gray-400 font-mono">
+        <text x={tx} y={ty} textAnchor="middle" dominantBaseline="middle" className="text-[10px] fill-gray-400 font-mono font-bold">
           {Math.round(tickValue)}
         </text>
       </g>
@@ -62,8 +71,13 @@ const AnalogGauge: React.FC<AnalogGaugeProps> = ({
 
   return (
     <div className="flex flex-col items-center justify-center">
-      <div className="mb-2 text-center">
-        <span className="text-3xl font-bold font-mono text-white">{Math.round(isNaN(value) ? 0 : value)}</span>
+      <div className="mb-2 text-center relative max-w-[120px]">
+        <span className="text-3xl font-bold font-mono text-white inline-block tracking-tight">{Math.round(isNaN(value) ? 0 : value)}</span>
+         {ghostValue !== undefined && !isNaN(ghostValue) && (
+             <span className="absolute -right-10 top-2 text-sm font-mono text-yellow-500 font-bold ml-2">
+                 {Math.round(ghostValue)}
+             </span>
+         )}
       </div>
       <div className="relative" style={{ width: size, height: size }}>
         <svg width={size} height={size}>
@@ -74,17 +88,24 @@ const AnalogGauge: React.FC<AnalogGaugeProps> = ({
           {ticks}
 
           {/* Label */}
-          <text x={center} y={center + 30} textAnchor="middle" className="fill-gray-400 text-xs uppercase tracking-widest">
+          <text x={center} y={center + 30} textAnchor="middle" className="fill-gray-300 text-xs font-bold uppercase tracking-widest">
             {label}
           </text>
-          <text x={center} y={center + 45} textAnchor="middle" className="fill-gray-500 text-[10px]">
+          <text x={center} y={center + 45} textAnchor="middle" className="fill-gray-400 text-[10px] font-medium">
             {unit}
           </text>
 
-          {/* Needle */}
+          {/* Ghost Needle */}
+          {ghostNeedleAngle !== null && (
+              <g transform={`rotate(${ghostNeedleAngle} ${center} ${center})`}>
+                <line x1={center} y1={center} x2={center + radius - 15} y2={center} stroke="#eab308" strokeWidth="3" strokeOpacity="1" strokeLinecap="round" />
+              </g>
+          )}
+
+          {/* Main Needle */}
           <g transform={`rotate(${needleAngle} ${center} ${center})`}>
-            <line x1={center} y1={center} x2={center + radius - 15} y2={center} stroke={color} strokeWidth="3" strokeLinecap="round" />
-            <circle cx={center} cy={center} r="6" fill="#374151" />
+            <line x1={center} y1={center} x2={center + radius - 15} y2={center} stroke={color} strokeWidth="4" strokeLinecap="round" />
+            <circle cx={center} cy={center} r="6" fill="#1f2937" stroke={color} strokeWidth="2" />
           </g>
         </svg>
       </div>
@@ -96,23 +117,38 @@ const AnalogGauge: React.FC<AnalogGaugeProps> = ({
 
 interface BarGaugeProps {
   value: number;
+  ghostValue?: number;
   max: number;
   label: string;
   color?: string;
 }
 
-const BarGauge: React.FC<BarGaugeProps> = ({ value, max, label, color = '#10b981' }) => {
+const BarGauge: React.FC<BarGaugeProps> = ({ value, ghostValue, max, label, color = '#10b981' }) => {
   const percentage = Math.min((value / max) * 100, 100);
+  const ghostPercentage = ghostValue !== undefined ? Math.min((ghostValue / max) * 100, 100) : null;
 
   return (
     <div className="w-full">
       <div className="flex justify-between mb-1">
-        <span className="text-sm font-medium text-gray-300">{label}</span>
-        <span className="text-sm font-medium text-gray-400">{Math.round(value)}%</span>
+        <span className="text-sm font-bold text-gray-200 tracking-wide">{label}</span>
+        <div className="flex gap-3 font-mono">
+            {ghostValue !== undefined && (
+                 <span className="text-xs font-bold text-yellow-500">{Math.round(ghostValue)}%</span>
+            )}
+            <span className="text-sm font-bold text-white">{Math.round(value)}%</span>
+        </div>
       </div>
-      <div className="w-full bg-gray-800 rounded-full h-4">
+      <div className="w-full bg-gray-900 rounded-full h-5 relative border border-gray-800">
+        {/* Ghost Bar */}
+        {ghostPercentage !== null && (
+             <div
+               className="absolute top-0 left-0 h-full rounded-full transition-all duration-100 ease-linear opacity-50 border-r-2 border-yellow-500"
+               style={{ width: `${ghostPercentage}%`, backgroundColor: 'rgba(234, 179, 8, 0.2)' }}
+             />
+        )}
+        {/* Main Bar */}
         <div
-          className="h-4 rounded-full transition-all duration-100 ease-linear"
+          className="h-full rounded-full transition-all duration-100 ease-linear relative z-10 shadow-[0_0_10px_rgba(0,0,0,0.3)]"
           style={{ width: `${percentage}%`, backgroundColor: color }}
         />
       </div>
@@ -122,22 +158,39 @@ const BarGauge: React.FC<BarGaugeProps> = ({ value, max, label, color = '#10b981
 
 interface SteeringWheelProps {
   angle: number;
+  ghostAngle?: number;
 }
 
-const SteeringWheel: React.FC<SteeringWheelProps> = ({ angle }) => {
+const SteeringWheel: React.FC<SteeringWheelProps> = ({ angle, ghostAngle }) => {
   return (
     <div className="flex flex-col items-center">
-      <div
-        className="w-24 h-24 rounded-full border-4 border-gray-600 relative flex items-center justify-center transition-transform duration-100 ease-linear"
-        style={{ transform: `rotate(${-angle}deg)` }}
-      >
-        {/* Spokes */}
-        <div className="absolute w-full h-2 bg-gray-600"></div>
-        <div className="absolute h-full w-2 bg-gray-600"></div>
-        {/* Top Marker */}
-        <div className="absolute top-0 w-2 h-4 bg-red-500"></div>
+      <div className="w-24 h-24 relative flex items-center justify-center">
+
+        {/* Ghost Wheel (Behind) */}
+        {ghostAngle !== undefined && (
+             <div
+                className="absolute inset-0 rounded-full border-4 border-yellow-600/40 w-full h-full flex items-center justify-center transition-transform duration-100 ease-linear"
+                style={{ transform: `rotate(${-ghostAngle}deg)` }}
+             >
+                 <div className="absolute w-full h-2 bg-yellow-600/40"></div>
+                 <div className="absolute h-full w-2 bg-yellow-600/40"></div>
+                 <div className="absolute top-0 w-2 h-4 bg-yellow-500/60"></div>
+             </div>
+        )}
+
+        {/* Main Wheel */}
+        <div
+            className="w-full h-full rounded-full border-4 border-gray-500 absolute flex items-center justify-center transition-transform duration-100 ease-linear z-10 bg-gray-900/50"
+            style={{ transform: `rotate(${-angle}deg)` }}
+        >
+            {/* Spokes */}
+            <div className="absolute w-full h-2 bg-gray-500"></div>
+            <div className="absolute h-full w-2 bg-gray-500"></div>
+            {/* Top Marker */}
+            <div className="absolute top-0 w-2 h-4 bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]"></div>
+        </div>
       </div>
-      <span className="mt-2 text-sm font-medium text-gray-300">Steering</span>
+      <span className="mt-2 text-sm font-bold text-gray-300">STEERING</span>
     </div>
   );
 };
@@ -145,41 +198,43 @@ const SteeringWheel: React.FC<SteeringWheelProps> = ({ angle }) => {
 interface GForceMeterProps {
   lat: number;
   long: number;
+  ghostLat?: number;
+  ghostLong?: number;
   max?: number;
 }
 
-const GForceMeter: React.FC<GForceMeterProps> = ({ lat, long, max = 2 }) => {
-  // Normalize to -1 to 1 range based on max G
-  const x = Math.max(-1, Math.min(1, lat / max));
-  const y = Math.max(-1, Math.min(1, long / max)); // Positive long G is usually braking (forward weight transfer) or acceleration?
-  // Typically:
-  // +Long = Acceleration (Dot moves down or up?)
-  // -Long = Braking
-  // +Lat = Right Turn (Dot moves Left?)
-  // Let's assume standard: +Lat = Left Turn (Force to Right), so dot moves Right.
-  // Actually, if car turns Left, you feel force to Right.
-  // Let's just map directly for now.
+const GForceMeter: React.FC<GForceMeterProps> = ({ lat, long, ghostLat, ghostLong, max = 2 }) => {
+  const normX = (val: number) => 50 + (Math.max(-1, Math.min(1, val / max)) * 50);
+  const normY = (val: number) => 50 - (Math.max(-1, Math.min(1, val / max)) * 50);
 
-  // Canvas coordinates: Center is (50, 50) in %
-  const dotX = 50 + (x * 50);
-  const dotY = 50 - (y * 50); // Invert Y because screen Y is down
+  const dotX = normX(lat);
+  const dotY = normY(long);
 
   return (
-    <div className="w-24 h-24 bg-gray-800 rounded-full border-2 border-gray-600 relative flex items-center justify-center overflow-hidden">
+    <div className="w-24 h-24 bg-gray-900 rounded-full border-2 border-gray-600 relative flex items-center justify-center overflow-hidden">
       {/* Crosshairs */}
       <div className="absolute w-full h-px bg-gray-700"></div>
       <div className="absolute h-full w-px bg-gray-700"></div>
 
       {/* Rings */}
-      <div className="absolute w-12 h-12 rounded-full border border-gray-700"></div>
+      <div className="absolute w-12 h-12 rounded-full border border-gray-700/50"></div>
+      <div className="absolute w-18 h-18 rounded-full border border-gray-700/30"></div>
+
+      {/* Ghost Dot */}
+      {ghostLat !== undefined && ghostLong !== undefined && (
+          <div
+            className="absolute w-2.5 h-2.5 bg-yellow-500 rounded-full transition-all duration-100 ease-linear opacity-80 shadow-[0_0_5px_rgba(234,179,8,0.5)]"
+            style={{ left: `${normX(ghostLat)}%`, top: `${normY(ghostLong)}%`, transform: 'translate(-50%, -50%)' }}
+          ></div>
+      )}
 
       {/* Dot */}
       <div
-        className="absolute w-3 h-3 bg-red-500 rounded-full shadow-lg transition-all duration-100 ease-linear"
+        className="absolute w-3 h-3 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)] transition-all duration-100 ease-linear z-10 border border-white/20"
         style={{ left: `${dotX}%`, top: `${dotY}%`, transform: 'translate(-50%, -50%)' }}
       ></div>
 
-      <span className="absolute bottom-1 text-[10px] text-gray-500">{max}G</span>
+      <span className="absolute bottom-1 text-[10px] font-bold text-gray-500">{max}G</span>
     </div>
   );
 };
@@ -188,6 +243,7 @@ const GForceMeter: React.FC<GForceMeterProps> = ({ lat, long, max = 2 }) => {
 
 interface TelemetryGraphProps {
   data: number[];
+  ghostData?: number[];
   label: string;
   unit: string;
   color: string;
@@ -196,56 +252,74 @@ interface TelemetryGraphProps {
   currentValue: number;
 }
 
-const TelemetryGraph: React.FC<TelemetryGraphProps> = ({ data, label, unit, color, min, max, currentValue }) => {
+const TelemetryGraph: React.FC<TelemetryGraphProps> = ({ data, ghostData, label, unit, color, min, max, currentValue }) => {
   if (!data.length) return null;
 
   const values = data;
 
   // Determine range
-  const minValue = min ?? Math.min(...values);
-  const maxValue = max ?? Math.max(...values);
-  const range = maxValue - minValue || 1; // Avoid divide by zero
+  // Include ghost data in range calculation to avoid clipping
+  let allValues = [...values];
+  if (ghostData) allValues = [...allValues, ...ghostData];
 
-  // Generate path
+  // Let's scale to fit both if provided, but default to min/max if preset
+  const calcMin = min ?? Math.min(...allValues);
+  const calcMax = max ?? Math.max(...allValues);
+
+  const range = calcMax - calcMin || 1;
+
   const width = 100;
   const height = 40;
-  const points = values.map((v, i) => {
-    const x = values.length > 1 ? (i / (values.length - 1)) * width : width;
 
-    // Sanitize value for Y calculation
-    const safeV = isNaN(v) ? minValue : v;
-    const y = height - ((safeV - minValue) / range) * height;
-
-    if (isNaN(x) || isNaN(y)) {
-        return `${x || 0},${height}`; // Fallback to bottom
-    }
-
+  const getPoints = (d: number[]) => d.map((v, i) => {
+    const x = d.length > 1 ? (i / (d.length - 1)) * width : width;
+    const safeV = isNaN(v) ? calcMin : v;
+    const y = height - ((safeV - calcMin) / range) * height;
     return `${x},${y}`;
   }).join(' ');
 
+  const points = getPoints(values);
+  const ghostPoints = ghostData ? getPoints(ghostData) : null;
+
   return (
-    <div className="flex flex-col bg-gray-800 p-2 rounded h-full min-w-[120px] justify-between">
+    <div className="flex flex-col bg-gray-900 border border-gray-800 p-2 rounded h-full min-w-[120px] justify-between shadow-sm">
       <div className="flex justify-between items-end mb-1">
-        <span className="text-xs text-gray-400">{label}</span>
+        <span className="text-xs font-bold text-gray-400 uppercase tracking-tight">{label}</span>
         <span className="text-sm font-bold font-mono" style={{ color }}>
           {(currentValue ?? 0).toFixed(1)}{unit}
         </span>
       </div>
 
-      <div className="flex-grow relative w-full h-10 overflow-hidden">
+      <div className="flex-grow relative w-full h-10 overflow-hidden bg-gray-950/30 rounded">
         <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+          {/* Ghost Line */}
+          {ghostPoints && (
+              <polyline
+                points={ghostPoints}
+                fill="none"
+                stroke="#eab308"
+                strokeWidth="1.5"
+                strokeOpacity="0.7"
+                vectorEffect="non-scaling-stroke"
+              />
+          )}
+
+          {/* Main Area */}
           <path
             d={`M 0,${height} ${points} L ${width},${height} Z`}
             fill={color}
-            fillOpacity="0.2"
+            fillOpacity="0.15"
             stroke="none"
           />
+          {/* Main Line */}
           <polyline
             points={points}
             fill="none"
             stroke={color}
-            strokeWidth="1.5"
+            strokeWidth="2"
             vectorEffect="non-scaling-stroke"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           />
         </svg>
       </div>
@@ -256,22 +330,30 @@ const TelemetryGraph: React.FC<TelemetryGraphProps> = ({ data, label, unit, colo
 interface ReplayGaugesProps {
   frame: TelemetryFrame | null;
   getHistory: () => TelemetryFrame[];
+  ghostFrame?: TelemetryFrame | null;
+  getGhostHistory?: () => TelemetryFrame[];
 }
 
-export const ReplayGauges: React.FC<ReplayGaugesProps> = ({ frame, getHistory }) => {
+export const ReplayGauges: React.FC<ReplayGaugesProps> = ({ frame, getHistory, ghostFrame, getGhostHistory }) => {
   if (!frame) return <div className="text-gray-500">No Data</div>;
 
   const history = getHistory();
+  const ghostHistory = getGhostHistory ? getGhostHistory() : [];
 
   // Helper to extract data for graphs
-  const getData = (key: keyof TelemetryFrame) => history.map(f => f[key] as number);
+  const getData = (source: TelemetryFrame[], key: keyof TelemetryFrame) => source.map(f => f[key] as number);
+
+  // Normalize history lengths for graph: if ghost has more/less history points, we might need to be careful?
+  // Current implementation of TelemetryGraph just stretches points to width (0 to 100).
+  // This is fine for comparison as long as the time window is roughly similar (which it should be, ~60s of history).
 
   return (
-    <div className="bg-gray-900 p-6 rounded-lg border border-gray-800 flex flex-col gap-6">
+    <div className="bg-gray-950/80 p-6 rounded-lg border border-gray-800 flex flex-col gap-6 shadow-xl">
       {/* Top Row: Speed, Steering, RPM */}
       <div className="flex justify-between items-center px-4">
         <AnalogGauge
           value={frame.speed}
+          ghostValue={ghostFrame?.speed}
           max={200}
           label="Speed"
           unit="km/h"
@@ -279,10 +361,15 @@ export const ReplayGauges: React.FC<ReplayGaugesProps> = ({ frame, getHistory })
         />
 
         <div className="flex flex-col items-center gap-4">
-          <SteeringWheel angle={frame.steering} />
+          <SteeringWheel angle={frame.steering} ghostAngle={ghostFrame?.steering} />
           <div className="flex flex-col items-center">
-             <GForceMeter lat={frame.gForceLat} long={frame.gForceLong} />
-             <div className="flex gap-2 mt-1 text-[10px] text-gray-400">
+             <GForceMeter
+                lat={frame.gForceLat}
+                long={frame.gForceLong}
+                ghostLat={ghostFrame?.gForceLat}
+                ghostLong={ghostFrame?.gForceLong}
+             />
+             <div className="flex gap-2 mt-1 text-[10px] font-mono text-gray-400">
               <span>L:{frame.gForceLat?.toFixed(1) ?? '0.0'}</span>
               <span>Lo:{frame.gForceLong?.toFixed(1) ?? '0.0'}</span>
             </div>
@@ -291,6 +378,7 @@ export const ReplayGauges: React.FC<ReplayGaugesProps> = ({ frame, getHistory })
 
         <AnalogGauge
           value={frame.rpm}
+          ghostValue={ghostFrame?.rpm}
           max={8000}
           label="RPM"
           unit="rpm"
@@ -303,6 +391,7 @@ export const ReplayGauges: React.FC<ReplayGaugesProps> = ({ frame, getHistory })
         <div className="flex-grow flex flex-col gap-2">
            <BarGauge
             value={frame.throttle}
+            ghostValue={ghostFrame?.throttle}
             max={100}
             label="Throttle"
             color="#10b981"
@@ -310,12 +399,21 @@ export const ReplayGauges: React.FC<ReplayGaugesProps> = ({ frame, getHistory })
         </div>
         <div className="flex-grow flex flex-col gap-2">
           <div className="flex justify-between items-end mb-1">
-             <span className="text-sm font-medium text-gray-300">Brake</span>
-             <span className="text-xs text-gray-500">{frame.brakePressure?.toFixed(1) ?? '0.0'} bar</span>
+             <span className="text-sm font-bold text-gray-200 tracking-wide">Brake</span>
+             <div className="flex gap-2 font-mono">
+                 {ghostFrame && <span className="text-xs font-bold text-yellow-500">{ghostFrame.brakePressure?.toFixed(1)} bar</span>}
+                 <span className="text-sm font-bold text-gray-400">{frame.brakePressure?.toFixed(1) ?? '0.0'} bar</span>
+             </div>
           </div>
-          <div className="w-full bg-gray-800 rounded-full h-4">
+          <div className="w-full bg-gray-900 rounded-full h-5 relative border border-gray-800">
+             {ghostFrame && (
+                  <div
+                    className="absolute top-0 left-0 h-full rounded-full transition-all duration-100 ease-linear opacity-50 border-r-2 border-yellow-500"
+                    style={{ width: `${Math.min(ghostFrame.brake * 100, 100)}%`, backgroundColor: 'rgba(234, 179, 8, 0.2)' }}
+                  />
+             )}
             <div
-              className="h-4 rounded-full transition-all duration-100 ease-linear"
+              className="h-full rounded-full transition-all duration-100 ease-linear relative z-10 shadow-[0_0_10px_rgba(0,0,0,0.3)]"
               style={{ width: `${Math.min(frame.brake * 100, 100)}%`, backgroundColor: '#ef4444' }}
             />
           </div>
@@ -324,12 +422,20 @@ export const ReplayGauges: React.FC<ReplayGaugesProps> = ({ frame, getHistory })
 
       {/* Bottom Row: G-Force and Mechanics */}
       <div className="flex gap-4 h-40">
-        <div className="flex flex-col items-center bg-gray-800 p-3 rounded h-full justify-center w-40">
-          <div className="text-xs text-gray-400 mb-1">Gear</div>
-          <div className="text-4xl font-bold text-white mb-2">{frame.gear === 0 ? 'N' : frame.gear}</div>
+        <div className="flex flex-col items-center bg-gray-900 border border-gray-800 p-3 rounded h-full justify-center w-40 shadow-sm">
+          <div className="text-xs font-bold text-gray-400 mb-1 uppercase tracking-tight">Gear</div>
+          <div className="text-5xl font-bold text-white mb-2 relative font-mono">
+              {frame.gear === 0 ? 'N' : frame.gear}
+              {ghostFrame && ghostFrame.gear !== frame.gear && (
+                  <span className="absolute -top-1 -right-4 text-lg text-yellow-500 font-bold font-mono">
+                      {ghostFrame.gear === 0 ? 'N' : ghostFrame.gear}
+                  </span>
+              )}
+          </div>
           <div className="w-full h-20">
              <TelemetryGraph
-               data={getData('gear')}
+               data={getData(history, 'gear')}
+               ghostData={ghostFrame ? getData(ghostHistory, 'gear') : undefined}
                currentValue={frame.gear}
                label=""
                unit=""
@@ -342,7 +448,8 @@ export const ReplayGauges: React.FC<ReplayGaugesProps> = ({ frame, getHistory })
 
         <div className="flex flex-col gap-2 h-full w-40">
            <TelemetryGraph
-             data={getData('gradient')}
+             data={getData(history, 'gradient')}
+             ghostData={ghostFrame ? getData(ghostHistory, 'gradient') : undefined}
              currentValue={frame.gradient}
              label="Gradient"
              unit="%"
@@ -351,7 +458,8 @@ export const ReplayGauges: React.FC<ReplayGaugesProps> = ({ frame, getHistory })
              max={10}
            />
            <TelemetryGraph
-             data={getData('altitude')}
+             data={getData(history, 'altitude')}
+             ghostData={ghostFrame ? getData(ghostHistory, 'altitude') : undefined}
              currentValue={frame.altitude}
              label="Altitude"
              unit="m"
@@ -361,7 +469,8 @@ export const ReplayGauges: React.FC<ReplayGaugesProps> = ({ frame, getHistory })
 
         <div className="flex flex-col gap-2 h-full w-40">
           <TelemetryGraph
-             data={getData('coolantTemp')}
+             data={getData(history, 'coolantTemp')}
+             ghostData={ghostFrame ? getData(ghostHistory, 'coolantTemp') : undefined}
              currentValue={frame.coolantTemp}
              label="Coolant"
              unit="°C"
@@ -370,7 +479,8 @@ export const ReplayGauges: React.FC<ReplayGaugesProps> = ({ frame, getHistory })
              max={120}
            />
            <TelemetryGraph
-             data={getData('oilTemp')}
+             data={getData(history, 'oilTemp')}
+             ghostData={ghostFrame ? getData(ghostHistory, 'oilTemp') : undefined}
              currentValue={frame.oilTemp}
              label="Oil Temp"
              unit="°C"
@@ -382,7 +492,8 @@ export const ReplayGauges: React.FC<ReplayGaugesProps> = ({ frame, getHistory })
 
         <div className="flex flex-col gap-2 h-full w-40">
            <TelemetryGraph
-             data={getData('batteryVoltage')}
+             data={getData(history, 'batteryVoltage')}
+             ghostData={ghostFrame ? getData(ghostHistory, 'batteryVoltage') : undefined}
              currentValue={frame.batteryVoltage}
              label="Battery"
              unit="V"
@@ -391,7 +502,8 @@ export const ReplayGauges: React.FC<ReplayGaugesProps> = ({ frame, getHistory })
              max={15}
            />
            <TelemetryGraph
-             data={getData('fuelLevel')}
+             data={getData(history, 'fuelLevel')}
+             ghostData={ghostFrame ? getData(ghostHistory, 'fuelLevel') : undefined}
              currentValue={frame.fuelLevel}
              label="Fuel"
              unit="%"
@@ -403,7 +515,8 @@ export const ReplayGauges: React.FC<ReplayGaugesProps> = ({ frame, getHistory })
 
         <div className="flex flex-col gap-2 h-full w-40">
           <TelemetryGraph
-             data={getData('oilPressure')}
+             data={getData(history, 'oilPressure')}
+             ghostData={ghostFrame ? getData(ghostHistory, 'oilPressure') : undefined}
              currentValue={frame.oilPressure}
              label="Oil Press"
              unit="bar"
@@ -412,7 +525,8 @@ export const ReplayGauges: React.FC<ReplayGaugesProps> = ({ frame, getHistory })
              max={10}
            />
            <TelemetryGraph
-             data={getData('comboG')}
+             data={getData(history, 'comboG')}
+             ghostData={ghostFrame ? getData(ghostHistory, 'comboG') : undefined}
              currentValue={frame.comboG}
              label="Combo G"
              unit="G"
@@ -424,7 +538,8 @@ export const ReplayGauges: React.FC<ReplayGaugesProps> = ({ frame, getHistory })
 
         <div className="flex flex-col gap-2 h-full w-40">
           <TelemetryGraph
-             data={getData('verticalVelocity')}
+             data={getData(history, 'verticalVelocity')}
+             ghostData={ghostFrame ? getData(ghostHistory, 'verticalVelocity') : undefined}
              currentValue={frame.verticalVelocity}
              label="Vert Vel"
              unit="km/h"
@@ -433,7 +548,8 @@ export const ReplayGauges: React.FC<ReplayGaugesProps> = ({ frame, getHistory })
              max={20}
            />
            <TelemetryGraph
-             data={getData('radiusOfTurn')}
+             data={getData(history, 'radiusOfTurn')}
+             ghostData={ghostFrame ? getData(ghostHistory, 'radiusOfTurn') : undefined}
              currentValue={frame.radiusOfTurn}
              label="Turn Rad"
              unit="m"

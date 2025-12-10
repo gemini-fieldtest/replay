@@ -77,25 +77,23 @@ export const ReplayPitView: React.FC<ReplayPitViewProps> = ({
 
         {/* Telemetry Area */}
         <div className="flex-grow flex flex-col gap-4 min-h-0 overflow-y-auto">
-            {/* Current Telemetry */}
             <div className="flex-shrink-0 flex flex-col gap-2">
-                <div className="text-sm font-bold text-blue-400 mb-2">CURRENT LAP</div>
+                <div className="flex justify-between items-center mb-2">
+                     <div className="text-sm font-bold text-blue-400 tracking-wider">TELEMETRY</div>
+                     {showGhost && ghostFrame && (
+                         <div className="flex items-center gap-2">
+                             <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                             <span className="text-xs font-bold text-yellow-500">IDEAL LAP OVERLAY</span>
+                         </div>
+                     )}
+                </div>
                 <ReplayGauges
                   frame={currentFrame}
                   getHistory={getHistory}
+                  ghostFrame={showGhost ? ghostFrame : null}
+                  getGhostHistory={showGhost ? getGhostHistory : undefined}
                 />
             </div>
-
-            {/* Ghost Telemetry */}
-            {showGhost && ghostFrame && (
-                <div className="flex-shrink-0 flex flex-col gap-2 border-t border-gray-800 pt-4">
-                    <div className="text-sm font-bold text-yellow-400 mb-2">IDEAL LAP (GHOST)</div>
-                    <ReplayGauges
-                      frame={ghostFrame}
-                      getHistory={getGhostHistory}
-                    />
-                </div>
-            )}
         </div>
       </div>
     </div>
