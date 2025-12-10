@@ -176,6 +176,18 @@ export const RealtimePage = () => {
                 <span>Replay</span>
             </Link>
             <div className="w-px h-4 bg-gray-700 mx-1" />
+            
+             <button 
+                  onClick={toggleLive}
+                  className={`p-1.5 rounded-full transition shadow-lg ${isLive ? 'bg-red-600 hover:bg-red-700 shadow-red-900/20' : 'bg-green-600 hover:bg-green-700'}`}
+                  title={isLive ? "Pause Live Feed" : "Resume Live Feed"}
+                >
+                  {isLive ? <Pause size={14} /> : <Play size={14} />}
+            </button>
+                 <div className="flex items-center gap-2 text-gray-400 text-xs font-mono w-16 justify-end tabular-nums">
+                    <span className={isLive ? "text-red-500" : "text-gray-500"}>{currentFrame?.time?.toFixed(2) ?? '0.00'}s</span>
+                 </div>
+
             <button
               onClick={() => setShowPitView(!showPitView)}
               className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
@@ -203,19 +215,8 @@ export const RealtimePage = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-            <div className="flex items-center gap-4 border-r border-gray-800 pr-4 mr-2">
-                 <button 
-                  onClick={toggleLive}
-                  className={`p-1.5 rounded-full transition shadow-lg ${isLive ? 'bg-red-600 hover:bg-red-700 shadow-red-900/20' : 'bg-green-600 hover:bg-green-700'}`}
-                  title={isLive ? "Pause Live Feed" : "Resume Live Feed"}
-                >
-                  {isLive ? <Pause size={16} /> : <Play size={16} />}
-                </button>
-                 <div className="flex items-center gap-2 text-gray-400 text-sm font-mono">
-                    <span className={isLive ? "text-red-500" : "text-gray-500"}>{currentFrame?.time?.toFixed(2) ?? '0.00'}s</span>
-                 </div>
-            </div>
+        <div className="flex items-center gap-6">
+
 
             <div className="flex items-center gap-2 bg-gray-800 rounded px-2 py-1 border border-gray-700">
                 <span className="text-gray-500 text-xs">SOURCE</span>

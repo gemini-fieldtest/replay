@@ -3,7 +3,7 @@ import { useTelemetry } from '../hooks/useTelemetry';
 import { Play, Pause, SkipForward, SkipBack, FileText, Upload, LayoutDashboard, RotateCcw, Repeat, Trophy } from 'lucide-react';
 import { ReplayPitView } from './ReplayPitView';
 import { ReplayDriverView } from './ReplayDriverView';
-import { ReplayPerformanceCoach } from './ReplayPerformanceCoach';
+import { PerformanceCoach } from './PerformanceCoach';
 import { Link } from 'react-router-dom';
 
 interface ManifestFile {
@@ -224,8 +224,70 @@ export function ReplayPage() {
             </button>
           </div>
         </div>
+        
+        {/* Playback Controls - Moved to Header */}
+        <div className="flex items-center gap-2 mx-4">
+             <button 
+               onClick={() => seek(Math.max(0, currentIndex - 100))}
+               className="p-1.5 hover:bg-gray-800 rounded-full transition text-gray-400 hover:text-white"
+               title="Rewind"
+             >
+               <SkipBack size={16} />
+             </button>
+             
+             <button 
+               onClick={togglePlay}
+               className={`p-1.5 rounded-full transition shadow-lg ${isPlaying ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-900/20' : 'bg-green-600 hover:bg-green-700'}`}
+             >
+               {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+             </button>
+             
+             <button 
+               onClick={() => seek(Math.min(data.length - 1, currentIndex + 100))}
+               className="p-1.5 hover:bg-gray-800 rounded-full transition text-gray-400 hover:text-white"
+               title="Skip Forward"
+             >
+               <SkipForward size={16} />
+             </button>
 
-        <div className="flex items-center gap-4">
+             {/* Scrubber - Compact */}
+             <div className="w-48 mx-2 flex items-center">
+                <input 
+                    type="range" 
+                    min="0" 
+                    max={data.length > 0 ? data.length - 1 : 100} 
+                    value={currentIndex} 
+                    onChange={(e) => seek(parseInt(e.target.value))}
+                    className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                />
+             </div>
+
+             <button
+               onClick={() => setIsLooping(!isLooping)}
+               className={`p-1.5 rounded-full transition ${isLooping ? 'text-blue-500 bg-blue-500/10' : 'text-gray-400 hover:text-white hover:bg-gray-800'}`}
+               title="Loop"
+             >
+               <Repeat size={16} />
+             </button>
+             
+             <div className="h-4 w-px bg-gray-700 mx-1" />
+             
+             <select
+                value={playbackSpeed}
+                onChange={(e) => setPlaybackSpeed(parseFloat(e.target.value))}
+                className="bg-transparent text-xs font-medium text-gray-400 hover:text-white focus:outline-none cursor-pointer"
+                title="Playback Speed"
+              >
+                <option value={0.1}>0.1x</option>
+                <option value={0.5}>0.5x</option>
+                <option value={1}>1x</option>
+                <option value={2}>2x</option>
+                <option value={5}>5x</option>
+                <option value={10}>10x</option>
+              </select>
+        </div>
+
+        <div className="flex items-center gap-6">
             {idealLap && (
                 <div className="flex items-center gap-2 bg-gray-800/50 px-3 py-1 rounded border border-gray-700">
                     <Trophy size={14} className="text-yellow-500" />
@@ -233,7 +295,7 @@ export function ReplayPage() {
                     <span className="text-sm font-mono font-bold text-yellow-400">{idealLap.lapTime.toFixed(3)}s</span>
                 </div>
             )}
-            <div className="text-sm text-gray-400">
+            <div className="text-sm text-gray-400 w-40 text-right tabular-nums font-mono mr-2">
               {currentFrame?.time.toFixed(2)}s / {data[data.length-1]?.time.toFixed(2)}s
             </div>
             {/* File Selector */}
@@ -252,7 +314,7 @@ export function ReplayPage() {
             </div>
 
             {/* Local File Upload */}
-            <label className="cursor-pointer flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors shadow-sm hover:shadow group" title="Upload local telemetry CSV file">
+            <label className="cursor-pointer flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white w-32 py-1.5 rounded-md text-sm font-medium transition-colors shadow-sm hover:shadow group" title="Upload local telemetry CSV file">
               <Upload size={16} className="group-hover:scale-110 transition-transform" />
               <span>Upload CSV</span>
               <input type="file" accept=".csv" className="hidden" onChange={handleFileChange} />
@@ -329,7 +391,7 @@ export function ReplayPage() {
                   flex: '1'
                 }}
               >
-                <ReplayPerformanceCoach
+                <PerformanceCoach
                     currentFrame={currentFrame}
                     ghostFrame={ghostFrame}
                     idealLap={idealLap}
@@ -346,78 +408,7 @@ export function ReplayPage() {
         )}
       </main>
 
-      <footer className="bg-gray-900 border-t border-gray-800 p-4">
-        <div className="flex flex-col gap-2">
-          {/* Scrubber */}
-          <input 
-            type="range" 
-            min="0" 
-            max={data.length - 1} 
-            value={currentIndex} 
-            onChange={(e) => seek(parseInt(e.target.value))}
-            className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-          />
-          
-          {/* Controls */}
-          <div className="flex justify-center items-center gap-4 mt-2">
-            <button 
-              onClick={() => seek(Math.max(0, currentIndex - 100))}
-              className="p-2 hover:bg-gray-800 rounded-full transition"
-            >
-              <SkipBack size={24} />
-            </button>
-            
-            <button 
-              onClick={togglePlay}
-              className="p-3 bg-blue-600 hover:bg-blue-700 rounded-full transition shadow-lg shadow-blue-900/20"
-            >
-              {isPlaying ? <Pause size={24} /> : <Play size={24} />}
-            </button>
-            
-            <button 
-              onClick={() => seek(Math.min(data.length - 1, currentIndex + 100))}
-              className="p-2 hover:bg-gray-800 rounded-full transition"
-              title="Skip Forward"
-            >
-              <SkipForward size={24} />
-            </button>
 
-            <div className="w-px h-8 bg-gray-800 mx-2" />
-
-            <button
-              onClick={() => seek(0)}
-              className="p-2 hover:bg-gray-800 rounded-full transition text-gray-400 hover:text-white"
-              title="Reset Playback"
-            >
-              <RotateCcw size={20} />
-            </button>
-
-            <button
-              onClick={() => setIsLooping(!isLooping)}
-              className={`p-2 rounded-full transition ${isLooping ? 'text-blue-500 bg-blue-500/10' : 'text-gray-400 hover:text-white hover:bg-gray-800'}`}
-              title="Auto-Replay"
-            >
-              <Repeat size={20} />
-            </button>
-
-            <div className="ml-4 flex items-center gap-2">
-              <span className="text-xs text-gray-500 font-medium uppercase tracking-wider">Speed</span>
-              <select
-                value={playbackSpeed}
-                onChange={(e) => setPlaybackSpeed(parseFloat(e.target.value))}
-                className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500 text-gray-300"
-              >
-                <option value={0.1}>0.1x</option>
-                <option value={0.5}>0.5x</option>
-                <option value={1}>1x</option>
-                <option value={2}>2x</option>
-                <option value={5}>5x</option>
-                <option value={10}>10x</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
