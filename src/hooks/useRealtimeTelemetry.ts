@@ -239,7 +239,7 @@ export function useRealtimeTelemetry(sourceUrl: string | null) {
     error,
     currentIndex: data.length - 1,
     currentFrame, // This needs to be the latest
-    getGhostFrame: () => null,
+    getGhostFrame: (): TelemetryFrame | null => null,
     isPlaying: isLive,
     togglePlay: () => setIsLive(!isLive),
     fullTrackBuffer: data // Expose full buffer if needed

@@ -1,9 +1,9 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useTelemetry } from '../hooks/useTelemetry';
 import { Play, Pause, SkipForward, SkipBack, FileText, Upload, LayoutDashboard, RotateCcw, Repeat, Trophy } from 'lucide-react';
-import { PitView } from './PitView';
-import { DriverView } from './DriverView';
-import { PerformanceCoach } from './PerformanceCoach';
+import { ReplayPitView } from './ReplayPitView';
+import { ReplayDriverView } from './ReplayDriverView';
+import { ReplayPerformanceCoach } from './ReplayPerformanceCoach';
 import { Link } from 'react-router-dom';
 
 interface ManifestFile {
@@ -272,7 +272,7 @@ export function ReplayPage() {
               flex: (activeViews === 2 && showDriverView && !showCoachView) ? 'none' : '1'
             }}
           >
-            <PitView 
+            <ReplayPitView
               currentFrame={currentFrame} 
               trackPositions={trackPositions} 
               currentIndex={currentIndex}
@@ -306,7 +306,7 @@ export function ReplayPage() {
             }}
           >
             <div className="flex-grow relative h-full flex flex-col">
-                <DriverView 
+                <ReplayDriverView
                     positions={trackPositions} 
                     currentIndex={currentIndex} 
                     currentFrame={currentFrame}
@@ -329,7 +329,7 @@ export function ReplayPage() {
                   flex: '1'
                 }}
               >
-                <PerformanceCoach 
+                <ReplayPerformanceCoach
                     currentFrame={currentFrame}
                     ghostFrame={ghostFrame}
                     idealLap={idealLap}
