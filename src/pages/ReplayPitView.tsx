@@ -56,19 +56,24 @@ export const ReplayPitView: React.FC<ReplayPitViewProps> = ({
                 <h3 className="text-sm font-bold text-gray-400 mb-3 uppercase tracking-wider">Lap Times</h3>
 
                 <div className="flex-grow overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-                    {idealLap && (
-                        <div className="flex justify-between items-center p-2 bg-yellow-900/20 border border-yellow-700/50 rounded">
-                            <span className="text-yellow-500 font-medium text-sm">Ideal Lap</span>
-                            <span className="text-yellow-400 font-mono font-bold">{idealLap.lapTime.toFixed(3)}s</span>
-                        </div>
-                    )}
 
-                    {laps.map((lap, i) => (
-                        <div key={i} className="flex justify-between items-center p-2 bg-gray-800/50 rounded border border-gray-700">
-                            <span className="text-gray-400 text-sm">Lap {lap.lapIndex + 1}</span>
-                            <span className="text-white font-mono">{lap.lapTime.toFixed(3)}s</span>
-                        </div>
-                    ))}
+
+                    {laps.map((lap, i) => {
+                        const delta = idealLap ? lap.lapTime - idealLap.lapTime : null;
+                        return (
+                            <div key={i} className="flex justify-between items-center p-2 bg-gray-800/50 rounded border border-gray-700">
+                                <span className="text-gray-400 text-sm">Lap {lap.lapIndex + 1}</span>
+                                <div className="flex items-center gap-2">
+                                    {showGhost && delta !== null && (
+                                        <span className={`text-xs font-mono font-bold ${delta > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                                            {delta > 0 ? '+' : ''}{delta.toFixed(3)}
+                                        </span>
+                                    )}
+                                    <span className="text-white font-mono">{lap.lapTime.toFixed(3)}s</span>
+                                </div>
+                            </div>
+                        );
+                    })}
 
                     {laps.length === 0 && !idealLap && (
                         <div className="text-gray-600 text-xs text-center py-4">No completed laps yet</div>

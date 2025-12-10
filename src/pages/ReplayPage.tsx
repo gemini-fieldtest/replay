@@ -23,8 +23,20 @@ export function ReplayPage() {
   const [showCoachView, setShowCoachView] = useState(true);
   const [splitPosition, setSplitPosition] = useState(50); // Percentage
   const [isResizing, setIsResizing] = useState(false);
-  const [layoutMode, setLayoutMode] = useState<'grid' | 'stacked'>('grid');
+  const [layoutMode, setLayoutMode] = useState<'grid' | 'stacked'>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return (params.get('mode') as 'grid' | 'stacked') || 'stacked';
+  });
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Force stacked view defaults if loaded in stacked mode
+  useEffect(() => {
+    if (layoutMode === 'stacked') {
+        setShowPitView(true);
+        setShowDriverView(true);
+        setShowCoachView(true);
+    }
+  }, [layoutMode]);
 
   // Load manifest
   useEffect(() => {
@@ -61,13 +73,13 @@ export function ReplayPage() {
   const [showGhost, setShowGhost] = useState(true);
 
   const toggleLayoutMode = (mode: 'grid' | 'stacked') => {
-    setLayoutMode(mode);
-    if (mode === 'stacked') {
-      setShowPitView(true);
-      setShowDriverView(true);
-      setShowCoachView(true);
-    }
+    const params = new URLSearchParams(window.location.search);
+    params.set('mode', mode);
+    window.history.pushState({}, '', `${window.location.pathname}?${params.toString()}`);
+    // Force reload as requested
+    window.location.reload();
   };
+
 
   // Calculate projection parameters
   const projectionParams = useMemo(() => {
@@ -190,7 +202,7 @@ export function ReplayPage() {
   const activeViews = [showPitView, showDriverView, showCoachView].filter(Boolean).length;
 
   return (
-    <div className="h-full w-full bg-black text-white flex flex-col overflow-hidden font-sans selection:bg-blue-500/30">
+    <div className="h-screen w-full bg-black text-white flex flex-col overflow-hidden font-sans selection:bg-blue-500/30">
       
       {/* Header */}
       <header className="h-14 border-b border-gray-800 bg-gray-900/50 backdrop-blur flex items-center justify-between px-4 shrink-0 z-50">
@@ -270,7 +282,7 @@ export function ReplayPage() {
              title="Toggle Ideal Lap Overlay"
            >
              <Ghost size={14} />
-             <span>Ref Lap</span>
+             <span>Ghost Lap</span>
            </button>
         </div>
         
@@ -378,7 +390,7 @@ export function ReplayPage() {
             style={{ 
               width: layoutMode === 'stacked' ? '100%' : (activeViews === 1 ? '100%' : (activeViews === 2 && showDriverView && !showCoachView ? `${splitPosition}%` : `${100/activeViews}%`)),
               flex: layoutMode === 'stacked' ? 'none' : ((activeViews === 2 && showDriverView && !showCoachView) ? 'none' : '1'),
-              height: layoutMode === 'stacked' ? '130vh' : 'auto'
+              height: layoutMode === 'stacked' ? '70vh' : 'auto'
             }}
           >
             <ReplayPitView
@@ -413,7 +425,7 @@ export function ReplayPage() {
             style={{ 
               width: layoutMode === 'stacked' ? '100%' : (activeViews === 1 ? '100%' : (activeViews === 2 && showPitView && !showCoachView ? `${100 - splitPosition}%` : `${100/activeViews}%`)),
               flex: layoutMode === 'stacked' ? 'none' : ((activeViews === 2 && showPitView && !showCoachView) ? 'none' : '1'),
-              height: layoutMode === 'stacked' ? '85vh' : 'auto'
+              height: layoutMode === 'stacked' ? '70vh' : 'auto'
             }}
           >
             <div className="flex-grow relative h-full flex flex-col">
@@ -438,7 +450,7 @@ export function ReplayPage() {
                  style={{ 
                    width: layoutMode === 'stacked' ? '100%' : (activeViews === 1 ? '100%' : `${100/activeViews}%`),
                    flex: layoutMode === 'stacked' ? 'none' : '1',
-                   height: layoutMode === 'stacked' ? '85vh' : 'auto'
+                    height: layoutMode === 'stacked' ? '70vh' : 'auto'
                  }}
               >
                 <PerformanceCoach
