@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react'
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera, Line } from '@react-three/drei';
 import * as THREE from 'three';
-import { Video, Globe, ZoomIn, Ghost } from 'lucide-react';
+import { Video, Globe, ZoomIn } from 'lucide-react';
 
 // ... (Imports and other components)
 import type { TelemetryFrame } from '../utils/telemetryParser';
@@ -421,8 +421,8 @@ interface ReplayTrackMap3DProps {
   startLinePos?: [number, number, number] | null;
 }
 
-export const ReplayTrackMap3D: React.FC<ReplayTrackMap3DProps> = ({ positions, currentIndex, currentFrame = null, ghostPosition = null, showGhost, setShowGhost, startLinePos }) => {
-  const [followMode, setFollowMode] = useState(false);
+export const ReplayTrackMap3D: React.FC<ReplayTrackMap3DProps> = ({ positions, currentIndex, currentFrame = null, ghostPosition = null, showGhost, startLinePos }) => {
+  const [followMode, setFollowMode] = useState(true);
   const [zoomLevel, setZoomLevel] = useState(1); // Default to Mid
 
   const cycleZoom = () => {
@@ -485,18 +485,6 @@ export const ReplayTrackMap3D: React.FC<ReplayTrackMap3DProps> = ({ positions, c
             </button>
           </>
         )}
-
-        <div className="w-px bg-gray-700 mx-1" />
-        <button
-            onClick={() => setShowGhost(!showGhost)}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-2 transition-colors ${
-                showGhost ? 'bg-purple-600 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-800'
-            }`}
-            title="Toggle Ideal Lap Ghost"
-        >
-            <Ghost size={14} />
-            Ghost
-        </button>
       </div>
 
       {/* ... (Rest of component) */}

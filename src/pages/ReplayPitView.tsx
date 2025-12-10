@@ -48,7 +48,7 @@ export const ReplayPitView: React.FC<ReplayPitViewProps> = ({
         <div className="flex gap-4 h-96 shrink-0">
             {/* Track Map */}
             <div className="bg-gray-900 rounded-lg flex-grow border border-gray-800 overflow-hidden relative group min-w-0">
-               <ReplayTrackMap positions={trackPositions} currentIndex={currentIndex} ghostPosition={ghostPosition} />
+               <ReplayTrackMap positions={trackPositions} currentIndex={currentIndex} ghostPosition={showGhost ? ghostPosition : null} />
             </div>
 
             {/* Lap Times Panel */}

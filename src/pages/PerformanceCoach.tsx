@@ -1,10 +1,11 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 
-import { Activity, ThumbsUp, TrendingUp, MessageSquare, Brain, Zap, Settings, ShieldAlert } from 'lucide-react';
+import { Activity, ThumbsUp, TrendingUp, MessageSquare, Brain, Zap, Settings, ShieldAlert, Volume2, VolumeX } from 'lucide-react';
 import type { TelemetryFrame } from '../utils/telemetryParser';
 import type { LapData } from '../utils/lapAnalysis';
 import { useGeminiNano } from '../hooks/useGeminiNano';
 import { useGeminiCloud } from '../hooks/useGeminiCloud';
+import { useTTS } from '../hooks/useTTS';
 
 interface PerformanceCoachProps {
   currentFrame: TelemetryFrame | null;
@@ -34,6 +35,15 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
   const { status: nanoStatus, generateFeedback: generateNano } = useGeminiNano();
   const { status: cloudStatus, generateFeedback: generateCloud, setApiKey } = useGeminiCloud();
   const [settingsKey, setSettingsKey] = useState('');
+  
+  // TTS Hook
+  const { 
+    isEnabled: isAudioEnabled, 
+    setIsEnabled: setIsAudioEnabled, 
+    provider: audioProvider, 
+    setProvider: setAudioProvider,
+    speak 
+  } = useTTS({ apiKey: settingsKey || localStorage.getItem('gemini_api_key') || '' });
   
   // New Settings State
   const [serializeRequests, setSerializeRequests] = useState(true);
@@ -312,12 +322,16 @@ Reason: ${baseText}
         if (newMessage) {
             setMessages(prev => [newMessage!, ...prev.slice(0, historyLength - 1)]); // Respect historyLength
             lastMessageTimeRef.current = now;
+            
+            // Speak the message!
+            if (newMessage.text) {
+                speak(newMessage.text);
+            }
         }
     };
 
     processMessage();
-
-  }, [performanceStats, currentFrame, ghostFrame, mode, nanoStatus.state, generateNano, cloudStatus.hasKey, generateCloud, serializeRequests, historyLength, cloudStatus.state]);
+  }, [performanceStats, currentFrame, ghostFrame, mode, nanoStatus.state, generateNano, cloudStatus.hasKey, generateCloud, serializeRequests, historyLength, cloudStatus.state, speak]);
 
   const toggleSettings = () => {
       setShowSettings(!showSettings);
@@ -439,24 +453,66 @@ Reason: ${baseText}
             <h2 className="text-lg font-bold text-white">PERFORMANCE COACH</h2>
         </div>
         
-        <div className="flex items-center gap-2">
-            <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
-                {(['code', 'nano', 'flash', 'pro'] as CoachMode[]).map((m) => (
+        <div className="flex items-center gap-4">
+            {/* Intelligence Group */}
+            <div className="flex items-center gap-2">
+                <Brain size={16} className="text-purple-400" />
+                <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
+                    {(['code', 'nano', 'flash', 'pro'] as CoachMode[]).map((m) => (
+                        <button
+                            key={m}
+                            onClick={() => setMode(m)}
+                            className={`px-3 py-1 rounded-md text-[10px] uppercase font-bold transition-all ${
+                                mode === m 
+                                    ? 'bg-purple-600 text-white shadow-lg' 
+                                    : 'text-gray-400 hover:text-gray-200'
+                            }`}
+                        >
+                           {m}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Audio Group */}
+            <div className="flex items-center gap-2 pl-4 border-l border-gray-700">
+                <Volume2 size={16} className="text-blue-400" />
+                <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
                     <button
-                        key={m}
-                        onClick={() => setMode(m)}
+                        onClick={() => setIsAudioEnabled(false)}
+                        className={`px-2 py-1 rounded-md text-[10px] uppercase font-bold transition-all flex items-center gap-1 ${
+                            !isAudioEnabled
+                                ? 'bg-gray-700 text-white shadow-lg'
+                                : 'text-gray-400 hover:text-gray-200'
+                        }`}
+                        title="Audio Off"
+                    >
+                        OFF
+                    </button>
+                    <button
+                        onClick={() => { setIsAudioEnabled(true); setAudioProvider('browser'); }}
                         className={`px-3 py-1 rounded-md text-[10px] uppercase font-bold transition-all ${
-                            mode === m 
-                                ? 'bg-purple-600 text-white shadow-lg' 
+                            isAudioEnabled && audioProvider === 'browser'
+                                ? 'bg-blue-600 text-white shadow-lg'
                                 : 'text-gray-400 hover:text-gray-200'
                         }`}
                     >
-                        {m}
+                        NATIVE
                     </button>
-                ))}
+                    <button
+                        onClick={() => { setIsAudioEnabled(true); setAudioProvider('google'); }}
+                        className={`px-3 py-1 rounded-md text-[10px] uppercase font-bold transition-all ${
+                            isAudioEnabled && audioProvider === 'google'
+                                ? 'bg-indigo-600 text-white shadow-lg'
+                                : 'text-gray-400 hover:text-gray-200'
+                        }`}
+                    >
+                        GEMINI
+                    </button>
+                </div>
             </div>
             
-            <button 
+            <button  
                 onClick={toggleSettings}
                 className={`p-1.5 rounded-lg transition-colors ${showSettings || cloudStatus.hasKey ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-yellow-500 animate-pulse bg-yellow-500/10'}`}
                 title="Settings"
