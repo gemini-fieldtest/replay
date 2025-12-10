@@ -282,7 +282,7 @@ const TelemetryGraph: React.FC<TelemetryGraphProps> = ({ data, ghostData, label,
   const ghostPoints = ghostData ? getPoints(ghostData) : null;
 
   return (
-    <div className="flex flex-col bg-gray-900 border border-gray-800 p-2 rounded h-full min-w-[120px] justify-between shadow-sm">
+    <div className="flex flex-col bg-gray-900 border border-gray-800 p-2 rounded min-w-[120px] justify-between shadow-sm">
       <div className="flex justify-between items-end mb-1">
         <span className="text-xs font-bold text-gray-400 uppercase tracking-tight">{label}</span>
         <span className="text-sm font-bold font-mono" style={{ color }}>
@@ -332,9 +332,10 @@ interface ReplayGaugesProps {
   getHistory: () => TelemetryFrame[];
   ghostFrame?: TelemetryFrame | null;
   getGhostHistory?: () => TelemetryFrame[];
+  isStacked?: boolean;
 }
 
-export const ReplayGauges: React.FC<ReplayGaugesProps> = ({ frame, getHistory, ghostFrame, getGhostHistory }) => {
+export const ReplayGauges: React.FC<ReplayGaugesProps> = ({ frame, getHistory, ghostFrame, getGhostHistory, isStacked = false }) => {
   if (!frame) return <div className="text-gray-500">No Data</div>;
 
   const history = getHistory();
@@ -360,7 +361,7 @@ export const ReplayGauges: React.FC<ReplayGaugesProps> = ({ frame, getHistory, g
           color="#3b82f6"
         />
 
-        <div className="flex flex-col items-center gap-4">
+        <div className={`flex items-center ${isStacked ? 'flex-row gap-12' : 'flex-col gap-4'}`}>
           <SteeringWheel angle={frame.steering} ghostAngle={ghostFrame?.steering} />
           <div className="flex flex-col items-center">
              <GForceMeter
@@ -422,7 +423,7 @@ export const ReplayGauges: React.FC<ReplayGaugesProps> = ({ frame, getHistory, g
 
       {/* Bottom Row: G-Force and Mechanics */}
       <div className="flex gap-4 h-40">
-        <div className="flex flex-col items-center bg-gray-900 border border-gray-800 p-3 rounded h-full justify-center w-40 shadow-sm">
+        <div className="flex flex-col items-center bg-gray-900 border border-gray-800 p-3 rounded h-full justify-center flex-1 min-w-[120px] shadow-sm">
           <div className="text-xs font-bold text-gray-400 mb-1 uppercase tracking-tight">Gear</div>
           <div className="text-5xl font-bold text-white mb-2 relative font-mono">
               {frame.gear === 0 ? 'N' : frame.gear}
@@ -446,7 +447,7 @@ export const ReplayGauges: React.FC<ReplayGaugesProps> = ({ frame, getHistory, g
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 h-full w-40">
+        <div className="flex flex-col gap-2 h-full flex-1 min-w-[120px]">
            <TelemetryGraph
              data={getData(history, 'gradient')}
              ghostData={ghostFrame ? getData(ghostHistory, 'gradient') : undefined}
@@ -467,7 +468,7 @@ export const ReplayGauges: React.FC<ReplayGaugesProps> = ({ frame, getHistory, g
            />
         </div>
 
-        <div className="flex flex-col gap-2 h-full w-40">
+        <div className="flex flex-col gap-2 h-full flex-1 min-w-[120px]">
           <TelemetryGraph
              data={getData(history, 'coolantTemp')}
              ghostData={ghostFrame ? getData(ghostHistory, 'coolantTemp') : undefined}
@@ -490,7 +491,7 @@ export const ReplayGauges: React.FC<ReplayGaugesProps> = ({ frame, getHistory, g
            />
         </div>
 
-        <div className="flex flex-col gap-2 h-full w-40">
+        <div className="flex flex-col gap-2 h-full flex-1 min-w-[120px]">
            <TelemetryGraph
              data={getData(history, 'batteryVoltage')}
              ghostData={ghostFrame ? getData(ghostHistory, 'batteryVoltage') : undefined}
@@ -513,7 +514,7 @@ export const ReplayGauges: React.FC<ReplayGaugesProps> = ({ frame, getHistory, g
            />
         </div>
 
-        <div className="flex flex-col gap-2 h-full w-40">
+        <div className="flex flex-col gap-2 h-full flex-1 min-w-[120px]">
           <TelemetryGraph
              data={getData(history, 'oilPressure')}
              ghostData={ghostFrame ? getData(ghostHistory, 'oilPressure') : undefined}
@@ -536,7 +537,7 @@ export const ReplayGauges: React.FC<ReplayGaugesProps> = ({ frame, getHistory, g
            />
         </div>
 
-        <div className="flex flex-col gap-2 h-full w-40">
+        <div className="flex flex-col gap-2 h-full flex-1 min-w-[120px]">
           <TelemetryGraph
              data={getData(history, 'verticalVelocity')}
              ghostData={ghostFrame ? getData(ghostHistory, 'verticalVelocity') : undefined}

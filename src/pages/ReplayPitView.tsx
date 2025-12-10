@@ -14,6 +14,7 @@ interface ReplayPitViewProps {
   showGhost?: boolean;
   idealLap?: LapData | null;
   laps?: LapData[];
+  isStacked?: boolean;
 }
 
 export const ReplayPitView: React.FC<ReplayPitViewProps> = ({
@@ -25,7 +26,8 @@ export const ReplayPitView: React.FC<ReplayPitViewProps> = ({
   ghostPosition,
   showGhost,
   idealLap,
-  laps = []
+  laps = [],
+  isStacked = false
 }) => {
 
   // Helper to get ghost history (ideal lap frames up to current ghost time)
@@ -92,6 +94,7 @@ export const ReplayPitView: React.FC<ReplayPitViewProps> = ({
                   getHistory={getHistory}
                   ghostFrame={showGhost ? ghostFrame : null}
                   getGhostHistory={showGhost ? getGhostHistory : undefined}
+                  isStacked={isStacked}
                 />
             </div>
         </div>

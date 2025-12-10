@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useTelemetry } from '../hooks/useTelemetry';
-import { Play, Pause, SkipForward, SkipBack, FileText, Upload, LayoutDashboard, RotateCcw, Repeat } from 'lucide-react';
+import { Play, Pause, SkipForward, SkipBack, FileText, Upload, LayoutDashboard, Repeat, GalleryVerticalEnd, Ghost } from 'lucide-react';
 import { ReplayPitView } from './ReplayPitView';
 import { ReplayDriverView } from './ReplayDriverView';
 import { PerformanceCoach } from './PerformanceCoach';
@@ -23,6 +23,7 @@ export function ReplayPage() {
   const [showCoachView, setShowCoachView] = useState(true);
   const [splitPosition, setSplitPosition] = useState(50); // Percentage
   const [isResizing, setIsResizing] = useState(false);
+  const [layoutMode, setLayoutMode] = useState<'grid' | 'stacked'>('grid');
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Load manifest
@@ -58,6 +59,15 @@ export function ReplayPage() {
   } = useTelemetry(selectedSource);
 
   const [showGhost, setShowGhost] = useState(true);
+
+  const toggleLayoutMode = (mode: 'grid' | 'stacked') => {
+    setLayoutMode(mode);
+    if (mode === 'stacked') {
+      setShowPitView(true);
+      setShowDriverView(true);
+      setShowCoachView(true);
+    }
+  };
 
   // Calculate projection parameters
   const projectionParams = useMemo(() => {
@@ -186,43 +196,82 @@ export function ReplayPage() {
       <header className="h-14 border-b border-gray-800 bg-gray-900/50 backdrop-blur flex items-center justify-between px-4 shrink-0 z-50">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 text-blue-500">
-            <LayoutDashboard size={20} />
+            {layoutMode === 'grid' ? <LayoutDashboard size={20} /> : <GalleryVerticalEnd size={20} />}
             <span className="font-bold tracking-tight">RACE<span className="text-white">REPLAY</span></span>
           </div>
           
-          <div className="h-6 w-px bg-gray-800 mx-2" />
           
-          <div className="flex items-center bg-gray-800 rounded-lg p-1 gap-1">
-            <Link to="/" className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium text-gray-400 hover:text-white hover:bg-gray-700/50 transition-colors">
+          {layoutMode === 'grid' && (
+            <>
+              <div className="h-6 w-px bg-gray-800 mx-2" />
+              
+              <div className="flex items-center bg-gray-800 rounded-lg p-1 gap-1">
+                <Link to="/" className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium text-gray-400 hover:text-white hover:bg-gray-700/50 transition-colors">
+                    <LayoutDashboard size={14} />
+                    <span>Live</span>
+                </Link>
+                <div className="w-px h-4 bg-gray-700 mx-1" />
+                <button
+                  onClick={() => setShowPitView(!showPitView)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                    showPitView ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                  }`}
+                >
+                  Pit Wall
+                </button>
+                <button
+                  onClick={() => setShowDriverView(!showDriverView)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                    showDriverView ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                  }`}
+                >
+                  Driver Cam
+                </button>
+                <button
+                  onClick={() => setShowCoachView(!showCoachView)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                    showCoachView ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                  }`}
+                >
+                  Coach
+                </button>
+              </div>
+            </>
+          )}
+
+          <div className="h-6 w-px bg-gray-800 mx-2" />
+
+           {/* Layout Toggle */}
+           <div className="flex items-center bg-gray-800 rounded-lg p-1 gap-1">
+              <button
+                onClick={() => toggleLayoutMode('grid')}
+                className={`p-1.5 rounded-md transition-colors ${layoutMode === 'grid' ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'}`}
+                title="Grid View"
+              >
                 <LayoutDashboard size={14} />
-                <span>Live</span>
-            </Link>
-            <div className="w-px h-4 bg-gray-700 mx-1" />
-            <button
-              onClick={() => setShowPitView(!showPitView)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                showPitView ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-              }`}
-            >
-              Pit Wall
-            </button>
-            <button
-              onClick={() => setShowDriverView(!showDriverView)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                showDriverView ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-              }`}
-            >
-              Driver Cam
-            </button>
-            <button
-              onClick={() => setShowCoachView(!showCoachView)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                showCoachView ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-              }`}
-            >
-              Coach
-            </button>
-          </div>
+              </button>
+              <button
+                onClick={() => toggleLayoutMode('stacked')}
+                className={`p-1.5 rounded-md transition-colors ${layoutMode === 'stacked' ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'}`}
+                title="Stacked View"
+              >
+                <GalleryVerticalEnd size={14} />
+              </button>
+           </div>
+           
+           <div className="h-6 w-px bg-gray-800 mx-2" />
+
+           {/* Ghost Toggle */}
+           <button
+             onClick={() => setShowGhost(!showGhost)}
+             className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+               showGhost ? 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/50' : 'text-gray-400 hover:text-white hover:bg-gray-800 border border-transparent'
+             }`}
+             title="Toggle Ideal Lap Overlay"
+           >
+             <Ghost size={14} />
+             <span>Ref Lap</span>
+           </button>
         </div>
         
         {/* Playback Controls - Moved to Header */}
@@ -317,15 +366,19 @@ export function ReplayPage() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-grow p-4 flex gap-4 overflow-hidden" ref={containerRef}>
+      <main 
+        className={`flex-grow p-4 flex gap-4 ${layoutMode === 'stacked' ? 'flex-col overflow-y-auto' : 'overflow-hidden'}`}
+        ref={containerRef}
+      >
         
         {/* Pit View */}
         {showPitView && (
           <div 
             className="flex flex-col min-w-0 overflow-hidden"
             style={{ 
-              width: activeViews === 1 ? '100%' : (activeViews === 2 && showDriverView && !showCoachView ? `${splitPosition}%` : `${100/activeViews}%`),
-              flex: (activeViews === 2 && showDriverView && !showCoachView) ? 'none' : '1'
+              width: layoutMode === 'stacked' ? '100%' : (activeViews === 1 ? '100%' : (activeViews === 2 && showDriverView && !showCoachView ? `${splitPosition}%` : `${100/activeViews}%`)),
+              flex: layoutMode === 'stacked' ? 'none' : ((activeViews === 2 && showDriverView && !showCoachView) ? 'none' : '1'),
+              height: layoutMode === 'stacked' ? '130vh' : 'auto'
             }}
           >
             <ReplayPitView
@@ -338,12 +391,13 @@ export function ReplayPage() {
               showGhost={showGhost}
               idealLap={idealLap}
               laps={laps}
+              isStacked={layoutMode === 'stacked'}
             />
           </div>
         )}
 
         {/* Resizer */}
-        {showPitView && showDriverView && !showCoachView && (
+        {showPitView && showDriverView && !showCoachView && layoutMode === 'grid' && (
           <div
             className="w-1 bg-gray-800 hover:bg-blue-500 cursor-col-resize flex items-center justify-center transition-colors group z-10"
             onMouseDown={startResizing}
@@ -357,8 +411,9 @@ export function ReplayPage() {
           <div 
             className="flex flex-col min-w-0 overflow-hidden"
             style={{ 
-              width: activeViews === 1 ? '100%' : (activeViews === 2 && showPitView && !showCoachView ? `${100 - splitPosition}%` : `${100/activeViews}%`),
-              flex: (activeViews === 2 && showPitView && !showCoachView) ? 'none' : '1'
+              width: layoutMode === 'stacked' ? '100%' : (activeViews === 1 ? '100%' : (activeViews === 2 && showPitView && !showCoachView ? `${100 - splitPosition}%` : `${100/activeViews}%`)),
+              flex: layoutMode === 'stacked' ? 'none' : ((activeViews === 2 && showPitView && !showCoachView) ? 'none' : '1'),
+              height: layoutMode === 'stacked' ? '85vh' : 'auto'
             }}
           >
             <div className="flex-grow relative h-full flex flex-col">
@@ -380,10 +435,11 @@ export function ReplayPage() {
         {showCoachView && (
              <div 
                 className="flex flex-col min-w-0 overflow-hidden"
-                style={{ 
-                  width: activeViews === 1 ? '100%' : `${100/activeViews}%`,
-                  flex: '1'
-                }}
+                 style={{ 
+                   width: layoutMode === 'stacked' ? '100%' : (activeViews === 1 ? '100%' : `${100/activeViews}%`),
+                   flex: layoutMode === 'stacked' ? 'none' : '1',
+                   height: layoutMode === 'stacked' ? '85vh' : 'auto'
+                 }}
               >
                 <PerformanceCoach
                     currentFrame={currentFrame}
