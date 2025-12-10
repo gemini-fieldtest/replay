@@ -12,6 +12,7 @@
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.4.0",
     "@types/papaparse": "^5.5.1",
