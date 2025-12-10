@@ -37,7 +37,7 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
   
   // New Settings State
   const [serializeRequests, setSerializeRequests] = useState(true);
-  const [historyLength, setHistoryLength] = useState(5);
+  const [historyLength, setHistoryLength] = useState(100);
 
   // Reset messages when restarting (index 0)
   useEffect(() => {
@@ -405,13 +405,12 @@ Reason: ${baseText}
                           <input 
                               type="number"
                               min={1}
-                              max={10}
                               value={historyLength}
-                              onChange={(e) => setHistoryLength(Math.max(1, Math.min(10, parseInt(e.target.value) || 5)))}
+                              onChange={(e) => setHistoryLength(Math.max(1, parseInt(e.target.value) || 50))}
                               className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-purple-500 placeholder-gray-600 font-mono"
                           />
                           <p className="text-[10px] text-gray-500 mt-2">
-                              Number of previous messages to keep visible (1-10).
+                              Number of previous messages to keep visible.
                           </p>
                       </div>
                       
@@ -504,7 +503,7 @@ Reason: ${baseText}
       </div>
       
       {/* Streaming Chat Interface */}
-      <div className="flex-grow bg-gray-950/50 rounded-lg border border-gray-800/50 flex flex-col overflow-hidden relative">
+      <div className="h-[600px] bg-gray-950/50 rounded-lg border border-gray-800/50 flex flex-col overflow-hidden relative">
           <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-gray-900/90 to-transparent z-10 pointer-events-none" />
           
           <div className="flex-grow overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
@@ -515,7 +514,7 @@ Reason: ${baseText}
               )}
               {messages.map((msg, index) => {
                   const isNewest = index === 0;
-                  const opacity = Math.max(0.3, 1 - (index * 0.15)); // Fade out older messages
+                  const opacity = Math.max(0.3, 1 - (index * 0.05)); // Slower fade out since we have more messages
                   
                   return (
                   <div 
