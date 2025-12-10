@@ -204,7 +204,20 @@ export const RealtimePage = () => {
         </div>
 
         <div className="flex items-center gap-4">
-             <div className="flex items-center gap-2 bg-gray-800 rounded px-2 py-1 border border-gray-700">
+            <div className="flex items-center gap-4 border-r border-gray-800 pr-4 mr-2">
+                 <button 
+                  onClick={toggleLive}
+                  className={`p-1.5 rounded-full transition shadow-lg ${isLive ? 'bg-red-600 hover:bg-red-700 shadow-red-900/20' : 'bg-green-600 hover:bg-green-700'}`}
+                  title={isLive ? "Pause Live Feed" : "Resume Live Feed"}
+                >
+                  {isLive ? <Pause size={16} /> : <Play size={16} />}
+                </button>
+                 <div className="flex items-center gap-2 text-gray-400 text-sm font-mono">
+                    <span className={isLive ? "text-red-500" : "text-gray-500"}>{currentFrame?.time?.toFixed(2) ?? '0.00'}s</span>
+                 </div>
+            </div>
+
+            <div className="flex items-center gap-2 bg-gray-800 rounded px-2 py-1 border border-gray-700">
                 <span className="text-gray-500 text-xs">SOURCE</span>
                 <input 
                     type="text" 
@@ -314,26 +327,7 @@ export const RealtimePage = () => {
         )}
       </main>
 
-      <footer className="bg-gray-900 border-t border-gray-800 p-4">
-        <div className="flex justify-between items-center">
-             <div className="flex items-center gap-2 text-gray-400 text-sm">
-                <span className="font-mono text-red-500">LIVE</span>
-                <span>{currentFrame?.time?.toFixed(2) ?? '0.00'}s</span>
-             </div>
 
-             <div className="flex items-center gap-4">
-                 <button 
-                  onClick={toggleLive}
-                  className={`p-3 rounded-full transition shadow-lg ${isLive ? 'bg-red-600 hover:bg-red-700 shadow-red-900/20' : 'bg-green-600 hover:bg-green-700'}`}
-                  title={isLive ? "Pause Live Feed" : "Resume Live Feed"}
-                >
-                  {isLive ? <Pause size={24} /> : <Play size={24} />}
-                </button>
-             </div>
-
-
-        </div>
-      </footer>
     </div>
   );
 }

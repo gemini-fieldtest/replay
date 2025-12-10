@@ -1,7 +1,10 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { Activity, ThumbsUp, TrendingUp, MessageSquare } from 'lucide-react';
+
+import { Activity, ThumbsUp, TrendingUp, MessageSquare, Brain, Zap, Settings, ShieldAlert } from 'lucide-react';
 import type { TelemetryFrame } from '../utils/telemetryParser';
 import type { LapData } from '../utils/lapAnalysis';
+import { useGeminiNano } from '../hooks/useGeminiNano';
+import { useGeminiCloud } from '../hooks/useGeminiCloud';
 
 interface PerformanceCoachProps {
   currentFrame: TelemetryFrame | null;
@@ -16,11 +19,17 @@ interface CoachMessage {
   text: string;
   type: 'positive' | 'neutral' | 'info';
   timestamp: number;
+  mode?: 'code' | 'nano' | 'flash' | 'pro';
 }
+
+type CoachMode = 'code' | 'nano' | 'flash' | 'pro';
 
 export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame, ghostFrame, currentIndex, laps }) => {
   const [messages, setMessages] = useState<CoachMessage[]>([]);
+  const [mode, setMode] = useState<CoachMode>('code');
   const lastMessageTimeRef = useRef<number>(0);
+  const { status: nanoStatus, generateFeedback: generateNano } = useGeminiNano();
+  const { status: cloudStatus, generateFeedback: generateCloud } = useGeminiCloud();
 
   // Reset messages when restarting (index 0)
   useEffect(() => {
@@ -60,185 +69,199 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
     // Limit message frequency (e.g., max 1 message every 3 seconds)
     if (now - lastMessageTimeRef.current < 3000) return;
 
-    let newMessage: CoachMessage | null = null;
+    // Async message generation wrapper
+    const processMessage = async () => {
+        let newMessage: CoachMessage | null = null;
+        let baseText = "";
+        let msgType: 'positive' | 'neutral' | 'info' = 'info';
 
-    // Helper to potentially add an emoji (10% chance)
-    const withEmoji = (text: string, type: 'positive' | 'neutral' | 'info') => {
-        if (Math.random() > 0.1) return text; // 90% chance of no emoji
 
-        const emojis = {
-            positive: ["🚀", "🔥", "🏎️", "⚡", "💪", "🎯", "📈", "💨"],
-            neutral: ["✨", "⚖️", "👌", "🎯", "🧘‍♂️", "✅", "🤝"],
-            info: ["📉", "⚠️", "🐢", "🤔", "👀"]
-        };
-        
-        const emojiList = emojis[type];
-        const emoji = emojiList[Math.floor(Math.random() * emojiList.length)];
-        return `${emoji} ${text}`;
+
+        if (performance.isFaster) {
+          const phrases = [
+            "Great pace! You're gaining time!",
+            "Flying! Keep it up!",
+            "Faster than the ghost right now.",
+            "Excellent exit speed!",
+            "You're crushing this sector!",
+            "Nailed that corner!",
+            "Green sectors everywhere!",
+            "Leave that ghost in the dust!"
+          ];
+          baseText = phrases[Math.floor(Math.random() * phrases.length)];
+          msgType = 'positive';
+
+        } else if (performance.isGoodSpeed && performance.isGoodLine) {
+          const phrases = [
+            "Perfect line through here.",
+            "Matching the ideal lap perfectly.",
+            "Smooth inputs, looking good.",
+            "Right on target.",
+            "Flowing nicely.",
+            "Consistent and clean.",
+            "Staying right with the ghost."
+          ];
+          baseText = phrases[Math.floor(Math.random() * phrases.length)];
+          msgType = 'neutral';
+
+        } else if (performance.speedDelta < -10) {
+           // Only give constructive feedback occasionally
+           if (Math.random() > 0.6) {
+               let phrases = [
+                   "Lost some speed there, try to carry more momentum.",
+                   "Losing time, push harder!"
+               ];
+
+               // Specific Feedback Logic
+               if (ghostFrame) {
+                   const throttleDelta = ghostFrame.throttle - currentFrame.throttle;
+                   const brakeDelta = currentFrame.brake - ghostFrame.brake;
+                   const isCornering = Math.abs(currentFrame.gForceLat) > 0.5;
+                   const isCoasting = currentFrame.throttle < 5 && currentFrame.brake < 5;
+                   const gearMismatch = currentFrame.gear !== ghostFrame.gear;
+                   const steeringDelta = Math.abs(currentFrame.steering) - Math.abs(ghostFrame.steering);
+                   const brakePressureDelta = ghostFrame.brakePressure - currentFrame.brakePressure;
+                   const rpmDelta = ghostFrame.rpm - currentFrame.rpm;
+
+                   if (isCoasting && ghostFrame.throttle > 10) {
+                       phrases = [
+                           "Don't coast! Get back on power.",
+                           "Too much hesitation between brake and throttle.",
+                           "You're coasting, keep the momentum up.",
+                           "Minimize the time off pedals.",
+                           "No coasting allowed! Power or brakes.",
+                           "You're floating. Commit to a pedal."
+                       ];
+                   } else if (gearMismatch && currentFrame.gear > ghostFrame.gear) {
+                       phrases = [
+                           `Downshift! Ghost is in gear ${ghostFrame.gear}.`,
+                           "Too high a gear for this corner.",
+                           "Engine bogging? Drop a gear.",
+                           "Use engine braking, downshift.",
+                           `Ghost is using gear ${ghostFrame.gear}, try matching it.`,
+                           "Revs are too low, shift down."
+                       ];
+                   } else if (steeringDelta > 15 && isCornering) {
+                       phrases = [
+                           "You're scrubbing speed with too much steering.",
+                           "Unwind the wheel, you're understeering.",
+                           "Smoother steering inputs needed.",
+                           "Let the car run wide on exit.",
+                           "Fighting the wheel too much.",
+                           "Less steering angle, more rotation."
+                       ];
+                   } else if (brakePressureDelta > 10 && currentFrame.brake > 0) {
+                       phrases = [
+                           "Press the brake harder!",
+                           "Ghost is braking with more pressure.",
+                           "Maximize your braking efficiency.",
+                           "Don't be afraid to stomp on the brakes.",
+                           "More initial bite on the brakes.",
+                           "Threshold braking! Push harder."
+                       ];
+                   } else if (rpmDelta > 1000 && currentFrame.throttle > 90) {
+                        phrases = [
+                            "Shift up! You're hitting the limiter.",
+                            "Late shift? Watch your RPMs.",
+                            "Ghost shifted earlier.",
+                            "Optimize your shift points.",
+                            "Don't bounce off the limiter.",
+                            "Shift now!"
+                        ];
+                   } else if (throttleDelta > 20) {
+                       if (isCornering) {
+                           phrases = [
+                               "Power out of the corner sooner.",
+                               "Unwind the wheel and get on gas.",
+                               "Late on throttle compared to ghost.",
+                               "Trust the rear grip on exit.",
+                               "Squeeze the throttle earlier.",
+                               "Don't wait, get on the power."
+                           ];
+                       } else {
+                           phrases = [
+                               "Get on the gas earlier!",
+                               "Hesitating on throttle? Commit!",
+                               "Ghost is full throttle here, you should be too!",
+                               "Flat out! Why are you lifting?",
+                               "Full send! No lifting."
+                           ];
+                       }
+                   } else if (brakeDelta > 20) {
+                       if (isCornering) {
+                           phrases = [
+                               "Trail braking too much?",
+                               "Release the brake to let the car turn.",
+                               "Overslowing mid-corner.",
+                               "Off the brakes to rotate.",
+                               "Let it roll through the apex."
+                           ];
+                       } else {
+                           phrases = [
+                               "Braking too early?",
+                               "Trust the brakes, brake later.",
+                               "Overslowing on entry.",
+                               "Don't ride the brakes.",
+                               "Brake later and harder.",
+                               "Attack the braking zone."
+                           ];
+                       }
+                   } else if (isCornering && Math.abs(performance.speedDelta) > 15) {
+                       phrases = [
+                           "Minimum corner speed is too low.",
+                           "Carry more speed to the apex.",
+                           "Trust the grip mid-corner.",
+                           "You're parking it on the apex.",
+                           "Roll more speed in.",
+                           "Don't overslow for the corner."
+                       ];
+                   }
+               }
+
+               baseText = phrases[Math.floor(Math.random() * phrases.length)];
+               msgType = 'info';
+           }
+        }
+
+        if (baseText) {
+            // Apply refinement based on mode
+            let finalText = baseText;
+            const currentMode = mode;
+
+            // Context for AI models
+            const context = `
+Speed: ${currentFrame.speed.toFixed(0)} km/h
+Delta: ${performance.speedDelta.toFixed(1)} km/h
+Gear: ${currentFrame.gear}
+Lat G: ${currentFrame.gForceLat.toFixed(2)}
+Throttle: ${currentFrame.throttle.toFixed(0)}%
+Brake: ${currentFrame.brake.toFixed(0)}%
+Analysis: ${msgType === 'positive' ? 'Car is faster' : msgType === 'neutral' ? 'Car is matching pace' : 'Car is losing time'}
+Reason: ${baseText}
+`;
+
+            if (mode === 'nano' && nanoStatus.state === 'ready') {
+                finalText = await generateNano(baseText, context);
+            } else if ((mode === 'flash' || mode === 'pro') && cloudStatus.hasKey) {
+                finalText = await generateCloud(mode, baseText, context);
+            }
+
+            newMessage = {
+                id: now,
+                text: finalText,
+                type: msgType,
+                timestamp: now,
+                mode: currentMode
+            };
+
+            setMessages(prev => [newMessage!, ...prev.slice(0, 4)]); // Prepend and keep last 5
+            lastMessageTimeRef.current = now;
+        }
     };
 
-    if (performance.isFaster) {
-      const phrases = [
-        "Great pace! You're gaining time!",
-        "Flying! Keep it up!",
-        "Faster than the ghost right now.",
-        "Excellent exit speed!",
-        "You're crushing this sector!",
-        "Nailed that corner!",
-        "Green sectors everywhere!",
-        "Leave that ghost in the dust!"
-      ];
-      newMessage = {
-        id: now,
-        text: withEmoji(phrases[Math.floor(Math.random() * phrases.length)], 'positive'),
-        type: 'positive',
-        timestamp: now
-      };
-    } else if (performance.isGoodSpeed && performance.isGoodLine) {
-      const phrases = [
-        "Perfect line through here.",
-        "Matching the ideal lap perfectly.",
-        "Smooth inputs, looking good.",
-        "Right on target.",
-        "Flowing nicely.",
-        "Consistent and clean.",
-        "Staying right with the ghost."
-      ];
-      newMessage = {
-        id: now,
-        text: withEmoji(phrases[Math.floor(Math.random() * phrases.length)], 'neutral'),
-        type: 'neutral',
-        timestamp: now
-      };
-    } else if (performance.speedDelta < -10) {
-       // Only give constructive feedback occasionally
-       if (Math.random() > 0.6) {
-           let phrases = [
-               "Lost some speed there, try to carry more momentum.",
-               "Losing time, push harder!"
-           ];
+    processMessage();
 
-           // Specific Feedback Logic
-           if (ghostFrame) {
-               const throttleDelta = ghostFrame.throttle - currentFrame.throttle;
-               const brakeDelta = currentFrame.brake - ghostFrame.brake;
-               const isCornering = Math.abs(currentFrame.gForceLat) > 0.5;
-               const isCoasting = currentFrame.throttle < 5 && currentFrame.brake < 5;
-               const gearMismatch = currentFrame.gear !== ghostFrame.gear;
-               const steeringDelta = Math.abs(currentFrame.steering) - Math.abs(ghostFrame.steering);
-               const brakePressureDelta = ghostFrame.brakePressure - currentFrame.brakePressure;
-               const rpmDelta = ghostFrame.rpm - currentFrame.rpm;
-
-               if (isCoasting && ghostFrame.throttle > 10) {
-                   phrases = [
-                       "Don't coast! Get back on power.",
-                       "Too much hesitation between brake and throttle.",
-                       "You're coasting, keep the momentum up.",
-                       "Minimize the time off pedals.",
-                       "No coasting allowed! Power or brakes.",
-                       "You're floating. Commit to a pedal."
-                   ];
-               } else if (gearMismatch && currentFrame.gear > ghostFrame.gear) {
-                   phrases = [
-                       `Downshift! Ghost is in gear ${ghostFrame.gear}.`,
-                       "Too high a gear for this corner.",
-                       "Engine bogging? Drop a gear.",
-                       "Use engine braking, downshift.",
-                       `Ghost is using gear ${ghostFrame.gear}, try matching it.`,
-                       "Revs are too low, shift down."
-                   ];
-               } else if (steeringDelta > 15 && isCornering) {
-                   phrases = [
-                       "You're scrubbing speed with too much steering.",
-                       "Unwind the wheel, you're understeering.",
-                       "Smoother steering inputs needed.",
-                       "Let the car run wide on exit.",
-                       "Fighting the wheel too much.",
-                       "Less steering angle, more rotation."
-                   ];
-               } else if (brakePressureDelta > 10 && currentFrame.brake > 0) {
-                   phrases = [
-                       "Press the brake harder!",
-                       "Ghost is braking with more pressure.",
-                       "Maximize your braking efficiency.",
-                       "Don't be afraid to stomp on the brakes.",
-                       "More initial bite on the brakes.",
-                       "Threshold braking! Push harder."
-                   ];
-               } else if (rpmDelta > 1000 && currentFrame.throttle > 90) {
-                    phrases = [
-                        "Shift up! You're hitting the limiter.",
-                        "Late shift? Watch your RPMs.",
-                        "Ghost shifted earlier.",
-                        "Optimize your shift points.",
-                        "Don't bounce off the limiter.",
-                        "Shift now!"
-                    ];
-               } else if (throttleDelta > 20) {
-                   if (isCornering) {
-                       phrases = [
-                           "Power out of the corner sooner.",
-                           "Unwind the wheel and get on gas.",
-                           "Late on throttle compared to ghost.",
-                           "Trust the rear grip on exit.",
-                           "Squeeze the throttle earlier.",
-                           "Don't wait, get on the power."
-                       ];
-                   } else {
-                       phrases = [
-                           "Get on the gas earlier!",
-                           "Hesitating on throttle? Commit!",
-                           "Ghost is full throttle here, you should be too!",
-                           "Flat out! Why are you lifting?",
-                           "Full send! No lifting."
-                       ];
-                   }
-               } else if (brakeDelta > 20) {
-                   if (isCornering) {
-                       phrases = [
-                           "Trail braking too much?",
-                           "Release the brake to let the car turn.",
-                           "Overslowing mid-corner.",
-                           "Off the brakes to rotate.",
-                           "Let it roll through the apex."
-                       ];
-                   } else {
-                       phrases = [
-                           "Braking too early?",
-                           "Trust the brakes, brake later.",
-                           "Overslowing on entry.",
-                           "Don't ride the brakes.",
-                           "Brake later and harder.",
-                           "Attack the braking zone."
-                       ];
-                   }
-               } else if (isCornering && Math.abs(performance.speedDelta) > 15) {
-                   phrases = [
-                       "Minimum corner speed is too low.",
-                       "Carry more speed to the apex.",
-                       "Trust the grip mid-corner.",
-                       "You're parking it on the apex.",
-                       "Roll more speed in.",
-                       "Don't overslow for the corner."
-                   ];
-               }
-           }
-
-           newMessage = {
-               id: now,
-               text: withEmoji(phrases[Math.floor(Math.random() * phrases.length)], 'info'),
-               type: 'info',
-               timestamp: now
-           };
-       }
-    }
-
-    if (newMessage) {
-      setMessages(prev => [newMessage!, ...prev.slice(0, 49)]); // Prepend and keep last 50
-      lastMessageTimeRef.current = now;
-    }
-
-  }, [performance, currentFrame, ghostFrame]);
+  }, [performance, currentFrame, ghostFrame, mode, nanoStatus.state, generateNano, cloudStatus.hasKey, generateCloud]);
 
   if (!currentFrame) {
     return (
@@ -270,10 +293,36 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
 
   return (
     <div className="flex-grow bg-gray-900 rounded-lg border border-gray-800 p-4 flex flex-col gap-4 h-full overflow-hidden">
-      <div className="flex items-center gap-3 border-b border-gray-800 pb-2 shrink-0">
-        <Activity className="text-purple-500" size={20} />
-        <h2 className="text-lg font-bold text-white">PERFORMANCE COACH</h2>
+      <div className="flex items-center justify-between border-b border-gray-800 pb-2 shrink-0">
+        <div className="flex items-center gap-3">
+            <Activity className="text-purple-500" size={20} />
+            <h2 className="text-lg font-bold text-white">PERFORMANCE COACH</h2>
+        </div>
+        
+        <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
+            {(['code', 'nano', 'flash', 'pro'] as CoachMode[]).map((m) => (
+                <button
+                    key={m}
+                    onClick={() => setMode(m)}
+                    className={`px-3 py-1 rounded-md text-[10px] uppercase font-bold transition-all ${
+                        mode === m 
+                            ? 'bg-purple-600 text-white shadow-lg' 
+                            : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                    }`}
+                >
+                    {m}
+                </button>
+            ))}
+        </div>
       </div>
+      
+      {/* API Key Warning for Cloud Modes */}
+      {(mode === 'flash' || mode === 'pro') && !cloudStatus.hasKey && (
+          <div className="bg-red-500/10 border border-red-500/20 rounded p-2 flex items-center gap-2 text-xs text-red-400">
+              <ShieldAlert size={14} />
+              <span>Missing VITE_GEMINI_API_KEY for {mode.toUpperCase()} mode.</span>
+          </div>
+      )}
 
       {/* HUD Section */}
       <div className="grid grid-cols-2 gap-4 shrink-0">
@@ -335,8 +384,24 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
                           } ${isNewest ? 'shadow-lg shadow-black/50 font-medium scale-[1.02] origin-left' : ''}`}>
                               {msg.text}
                           </div>
-                          <span className="text-[10px] text-gray-600 mt-1 ml-1">
+                          <span className="text-[10px] text-gray-600 mt-1 ml-1 flex items-center gap-2">
                               {new Date(msg.timestamp).toLocaleTimeString([], { hour12: false, minute: '2-digit', second: '2-digit' })}
+                              
+                              {msg.mode === 'nano' && (
+                                  <span className="inline-flex items-center gap-1 text-indigo-400" title="Refined by Nano">
+                                      <Brain size={10} /> Nano
+                                  </span>
+                              )}
+                              {msg.mode === 'flash' && (
+                                  <span className="inline-flex items-center gap-1 text-yellow-500" title="Refined by Flash">
+                                      <Zap size={10} /> Flash
+                                  </span>
+                              )}
+                              {msg.mode === 'pro' && (
+                                  <span className="inline-flex items-center gap-1 text-purple-400" title="Refined by Pro">
+                                      <Settings size={10} /> Pro
+                                  </span>
+                              )}
                           </span>
                       </div>
                   </div>
