@@ -288,13 +288,7 @@ export function ReplayPage() {
         </div>
 
         <div className="flex items-center gap-6">
-            {idealLap && (
-                <div className="flex items-center gap-2 bg-gray-800/50 px-3 py-1 rounded border border-gray-700">
-                    <Trophy size={14} className="text-yellow-500" />
-                    <span className="text-xs text-gray-400">Ideal Lap:</span>
-                    <span className="text-sm font-mono font-bold text-yellow-400">{idealLap.lapTime.toFixed(3)}s</span>
-                </div>
-            )}
+
             <div className="text-sm text-gray-400 w-40 text-right tabular-nums font-mono mr-2">
               {currentFrame?.time.toFixed(2)}s / {data[data.length-1]?.time.toFixed(2)}s
             </div>
