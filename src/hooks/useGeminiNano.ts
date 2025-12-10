@@ -56,22 +56,38 @@ export const useGeminiNano = () => {
     };
   }, []);
 
-  const generateFeedback = useCallback(async (baseMessage: string, contextString: string) => {
+  const generateFeedback = useCallback(async (contextString: string, baseMessage?: string) => {
     if (!sessionRef.current || status.state !== 'ready') {
-      return baseMessage; // Fallback to original message
+      return baseMessage || '';
     }
 
     try {
-      const prompt = `
+      let prompt;
+      if (baseMessage) {
+        // Rewrite mode (legacy/fallback)
+        prompt = `
 Context: ${contextString}
 Base Message: "${baseMessage}"
 Task: Rewrite the base message to be more specific and coach-like based on the context. Keep it very short.
 `;
+      } else {
+        // Independent generation mode
+        prompt = `
+Telemetry Context:
+${contextString}
+
+Task: You are the race engineer. Analyze the telemetry above. Identify the single most important area for improvement (speed, braking, throttle, line).
+Output: A single, short, punchy sentence of advice. Do not be generic. Be direct. Max 15 words.
+Example: "Brake later and trail off to rotate the car."
+Advice:
+`;
+      }
+      
       const response = await sessionRef.current.prompt(prompt);
       return response.trim();
     } catch (err) {
       console.error('Nano generation failed:', err);
-      return baseMessage;
+      return baseMessage || '';
     }
   }, [status.state]);
 

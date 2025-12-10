@@ -9,12 +9,28 @@ interface CloudStatus {
 }
 
 export const useGeminiCloud = () => {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  const [apiKey, setAutoApiKey] = useState<string | null>(() => {
+      // Prioritize Local Storage
+      return localStorage.getItem('gemini_api_key') || import.meta.env.VITE_GEMINI_API_KEY || null;
+  });
 
   const [status, setStatus] = useState<CloudStatus>({
     state: 'idle',
     hasKey: !!apiKey
   });
+
+  // Update status when key changes
+  const setApiKey = useCallback((key: string) => {
+      if (key) {
+          localStorage.setItem('gemini_api_key', key);
+          setAutoApiKey(key);
+          setStatus(prev => ({ ...prev, hasKey: true }));
+      } else {
+          localStorage.removeItem('gemini_api_key');
+          setAutoApiKey(null);
+          setStatus(prev => ({ ...prev, hasKey: false }));
+      }
+  }, []);
 
   const generateFeedback = useCallback(async (model: CloudModel, baseMessage: string, contextString: string) => {
     if (!apiKey) {
@@ -25,21 +41,31 @@ export const useGeminiCloud = () => {
     setStatus(prev => ({ ...prev, state: 'loading', error: undefined }));
 
     try {
-      const modelName = model === 'pro' ? 'gemini-1.5-pro' : 'gemini-1.5-flash';
+      const modelName = model === 'pro' ? 'gemini-3-pro-preview' : 'gemini-2.0-flash-exp';
       const prompt = `
 Context: ${contextString}
 Base Message: "${baseMessage}"
 Task: You are a professional racing engineer. Rewrite the base message to be concise, technical, and actionable based on the context. Keep it under 25 words. Do NOT use emojis.
 `;
 
+      const requestBody: any = {
+        contents: [{ parts: [{ text: prompt }] }]
+      };
+
+      if (model === 'pro') {
+          requestBody.generationConfig = {
+              thinkingConfig: {
+                  thinkingLevel: 'HIGH'
+              }
+          };
+      }
+
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1alpha/models/${modelName}:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }]
-          })
+          body: JSON.stringify(requestBody)
         }
       );
 
@@ -64,6 +90,7 @@ Task: You are a professional racing engineer. Rewrite the base message to be con
 
   return {
     status,
-    generateFeedback
+    generateFeedback,
+    setApiKey
   };
 };
