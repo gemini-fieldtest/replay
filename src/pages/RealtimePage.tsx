@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { useRealtimeTelemetry } from '../hooks/useRealtimeTelemetry';
-import { Play, Pause, Activity, Trophy, Radio } from 'lucide-react';
+import { Play, Pause, Activity, Trophy, Radio, LayoutDashboard } from 'lucide-react';
 import { PitView } from './PitView';
 import { DriverView } from './DriverView';
 import { PerformanceCoach } from './PerformanceCoach';
@@ -170,6 +171,11 @@ export const RealtimePage = () => {
           <div className="h-6 w-px bg-gray-800 mx-2" />
           
           <div className="flex items-center bg-gray-800 rounded-lg p-1 gap-1">
+            <Link to="/replay" className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium text-gray-400 hover:text-white hover:bg-gray-700/50 transition-colors">
+                <LayoutDashboard size={14} />
+                <span>Replay</span>
+            </Link>
+            <div className="w-px h-4 bg-gray-700 mx-1" />
             <button
               onClick={() => setShowPitView(!showPitView)}
               className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
