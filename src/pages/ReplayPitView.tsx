@@ -137,7 +137,7 @@ export const ReplayPitView: React.FC<ReplayPitViewProps> = ({
                         positions={trackPositions} 
                         currentIndex={currentIndex} 
                         ghostPosition={showGhost ? ghostPosition : null} 
-                        backgroundImage="/tracks/thunderhill/map.svg?v=4"
+                        backgroundImage="/tracks/thunderhill/map.svg?v=5"
                         calibration={calibration}
                    />
                </div>
