@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useRealtimeTelemetry } from '../hooks/useRealtimeTelemetry';
-import { Activity, Trophy, LayoutDashboard, GalleryVerticalEnd } from 'lucide-react';
+import { Activity, Trophy, LayoutDashboard, GalleryVerticalEnd, History } from 'lucide-react';
 import { LiveVideoPlayer } from '../components/LiveVideoPlayer';
 import { RealtimePitView } from './RealtimePitView';
 import { RealtimeCoach } from './RealtimeCoach';
@@ -218,35 +218,39 @@ export const RealtimePage = () => {
           
           <div className="h-6 w-px bg-gray-800 mx-2" />
           
-          <Link to="/replay" className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-colors border border-transparent hover:border-gray-700">
-              <LayoutDashboard size={14} />
-              <span>Replay</span>
-          </Link>
+          <div className="flex items-center bg-gray-800 rounded-lg p-1 gap-1">
+            <div title="Live" className="flex items-center justify-center p-1.5 rounded-md bg-gray-700 text-white shadow-sm cursor-default">
+                <Activity size={16} />
+            </div>
+            <Link to="/replay" title="Replay" className="flex items-center justify-center p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-gray-700/50 transition-colors">
+                <History size={16} />
+            </Link>
+          </div>
 
           { !isStacked && (
             <>
-              <div className="h-6 w-px bg-gray-800 mx-2" />
+              <div className="h-6 w-px bg-gray-800 mx-1" />
               
-              <div className="flex items-center bg-gray-800 rounded-lg p-1 gap-1">
+              <div className="flex items-center bg-gray-800 rounded-lg p-1 gap-0.5">
                 <button
                   onClick={() => setShowPitView(!showPitView)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
                     showPitView ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
                   }`}
                 >
-                  Pit Wall
+                  Pit
                 </button>
                 <button
                   onClick={() => setShowDriverView(!showDriverView)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
                     showDriverView ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
                   }`}
                 >
-                  Driver Cam
+                  Driver
                 </button>
                 <button
                   onClick={() => setShowCoachView(!showCoachView)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
                     showCoachView ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
                   }`}
                 >

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useTelemetry } from '../hooks/useTelemetry';
-import { Play, Pause, SkipForward, SkipBack, FileText, LayoutDashboard, Repeat, GalleryVerticalEnd, Ghost } from 'lucide-react';
+import { Play, Pause, SkipForward, SkipBack, FileText, LayoutDashboard, Repeat, GalleryVerticalEnd, Ghost, Activity, History } from 'lucide-react';
 import { ReplayPitView } from './ReplayPitView';
 import { ReplayDriverView } from './ReplayDriverView';
 import { PerformanceCoach } from './PerformanceCoach';
@@ -246,35 +246,39 @@ export function ReplayPage() {
           
           <div className="h-6 w-px bg-gray-800 mx-2" />
           
-          <Link to="/" className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-colors border border-transparent hover:border-gray-700">
-              <LayoutDashboard size={14} />
-              <span>Live</span>
-          </Link>
+          <div className="flex items-center bg-gray-800 rounded-lg p-1 gap-1">
+            <Link to="/" title="Live" className="flex items-center justify-center p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-gray-700/50 transition-colors">
+                <Activity size={16} />
+            </Link>
+            <div title="Replay" className="flex items-center justify-center p-1.5 rounded-md bg-gray-700 text-white shadow-sm cursor-default">
+                <History size={16} />
+            </div>
+          </div>
 
           {layoutMode === 'grid' && (
             <>
-              <div className="h-6 w-px bg-gray-800 mx-2" />
+              <div className="h-6 w-px bg-gray-800 mx-1" />
               
-              <div className="flex items-center bg-gray-800 rounded-lg p-1 gap-1">
+              <div className="flex items-center bg-gray-800 rounded-lg p-1 gap-0.5">
                 <button
                   onClick={() => setShowPitView(!showPitView)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
                     showPitView ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
                   }`}
                 >
-                  Pit Wall
+                  Pit
                 </button>
                 <button
                   onClick={() => setShowDriverView(!showDriverView)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
                     showDriverView ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
                   }`}
                 >
-                  Driver Cam
+                  Driver
                 </button>
                 <button
                   onClick={() => setShowCoachView(!showCoachView)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
                     showCoachView ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
                   }`}
                 >
