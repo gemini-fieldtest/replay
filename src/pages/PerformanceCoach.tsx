@@ -81,12 +81,16 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
     const isGoodLine = gLatMatch && gLongMatch;
     const isGoodSpeed = speedMatch;
     const isFaster = speedDelta > 5;
+    
+    // Catalyst "New Best" Logic (Simplified Sector Analysis)
+    const isNewBest = speedDelta > 15 && isGoodLine;
 
     return {
       speedDelta,
       isGoodLine,
       isGoodSpeed,
-      isFaster
+      isFaster,
+      isNewBest
     };
   }, [currentFrame, ghostFrame]);
 
@@ -135,7 +139,8 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
 
         if (trackDetails) context += `Track Info: ${trackDetails}\n`;
 
-        context += `Status: ${performanceStats.isFaster ? 'GAINING TIME' : performanceStats.isGoodLine ? 'MATCHING PACE' : 'LOSING TIME'}\n`;
+        context += `Status: ${performanceStats.isNewBest ? 'NEW BEST DETECTED' : performanceStats.isFaster ? 'GAINING TIME' : performanceStats.isGoodLine ? 'MATCHING PACE' : 'LOSING TIME'}\n`;
+        context += `Directives: Use Catalyst vocabulary. If status is 'NEW BEST', say "New Best". Otherwise, give specific instruction like "Brake later".\n`;
 
         if (mode === 'nano' && nanoStatus.state === 'ready') {
             // Independent Generation Mode
@@ -161,28 +166,30 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
             // "Code Coach" Heuristic Mode (for code, flash, pro)
             let baseText = "";
             if (performanceStats.isFaster) {
-              const phrases = [
-                "Great pace! You're gaining time!",
-                "Flying! Keep it up!",
-                "Faster than the ghost right now.",
-                "Excellent exit speed!",
-                "You're crushing this sector!",
-                "Nailed that corner!",
-                "Green sectors everywhere!",
-                "Leave that ghost in the dust!"
-              ];
-              baseText = phrases[Math.floor(Math.random() * phrases.length)];
-              msgType = 'positive';
+               if (performanceStats.isNewBest) {
+                    baseText = "New Best.";
+                    msgType = 'positive';
+               } else {
+                  const phrases = [
+                    "Carrying good speed.",
+                    "Gap increasing.",
+                    "Sector fast.",
+                    "Exit strong."
+                  ];
+                  if (Math.random() > 0.8) {
+                    baseText = phrases[Math.floor(Math.random() * phrases.length)];
+                  }
+               }
 
             } else if (performanceStats.isGoodSpeed && performanceStats.isGoodLine) {
               const phrases = [
-                "Perfect line through here.",
-                "Matching the ideal lap perfectly.",
-                "Smooth inputs, looking good.",
-                "Right on target.",
-                "Flowing nicely.",
-                "Consistent and clean.",
-                "Staying right with the ghost."
+                "Line correct.",
+                "Matching ideal lap.",
+                "Inputs smooth.",
+                "On target.",
+                "Flow good.",
+                "Consistent.",
+                "With ghost."
               ];
               baseText = phrases[Math.floor(Math.random() * phrases.length)];
               msgType = 'neutral';

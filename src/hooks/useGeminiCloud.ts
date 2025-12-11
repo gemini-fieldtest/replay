@@ -45,7 +45,7 @@ export const useGeminiCloud = () => {
       const prompt = `
 Context: ${contextString}
 Base Message: "${baseMessage}"
-Task: You are a professional racing engineer. Rewrite the base message to be concise, technical, and actionable based on the context. Keep it under 25 words. Do NOT use emojis.
+Task: You are a professional racing engineer. Rewrite the base message to be concise, technical, and actionable. Use specific vocabulary: 'Brake later', 'Turn in earlier', 'Track out further', 'Apex late'. Do NOT use emojis. Do NOT include praise unless explicitly stated in Context as 'New Best'. Do NOT mention the 'ghost'.
 `;
 
       const requestBody: any = {

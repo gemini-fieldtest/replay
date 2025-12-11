@@ -24,7 +24,7 @@ interface CoachMessage {
   text: string;
   type: 'positive' | 'neutral' | 'info';
   timestamp: number;
-  mode?: 'code' | 'nano';
+  mode?: CoachMode;
   telemetryTime: number;
   generationTime?: number;
 }
@@ -98,12 +98,17 @@ export const RealtimeCoach = ({ currentFrame, ghostFrame, currentIndex, trackPoi
     const isGoodLine = gLatMatch && gLongMatch;
     const isGoodSpeed = speedMatch;
     const isFaster = speedDelta > 5;
+    
+    // Catalyst "New Best" Logic (Simplified Sector Analysis)
+    // If we are significantly faster (>10km/h) for a sustained period, consider it a potential new best segment
+    const isNewBest = speedDelta > 15 && isGoodLine;
 
     return {
       speedDelta,
       isGoodLine,
       isGoodSpeed,
-      isFaster
+      isFaster,
+      isNewBest
     };
   }, [currentFrame, ghostFrame]);
 
@@ -147,7 +152,8 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
 
         if (trackDetails) context += `Track Info: ${trackDetails}\n`;
 
-        context += `Status: ${performanceStats.isFaster ? 'GAINING TIME' : performanceStats.isGoodLine ? 'MATCHING PACE' : 'LOSING TIME'}\n`;
+        context += `Status: ${performanceStats.isNewBest ? 'NEW BEST DETECTED' : performanceStats.isFaster ? 'GAINING TIME' : performanceStats.isGoodLine ? 'MATCHING PACE' : 'LOSING TIME'}\n`;
+        context += `Directives: Use Catalyst vocabulary. If status is 'NEW BEST', say "New Best". Otherwise, give specific instruction like "Brake later".\n`;
 
         if (mode === 'nano' && nanoStatus.state === 'ready') {
             // Independent Generation Mode
@@ -173,35 +179,39 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
             // "Code Coach" Heuristic Mode (for code, flash, pro)
             let baseText = "";
             if (performanceStats.isFaster) {
-              // Only give positive feedback if enough time has passed to avoid distraction
-              const timeSinceLastPositive = now - lastPositiveMessageTime.current;
-              // 15 seconds cooldown for positive feedback + 30% random chance to make it less robotic
-              if (timeSinceLastPositive > 15000 && Math.random() > 0.7) {
-                  const phrases = [
-                    "Great pace! You're gaining time!",
-                    "Flying! Keep it up!",
-                    "Faster than the ghost right now.",
-                    "Excellent exit speed!",
-                    "You're crushing this sector!",
-                    "Nailed that corner!",
-                    "Green sectors everywhere!",
-                    "Leave that ghost in the dust!"
-                  ];
-                  baseText = phrases[Math.floor(Math.random() * phrases.length)];
-                  msgType = 'positive';
-                  lastPositiveMessageTime.current = now;
+              // Only praise if it's a "New Best" (Catalyst style)
+              if (performanceStats.isNewBest) {
+                 const timeSinceLastPositive = now - lastPositiveMessageTime.current;
+                 if (timeSinceLastPositive > 10000) {
+                     baseText = "New Best.";
+                     msgType = 'positive';
+                     lastPositiveMessageTime.current = now;
+                 }
+              } else {
+                  // Faster but not a breakthrough? Just technical affirmation.
+                 const phrases = [
+                    "Pace is good. Maintain.",
+                    "Sectors green. Keep pushing.",
+                    "Faster. Hold line.",
+                    "Exit speed sufficient.",
+                    "Sector fast.",
+                    "Corner nailed.",
+                    "Gap increasing."
+                 ];
+                 if (Math.random() > 0.8) {
+                    baseText = phrases[Math.floor(Math.random() * phrases.length)];
+                 }
               }
 
 
             } else if (performanceStats.isGoodSpeed && performanceStats.isGoodLine) {
               const phrases = [
-                "Perfect line through here.",
-                "Matching the ideal lap perfectly.",
-                "Smooth inputs, looking good.",
-                "Right on target.",
-                "Flowing nicely.",
-                "Consistent and clean.",
-                "Staying right with the ghost."
+                "Line correct.",
+                "Matching ideal lap.",
+                "Inputs smooth.",
+                "On target.",
+                "Flow good.",
+                "Consistent."
               ];
               baseText = phrases[Math.floor(Math.random() * phrases.length)];
               msgType = 'neutral';
@@ -236,11 +246,11 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                            ];
                        } else if (gearMismatch && currentFrame.gear > ghostFrame.gear) {
                            phrases = [
-                               `Downshift! Ghost is in gear ${ghostFrame.gear}.`,
+                               `Downshift! Gear ${ghostFrame.gear} recommended.`,
                                "Too high a gear for this corner.",
                                "Engine bogging? Drop a gear.",
                                "Use engine braking, downshift.",
-                               `Ghost is using gear ${ghostFrame.gear}, try matching it.`,
+                               `Recommended gear: ${ghostFrame.gear}.`,
                                "Revs are too low, shift down."
                            ];
                        } else if (steeringDelta > 15 && isCornering) {
@@ -255,7 +265,7 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                        } else if (brakePressureDelta > 10 && currentFrame.brake > 0) {
                            phrases = [
                                "Press the brake harder!",
-                               "Ghost is braking with more pressure.",
+                               "More brake pressure required.",
                                "Maximize your braking efficiency.",
                                "Don't be afraid to stomp on the brakes.",
                                "More initial bite on the brakes.",
@@ -265,7 +275,7 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                             phrases = [
                                 "Shift up! You're hitting the limiter.",
                                 "Late shift? Watch your RPMs.",
-                                "Ghost shifted earlier.",
+                                "Shift earlier.",
                                 "Optimize your shift points.",
                                 "Don't bounce off the limiter.",
                                 "Shift now!"
@@ -275,7 +285,7 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                                phrases = [
                                    "Power out of the corner sooner.",
                                    "Unwind the wheel and get on gas.",
-                                   "Late on throttle compared to ghost.",
+                                   "Late on throttle.",
                                    "Trust the rear grip on exit.",
                                    "Squeeze the throttle earlier.",
                                    "Don't wait, get on the power."
@@ -284,7 +294,7 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                                phrases = [
                                    "Get on the gas earlier!",
                                    "Hesitating on throttle? Commit!",
-                                   "Ghost is full throttle here, you should be too!",
+                                   "Full throttle required!",
                                    "Flat out! Why are you lifting?",
                                    "Full send! No lifting."
                                ];

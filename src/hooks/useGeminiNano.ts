@@ -31,7 +31,7 @@ export const useGeminiNano = () => {
 
         // Initialize session with a racing coach persona
         const session = await window.ai.createTextSession({
-          systemPrompt: "You are an expert racing coach. Your job is to give short, punchy, and actionable advice to a racing driver based on telemetry data. Keep it under 20 words. Be encouraging but firm. Focus on speed, braking points, and racing line."
+          systemPrompt: "You are an expert racing coach. Your job is to give short, punchy, and actionable advice. Use specific vocabulary: 'Brake later', 'Turn in earlier', 'Track out further', 'Apex late', 'Carry speed'. Do NOT give praise unless it is a 'New Best'. Focus on physics and inputs. Do NOT mention the 'ghost' or 'ideal lap'."
         });
 
         sessionRef.current = session;
@@ -68,7 +68,7 @@ export const useGeminiNano = () => {
         prompt = `
 Context: ${contextString}
 Base Message: "${baseMessage}"
-Task: Rewrite the base message to be more specific and coach-like based on the context. Keep it very short.
+Task: Rewrite the base message to be strict and actionable. Remove any praise or fluff. Keep it very short.
 `;
       } else {
         // Independent generation mode
@@ -77,7 +77,7 @@ Telemetry Context:
 ${contextString}
 
 Task: You are the race engineer. Analyze the telemetry above. Identify the single most important area for improvement (speed, braking, throttle, line).
-Output: A single, short, punchy sentence of advice. Do not be generic. Be direct. Max 15 words.
+Output: A single, short, punchy sentence of advice. Do not be generic. Be direct. Max 15 words. DO NOT PRAISE.
 Example: "Brake later and trail off to rotate the car."
 Advice:
 `;
