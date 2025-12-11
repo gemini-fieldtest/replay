@@ -377,7 +377,7 @@ export function ReplayPage() {
 
         <div className="flex items-center gap-6">
 
-            <div className="text-sm text-gray-400 w-40 text-right tabular-nums font-mono mr-2">
+            <div className="text-sm text-gray-400 w-56 text-right tabular-nums font-mono mr-2">
               {currentFrame?.time.toFixed(2)}s / {data[data.length-1]?.time.toFixed(2)}s
             </div>
             {/* File Selector */}
@@ -473,6 +473,7 @@ export function ReplayPage() {
                     showGhost={showGhost}
                     setShowGhost={setShowGhost}
                     startLinePos={startLinePos}
+                    isPlaying={isPlaying}
                 />
             </div>
           </div>

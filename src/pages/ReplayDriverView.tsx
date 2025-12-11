@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ReplayTrackMap3D } from '../components/ReplayTrackMap3D';
 import type { TelemetryFrame } from '../utils/telemetryParser';
+import { Video, Box, Upload, Settings2 } from 'lucide-react';
 
 interface ReplayDriverViewProps {
   positions: Float32Array;
@@ -11,22 +12,171 @@ interface ReplayDriverViewProps {
   showGhost: boolean;
   setShowGhost: (show: boolean) => void;
   startLinePos?: [number, number, number] | null;
+  isPlaying?: boolean; // We likely need to pass this down from ReplayPage or useTelemetry context
 }
 
-export const ReplayDriverView: React.FC<ReplayDriverViewProps> = ({ positions, currentIndex, currentFrame, ghostFrame, ghostPosition, showGhost, setShowGhost, startLinePos }) => {
+export const ReplayDriverView: React.FC<ReplayDriverViewProps> = ({ 
+  positions, 
+  currentIndex, 
+  currentFrame, 
+  ghostFrame, 
+  ghostPosition, 
+  showGhost, 
+  setShowGhost, 
+  startLinePos,
+  isPlaying = false 
+}) => {
+  const [viewMode, setViewMode] = useState<'3d' | 'video'>('3d');
+  const [videoSrc, setVideoSrc] = useState<string | null>(null);
+  const [videoOffset, setVideoOffset] = useState<number>(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Handle File Upload
+  const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setVideoSrc(url);
+    }
+  };
+
+  // Synchronization Logic
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !currentFrame || !viewMode) return;
+
+    if (viewMode !== 'video') {
+         if (!video.paused) video.pause();
+         return;
+    }
+
+    const targetTime = currentFrame.time + videoOffset;
+    
+    // Ensure we are within bounds
+    if (targetTime < 0) {
+        if (!video.paused) video.pause();
+        video.currentTime = 0;
+        return;
+    }
+
+    if (isPlaying) {
+        // Playback Sync
+        if (video.paused) {
+            video.play().catch(e => console.error("Video play failed:", e));
+        }
+
+        // Drift Correction
+        const diff = Math.abs(video.currentTime - targetTime);
+        if (diff > 0.3) {
+            // console.log("Syncing video drift:", diff);
+            video.currentTime = targetTime;
+        } else {
+             // Fine tuning playback rate could happen here for super smooth sync
+        }
+    } else {
+        // Paused Sync - Scrubs exactly
+        if (!video.paused) video.pause();
+        // Only seek if significantly different to avoid jitter during pause
+        if (Math.abs(video.currentTime - targetTime) > 0.1) {
+             video.currentTime = targetTime;
+        }
+    }
+    
+  }, [currentFrame, isPlaying, videoOffset, viewMode]);
+
+
   return (
-    <div className="flex-grow bg-gray-900 flex flex-col min-h-0">
-      <div className="flex-grow relative min-h-0">
-        <ReplayTrackMap3D
-            positions={positions}
-            currentIndex={currentIndex}
-            currentFrame={currentFrame}
-            ghostFrame={ghostFrame}
-            ghostPosition={ghostPosition}
-            showGhost={showGhost}
-            setShowGhost={setShowGhost}
-            startLinePos={startLinePos}
-        />
+    <div className="flex-grow bg-gray-900 flex flex-col min-h-0 relative group">
+      
+      {/* View Toggles & Controls Overlay */}
+      <div className="absolute bottom-4 left-4 z-20 flex gap-2">
+          <div className="bg-gray-900/90 backdrop-blur-sm rounded-lg p-1 border border-gray-700 flex gap-1">
+            <button
+              onClick={() => setViewMode('3d')}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-2 transition-colors ${
+                viewMode === '3d'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              }`}
+            >
+              <Box size={14} />
+              Sim
+            </button>
+            <button
+              onClick={() => setViewMode('video')}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-2 transition-colors ${
+                viewMode === 'video'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              }`}
+            >
+              <Video size={14} />
+              Video
+            </button>
+          </div>
+
+          {viewMode === 'video' && videoSrc && (
+              <div className="bg-gray-900/90 backdrop-blur-sm rounded-lg p-2 border border-gray-700 flex items-center gap-3">
+                  <div className="flex items-center gap-2 text-xs text-gray-400">
+                      <Settings2 size={14} />
+                      <span className="font-mono">Sync: {videoOffset.toFixed(2)}s</span>
+                  </div>
+                  <input 
+                      type="range" 
+                      min="-60" 
+                      max="60" 
+                      step="0.05"
+                      value={videoOffset}
+                      onChange={(e) => setVideoOffset(parseFloat(e.target.value))}
+                      className="w-32 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                  />
+                  <button 
+                      onClick={() => setVideoOffset(0)}
+                      className="text-[10px] bg-gray-700 px-1.5 py-0.5 rounded text-gray-300 hover:text-white"
+                  >
+                      Reset
+                  </button>
+              </div>
+          )}
+      </div>
+
+      <div className="flex-grow relative min-h-0 overflow-hidden">
+        {viewMode === '3d' ? (
+             <ReplayTrackMap3D
+                positions={positions}
+                currentIndex={currentIndex}
+                currentFrame={currentFrame}
+                ghostFrame={ghostFrame}
+                ghostPosition={ghostPosition}
+                showGhost={showGhost}
+                setShowGhost={setShowGhost}
+                startLinePos={startLinePos}
+            />
+        ) : (
+            <div className="w-full h-full flex items-center justify-center bg-black">
+                {!videoSrc ? (
+                    <div className="text-center p-8 bg-gray-900 rounded-xl border border-gray-800 border-dashed">
+                        <Upload className="mx-auto text-gray-500 mb-4" size={48} />
+                        <h3 className="text-lg font-medium text-white mb-2">Upload Onboard Video</h3>
+                        <p className="text-gray-500 text-sm mb-6 max-w-xs mx-auto">
+                            Load a local video file to verify simulation accuracy.
+                        </p>
+                        <label className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg cursor-pointer transition-colors shadow-lg inline-flex items-center gap-2">
+                            <span>Select Video File</span>
+                            <input type="file" accept="video/*" className="hidden" onChange={handleVideoUpload} />
+                        </label>
+                    </div>
+                ) : (
+                    <video 
+                        ref={videoRef}
+                        src={videoSrc}
+                        className="w-full h-full object-contain"
+                        muted // Mute by default to avoid blast
+                        playsInline
+                    />
+                )}
+            </div>
+        )}
       </div>
     </div>
   );
