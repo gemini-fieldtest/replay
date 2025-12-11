@@ -1,14 +1,29 @@
 import React, { useRef, useEffect, useMemo } from 'react';
 
-interface TrackMapProps {
+interface RealtimeTrackMapProps {
   positions: Float32Array;
   currentIndex: number;
   ghostPosition?: [number, number, number] | null;
   carPosition?: [number, number, number] | null;
+  backgroundImage?: string;
+  calibration?: {
+    scale: number;
+    offsetX: number;
+    offsetY: number;
+    rotation: number;
+  };
 }
 
-export const TrackMap: React.FC<TrackMapProps> = ({ positions, currentIndex, ghostPosition, carPosition }) => {
+export const RealtimeTrackMap: React.FC<RealtimeTrackMapProps> = ({ 
+  positions, 
+  currentIndex, 
+  ghostPosition, 
+  carPosition, 
+  backgroundImage,
+  calibration = { scale: 1, offsetX: 0, offsetY: 0, rotation: 0 } 
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Calculate bounds from positions (X and Z)
   const bounds = useMemo(() => {
@@ -55,8 +70,8 @@ export const TrackMap: React.FC<TrackMapProps> = ({ positions, currentIndex, gho
       
       ctx.clearRect(0, 0, width, height);
 
-      // Padding
-      const padding = 40;
+      // Padding - minimal padding to maximize SVG usage
+      const padding = 20; 
       const drawWidth = width - padding * 2;
       const drawHeight = height - padding * 2;
 
@@ -66,6 +81,7 @@ export const TrackMap: React.FC<TrackMapProps> = ({ positions, currentIndex, gho
       
       if (rangeX === 0 || rangeZ === 0) return;
 
+      // We want to fit the track into the box
       const scaleX = drawWidth / rangeX;
       const scaleZ = drawHeight / rangeZ;
       const scale = Math.min(scaleX, scaleZ);
@@ -76,36 +92,72 @@ export const TrackMap: React.FC<TrackMapProps> = ({ positions, currentIndex, gho
 
       // Project local coordinates to canvas coordinates
       const project = (xLocal: number, zLocal: number) => {
-        // X maps to Canvas X
-        const x = (xLocal - bounds.minX) * scale + offsetX;
+        // 1. Initial Projection to fit canvas
+        let x = (xLocal - bounds.minX) * scale + offsetX;
+        let y = (zLocal - bounds.minZ) * scale + offsetY;
         
-        // Z maps to Canvas Y. 
-        const y = (zLocal - bounds.minZ) * scale + offsetY;
+        // 2. Apply Calibration
+        // Transform around center
+        const cx = width / 2;
+        const cy = height / 2;
+
+        // Translate to origin
+        let dx = x - cx;
+        let dy = y - cy;
+
+        // Scale
+        dx *= calibration.scale;
+        dy *= calibration.scale;
+
+        // Rotate
+        if (calibration.rotation !== 0) {
+            const rad = calibration.rotation * Math.PI / 180;
+            const cos = Math.cos(rad);
+            const sin = Math.sin(rad);
+            const rdx = dx * cos - dy * sin;
+            const rdy = dx * sin + dy * cos;
+            dx = rdx;
+            dy = rdy;
+        }
+
+        // Translate back + Offset
+        x = cx + dx + calibration.offsetX;
+        y = cy + dy + calibration.offsetY;
         
         return { x, y };
       };
 
-      // Draw Track
-      ctx.beginPath();
-      ctx.strokeStyle = '#3b82f6'; // blue-500
-      ctx.lineWidth = 3;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
+      // Draw Track (Faint guide line)
+      if (!backgroundImage) {
+          ctx.beginPath();
+          ctx.strokeStyle = '#3b82f6'; // blue-500
+          ctx.lineWidth = 3;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
 
-      const start = project(positions[0], positions[2]);
-      ctx.moveTo(start.x, start.y);
+          const start = project(positions[0], positions[2]);
+          ctx.moveTo(start.x, start.y);
 
-      for (let i = 3; i < positions.length; i += 3) {
-        const { x, y } = project(positions[i], positions[i + 2]);
-        ctx.lineTo(x, y);
+          for (let i = 3; i < positions.length; i += 3) {
+            const { x, y } = project(positions[i], positions[i + 2]);
+            ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+      } else {
+          // Debug alignment line - very faint
+          ctx.beginPath();
+          ctx.strokeStyle = 'rgba(59, 130, 246, 0.3)'; // blue-500 with low opacity
+          ctx.lineWidth = 1;
+          
+          const start = project(positions[0], positions[2]);
+          ctx.moveTo(start.x, start.y);
+
+          for (let i = 3; i < positions.length; i += 3) {
+            const { x, y } = project(positions[i], positions[i + 2]);
+            ctx.lineTo(x, y);
+          }
+          ctx.stroke();
       }
-      ctx.stroke();
-
-      // Start/Finish Line
-      ctx.beginPath();
-      ctx.fillStyle = '#ffffff';
-      ctx.arc(start.x, start.y, 4, 0, Math.PI * 2);
-      ctx.fill();
 
       // Draw Ghost Marker
       if (ghostPosition) {
@@ -168,12 +220,21 @@ export const TrackMap: React.FC<TrackMapProps> = ({ positions, currentIndex, gho
       resizeObserver.disconnect();
     };
 
-  }, [bounds, positions, currentIndex, ghostPosition, carPosition]);
+  }, [bounds, positions, currentIndex, ghostPosition, carPosition, backgroundImage, calibration]);
 
   return (
-    <canvas 
-      ref={canvasRef} 
-      className="w-full h-full block"
-    />
+    <div ref={containerRef} className="relative w-full h-full min-w-0 min-h-0">
+        {backgroundImage && (
+            <img 
+                src={backgroundImage} 
+                alt="Track Map" 
+                className="absolute inset-0 w-full h-full object-contain p-5 opacity-80" 
+            />
+        )}
+        <canvas 
+          ref={canvasRef} 
+          className="absolute inset-0 w-full h-full block"
+        />
+    </div>
   );
 };

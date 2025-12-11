@@ -5,6 +5,7 @@ import { Play, Pause, Activity, Trophy, Radio, LayoutDashboard } from 'lucide-re
 import { LiveVideoPlayer } from '../components/LiveVideoPlayer';
 import { RealtimePitView } from './RealtimePitView';
 import { PerformanceCoach } from './PerformanceCoach';
+import { loadKML, type GeoCoordinate } from '../utils/kmlLoader';
 
 
 
@@ -37,11 +38,20 @@ export const RealtimePage = () => {
   } = useRealtimeTelemetry(sourceUrl);
 
   const [showGhost] = useState(true);
+  const [kmlTrack, setKmlTrack] = useState<GeoCoordinate[]>([]);
 
-  // Calculate projection parameters from the FULL TRACK BUFFER (stable coordinates)
+  useEffect(() => {
+    loadKML('/data/Thunderhill racetrack.kml').then(coords => {
+      if (coords.length > 0) {
+        setKmlTrack(coords);
+      }
+    });
+  }, []);
+
+  // Calculate projection parameters from the FULL TRACK BUFFER (stable coordinates) or KML
   const projectionParams = useMemo(() => {
-    // If we have full track buffer, use it. Otherwise fallback to data (which might be growing)
-    const sourceData = (fullTrackBuffer && fullTrackBuffer.length > 0) ? fullTrackBuffer : data;
+    // If we have KML track, use it (Most stable). Otherwise fallback to fullTrackBuffer or data.
+    const sourceData = (kmlTrack.length > 0) ? kmlTrack : (fullTrackBuffer && fullTrackBuffer.length > 0) ? fullTrackBuffer : data;
     
     if (!sourceData || sourceData.length === 0) return null;
 
@@ -67,23 +77,33 @@ export const RealtimePage = () => {
     const lonScale = 111000 * Math.cos(centerLat * Math.PI / 180);
 
     return { centerLat, centerLon, centerAlt, latScale, lonScale };
-  }, [fullTrackBuffer, data]); // specific dependency on fullTrackBuffer
+  }, [fullTrackBuffer, data, kmlTrack]); 
 
   const trackPositions = useMemo(() => {
-    if (!data || data.length === 0 || !projectionParams) return new Float32Array(0);
+    const sourceData = (kmlTrack.length > 0) ? kmlTrack : data;
+    if (!sourceData || sourceData.length === 0 || !projectionParams) return new Float32Array(0);
 
     const { centerLat, centerLon, centerAlt, latScale, lonScale } = projectionParams;
 
-    const pos = new Float32Array(data.length * 3);
+    const pos = new Float32Array(sourceData.length * 3);
     
-    data.forEach((f, i) => {
+    sourceData.forEach((f, i) => {
       pos[i * 3] = (f.longitude - centerLon) * lonScale;
       pos[i * 3 + 1] = (f.altitude - centerAlt) * 5; // Y is up
       pos[i * 3 + 2] = -(f.latitude - centerLat) * latScale; // Z is forward/back
     });
     
     return pos;
-  }, [data, projectionParams]);
+  }, [data, projectionParams, kmlTrack]);
+
+  const carPosition = useMemo(() => {
+    if (!currentFrame || !projectionParams) return null;
+    const { centerLat, centerLon, latScale, lonScale } = projectionParams;
+    const x = (currentFrame.longitude - centerLon) * lonScale;
+    const z = -(currentFrame.latitude - centerLat) * latScale; // Negate Z for correct orientation
+    // We can just use a fixed height or logic for Y
+    return [x, 0.5, z] as [number, number, number]; 
+  }, [currentFrame, projectionParams]);
 
   // Calculate Ghost Position
   const ghostFrame = useMemo(() => getGhostFrame(), [getGhostFrame]);
@@ -266,6 +286,7 @@ export const RealtimePage = () => {
               currentFrame={currentFrame} 
               trackPositions={trackPositions} 
               currentIndex={currentIndex}
+              carPosition={carPosition}
               ghostFrame={ghostFrame}
               ghostPosition={ghostPosition}
               showGhost={showGhost}
