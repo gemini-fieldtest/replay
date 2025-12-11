@@ -4,7 +4,7 @@ import { useRealtimeTelemetry } from '../hooks/useRealtimeTelemetry';
 import { Play, Pause, Activity, Trophy, Radio, LayoutDashboard } from 'lucide-react';
 import { LiveVideoPlayer } from '../components/LiveVideoPlayer';
 import { RealtimePitView } from './RealtimePitView';
-import { PerformanceCoach } from './PerformanceCoach';
+import { RealtimeCoach } from './RealtimeCoach';
 import { loadKML, type GeoCoordinate } from '../utils/kmlLoader';
 
 
@@ -239,20 +239,7 @@ export const RealtimePage = () => {
                 />
             </div>
 
-            <div className="flex items-center gap-2 bg-gray-800 rounded px-2 py-1 border border-gray-700">
-                <span className="text-gray-500 text-xs">VIDEO</span>
-                <input 
-                    type="file" 
-                    accept="video/*"
-                    onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                            setVideoUrl(URL.createObjectURL(file));
-                        }
-                    }}
-                    className="bg-transparent border-none text-xs text-white w-48 focus:outline-none file:mr-2 file:py-0 file:px-2 file:rounded file:border-0 file:text-xs file:font-medium file:bg-gray-700 file:text-white hover:file:bg-gray-600"
-                />
-            </div>
+
 
 
 
@@ -287,7 +274,7 @@ export const RealtimePage = () => {
           >
             <RealtimePitView 
               currentFrame={currentFrame} 
-              trackPositions={trackPositions} 
+              positions={trackPositions} 
               currentIndex={currentIndex}
               carPosition={carPosition}
               ghostFrame={ghostFrame}
@@ -321,6 +308,7 @@ export const RealtimePage = () => {
             <div className="flex-grow relative h-full flex flex-col">
                 <LiveVideoPlayer 
                     streamUrl={videoUrl}
+                    onVideoSelect={(file) => setVideoUrl(URL.createObjectURL(file))}
                 />
             </div>
           </div>
@@ -335,7 +323,7 @@ export const RealtimePage = () => {
                   flex: '1'
                 }}
               >
-                <PerformanceCoach 
+                <RealtimeCoach 
                     currentFrame={currentFrame}
                     ghostFrame={ghostFrame}
                     idealLap={idealLap}
