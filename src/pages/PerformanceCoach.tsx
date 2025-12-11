@@ -9,6 +9,8 @@ import { useTTS } from '../hooks/useTTS';
 import { useSignalQuality } from '../hooks/useSignalQuality';
 import { useTrackLocation, type TrackPoint } from '../hooks/useTrackLocation';
 import { useDrivingAnalysis } from '../hooks/useDrivingAnalysis';
+import { parseCoachResponse } from '../utils/aiResponseParser';
+import ReactMarkdown from 'react-markdown';
 
 interface PerformanceCoachProps {
   currentFrame: TelemetryFrame | null;
@@ -28,6 +30,7 @@ interface CoachMessage {
   mode?: 'code' | 'nano' | 'flash' | 'pro';
   telemetryTime: number;
   generationTime?: number;
+  analysis?: string;
 }
 
 type CoachMode = 'code' | 'nano' | 'flash' | 'pro';
@@ -314,10 +317,12 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
 Speed: ${currentFrame.speed.toFixed(0)} km/h
 Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
 `;
-        if (signalQuality.isGearActive) contextString += `Gear: ${currentFrame.gear}\n`;
+        if (signalQuality.isGearActive && currentFrame.gear !== 255) contextString += `Gear: ${currentFrame.gear}\n`;
         if (signalQuality.isGForceActive) contextString += `Lat G: ${currentFrame.gForceLat.toFixed(2)}\n`;
-        if (signalQuality.isThrottleActive) contextString += `Throttle: ${currentFrame.throttle.toFixed(0)}%\n`;
-        if (signalQuality.isBrakeActive) contextString += `Brake: ${currentFrame.brake.toFixed(0)}%\n`;
+        const throttleVal = currentFrame.throttle < 2 ? 0 : currentFrame.throttle;
+        const brakeVal = currentFrame.brake < 2 ? 0 : currentFrame.brake;
+        if (signalQuality.isThrottleActive) contextString += `Throttle: ${throttleVal.toFixed(0)}%\n`;
+        if (signalQuality.isBrakeActive) contextString += `Brake: ${brakeVal.toFixed(0)}%\n`;
         
         if (trackLocation) contextString += `Location: ${trackLocation}\n`;
 
@@ -333,20 +338,23 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
         contextString += `Directives: Use Catalyst vocabulary. If status is 'NEW BEST', say "New Best". Otherwise, give specific instruction like "Brake later".\n`;
 
 
-        const generateAndAddMessage = async (text: string, msgType: 'positive' | 'neutral' | 'info', messageMode: CoachMode, genDuration?: number) => {
+        const generateAndAddMessage = async (text: string, msgType: 'positive' | 'neutral' | 'info', messageMode: CoachMode, genDuration?: number, explicitAnalysis?: string) => {
+            const { directive, analysis } = parseCoachResponse(text);
+            
             const newMessage: CoachMessage = {
                 id: now,
-                text: text,
+                text: directive,
                 type: msgType,
                 timestamp: now,
                 mode: messageMode,
                 telemetryTime: currentFrame.time,
-                generationTime: genDuration
+                generationTime: genDuration,
+                analysis: explicitAnalysis || analysis || undefined
             };
             setMessages(prev => [newMessage, ...prev.slice(0, historyLength - 1)]);
             lastMessageTimeRef.current = now;
             if (isAudioEnabled) {
-                speak(text); // Use the TTS hook's speak function
+                speak(directive); // Speak only the directive
             }
         };
 
@@ -358,10 +366,11 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
             (async () => {
                 const genStartTime = performance.now();
                 // Pass only context, no heuristic hint
-                const nanoText = await generateNano(`Trigger: ${triggerReason}.\n${contextString}`);
+                const nanoInput = `Trigger: ${triggerReason}.\n${contextString}`;
+                const nanoText = await generateNano(nanoInput);
                 const genDuration = performance.now() - genStartTime;
                 if (nanoText) {
-                    generateAndAddMessage(nanoText, heuristicMessage.type, 'nano', genDuration);
+                    generateAndAddMessage(nanoText, heuristicMessage.type, 'nano', genDuration, nanoInput);
                 }
             })();
             lastCallTime.current = now;
@@ -681,6 +690,19 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                                   </>
                               )}
                           </span>
+                          
+                          {/* Analysis Toggle */}
+                          {msg.analysis && (
+                              <details className="mt-2 group">
+                                  <summary className="list-none text-[10px] text-gray-500 cursor-pointer hover:text-gray-300 transition-colors flex items-center gap-1 select-none">
+                                      <div className="w-0 h-0 border-l-4 border-l-transparent border-t-4 border-t-gray-500 border-r-4 border-r-transparent transform -rotate-90 group-open:rotate-0 transition-transform" />
+                                      View Analysis
+                                  </summary>
+                                  <div className="mt-2 p-2 bg-black/20 rounded border border-white/5 text-xs text-gray-400 font-mono leading-relaxed [&>ul]:list-disc [&>ul]:pl-4 [&>ol]:list-decimal [&>ol]:pl-4 [&>h3]:font-bold [&>h3]:mt-2 [&>h3]:mb-1 [&>p]:mb-2 [&>strong]:text-gray-300">
+                                      <ReactMarkdown>{msg.analysis}</ReactMarkdown>
+                                  </div>
+                              </details>
+                          )}
                       </div>
                   </div>
                   );

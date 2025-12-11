@@ -8,6 +8,7 @@ import { useTTS } from '../hooks/useTTS';
 import { useSignalQuality } from '../hooks/useSignalQuality';
 import { useTrackLocation, type TrackPoint } from '../hooks/useTrackLocation';
 import { useDrivingAnalysis } from '../hooks/useDrivingAnalysis';
+import ReactMarkdown from 'react-markdown';
 
 interface PerformanceCoachProps {
   currentFrame: TelemetryFrame | null;
@@ -27,6 +28,7 @@ interface CoachMessage {
   mode?: CoachMode;
   telemetryTime: number;
   generationTime?: number;
+  analysis?: string;
 }
 
 
@@ -203,10 +205,13 @@ export const RealtimeCoach = ({ currentFrame, ghostFrame, currentIndex, trackPoi
 Speed: ${currentFrame.speed.toFixed(0)} km/h
 Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
 `;
-    if (signalQuality.isGearActive) context += `Gear: ${currentFrame.gear}\n`;
+    if (signalQuality.isGearActive && currentFrame.gear !== 255) context += `Gear: ${currentFrame.gear}\n`;
     if (signalQuality.isGForceActive) context += `Lat G: ${currentFrame.gForceLat.toFixed(2)}\n`;
-    if (signalQuality.isThrottleActive) context += `Throttle: ${currentFrame.throttle.toFixed(0)}%\n`;
-    if (signalQuality.isBrakeActive) context += `Brake: ${currentFrame.brake.toFixed(0)}%\n`;
+    const throttleVal = currentFrame.throttle < 2 ? 0 : currentFrame.throttle;
+    const brakeVal = currentFrame.brake < 2 ? 0 : currentFrame.brake;
+    
+    if (signalQuality.isThrottleActive) context += `Throttle: ${throttleVal.toFixed(0)}%\n`;
+    if (signalQuality.isBrakeActive) context += `Brake: ${brakeVal.toFixed(0)}%\n`;
     
     if (trackLocation) context += `Location: ${trackLocation}\n`;
 
@@ -293,9 +298,11 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                 telemetryTime: currentFrame.time,
                 generationTime: 0 // Heuristic, no generation time
              };
-             setMessages(prev => [newMessage, ...prev.slice(0, historyLength - 1)]);
-             if (isAudioEnabled) speak(newMessage.text); // Using useTTS speak
-             lastTriggerTimeRef.current = now;
+             setTimeout(() => {
+                 setMessages(prev => [newMessage, ...prev.slice(0, historyLength - 1)]);
+                 if (isAudioEnabled) speak(newMessage.text); 
+                 lastTriggerTimeRef.current = now;
+             }, 0);
         }
         
         // Gemini Nano (Middleware Mode)
@@ -363,7 +370,8 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                         timestamp: now,
                         mode: 'nano',
                         telemetryTime: currentFrame.time,
-                        generationTime: genDuration
+                        generationTime: genDuration,
+                        analysis: JSON.stringify(payload, null, 2)
                     };
                     setMessages(prev => [newMessage, ...prev.slice(0, historyLength - 1)]);
                     if (isAudioEnabled) speak(newMessage.text); 
@@ -555,8 +563,21 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                                   {msg.generationTime && <span className="text-gray-500 text-[10px] ml-1">Gen: {msg.generationTime.toFixed(0)}ms</span>}
                                   </>
                               )}
-
+                                  
                           </span>
+                          
+                          {/* Analysis Toggle */}
+                          {msg.analysis && (
+                              <details className="mt-2 group">
+                                  <summary className="list-none text-[10px] text-gray-500 cursor-pointer hover:text-gray-300 transition-colors flex items-center gap-1 select-none">
+                                      <div className="w-0 h-0 border-l-4 border-l-transparent border-t-4 border-t-gray-500 border-r-4 border-r-transparent transform -rotate-90 group-open:rotate-0 transition-transform" />
+                                      View Analysis
+                                  </summary>
+                                  <div className="mt-2 p-2 bg-black/20 rounded border border-white/5 text-xs text-gray-400 font-mono leading-relaxed [&>ul]:list-disc [&>ul]:pl-4 [&>ol]:list-decimal [&>ol]:pl-4 [&>h3]:font-bold [&>h3]:mt-2 [&>h3]:mb-1 [&>p]:mb-2 [&>strong]:text-gray-300">
+                                      <ReactMarkdown>{msg.analysis}</ReactMarkdown>
+                                  </div>
+                              </details>
+                          )}
                       </div>
                   </div>
                   );

@@ -1,48 +1,54 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback } from "react";
 
-export type CloudModel = 'flash' | 'pro';
+export type CloudModel = "flash" | "pro";
 
 interface CloudStatus {
-  state: 'idle' | 'loading' | 'error' | 'success';
+  state: "idle" | "loading" | "error" | "success";
   error?: string;
   hasKey: boolean;
 }
 
 export const useGeminiCloud = () => {
   const [apiKey, setAutoApiKey] = useState<string | null>(() => {
-      // Prioritize Local Storage
-      return localStorage.getItem('gemini_api_key') || import.meta.env.VITE_GEMINI_API_KEY || null;
+    // Prioritize Local Storage
+    return (
+      localStorage.getItem("gemini_api_key") ||
+      import.meta.env.VITE_GEMINI_API_KEY ||
+      null
+    );
   });
 
   const [status, setStatus] = useState<CloudStatus>({
-    state: 'idle',
-    hasKey: !!apiKey
+    state: "idle",
+    hasKey: !!apiKey,
   });
 
   // Update status when key changes
   const setApiKey = useCallback((key: string) => {
-      if (key) {
-          localStorage.setItem('gemini_api_key', key);
-          setAutoApiKey(key);
-          setStatus(prev => ({ ...prev, hasKey: true }));
-      } else {
-          localStorage.removeItem('gemini_api_key');
-          setAutoApiKey(null);
-          setStatus(prev => ({ ...prev, hasKey: false }));
-      }
+    if (key) {
+      localStorage.setItem("gemini_api_key", key);
+      setAutoApiKey(key);
+      setStatus((prev) => ({ ...prev, hasKey: true }));
+    } else {
+      localStorage.removeItem("gemini_api_key");
+      setAutoApiKey(null);
+      setStatus((prev) => ({ ...prev, hasKey: false }));
+    }
   }, []);
 
-  const generateFeedback = useCallback(async (model: CloudModel, contextString: string) => {
-    if (!apiKey) {
-      setStatus({ state: 'error', hasKey: false, error: 'API Key missing' });
-      return '';
-    }
+  const generateFeedback = useCallback(
+    async (model: CloudModel, contextString: string) => {
+      if (!apiKey) {
+        setStatus({ state: "error", hasKey: false, error: "API Key missing" });
+        return "";
+      }
 
-    setStatus(prev => ({ ...prev, state: 'loading', error: undefined }));
+      setStatus((prev) => ({ ...prev, state: "loading", error: undefined }));
 
-    try {
-      const modelName = model === 'pro' ? 'gemini-3-pro-preview' : 'gemini-2.0-flash-exp';
-      const RACING_PHYSICS_KNOWLEDGE = `
+      try {
+        const modelName =
+          model === "pro" ? "gemini-3-pro-preview" : "gemini-2.0-flash-exp";
+        const RACING_PHYSICS_KNOWLEDGE = `
 CORE PRINCIPLES:
 1. **The Friction Circle:** A tire has 100% grip. If you use 100% for braking, you have 0% for turning. 
    - *Error:* Turning while 100% braking = Understeer (Plowing).
@@ -63,7 +69,7 @@ THUNDERHILL EAST SPECIFICS:
 - **Turn 9 (Crest):** The road drops away. Grip reduces drastically at the top. All braking must be done *before* the crest.
 `;
 
-      const promptFlash = `
+        const promptFlash = `
 You are a Race Engineer. 
 Reference the [RACING_PHYSICS_KNOWLEDGE] below to diagnose the user's telemetry.
 
@@ -76,13 +82,21 @@ TASK:
 1. Identify the corner with the biggest "Time Loss" (Delta).
 2. Use the [RACING_PHYSICS_KNOWLEDGE] to explain the error.
 
+OUTPUT FORMAT:
+**Directive:** [Short, actionable instruction]
+### Analysis
+[Detailed explanation using markdown]
+
 EXAMPLE REASONING:
 - *Observation:* Driver is applying 80% Brake and 50% Steering in Turn 2 Entry.
 - *Physics Violation:* Friction Circle. The tire cannot support this load.
-- *Output:* "You are overloading the front tires in T2. You must trail off the brake before turning in (See: Friction Circle)."
+- *Output:*
+**Directive:** Trail off the brake before turning in.
+### Analysis
+You are overloading the front tires in T2 (See: Friction Circle).
 `;
 
-      const promptPro = `
+        const promptPro = `
 You are an Elite Driver Coach. 
 Use the [RACING_PHYSICS_KNOWLEDGE] to analyze the correlation between Telemetry and ideal physics.
 
@@ -94,75 +108,82 @@ ${RACING_PHYSICS_KNOWLEDGE}
 
 **Scenario B (Expert Coaching - EMULATE THIS):**
 "In Turn 2, the video shows your hands fighting the wheel (counter-steering) while the telemetry shows a sudden lift in throttle. 
-**Physics Diagnosis:** By lifting off mid-corner, you triggered 'Lift-Off Oversteer' (Rule #2: Weight Transfer).
-**Fix:** Keep a 'maintenance throttle' (10-20%) to keep the rear planted."
+**Directive:** Keep a 'maintenance throttle' (10-20%) to keep the rear planted.
+### Analysis
+**Physics Diagnosis:** By lifting off mid-corner, you triggered 'Lift-Off Oversteer' (Rule #2: Weight Transfer)."
 
 ### YOUR MISSION:
 Analyze the user's session context below. Look for:
 1. **Inputs:** Are the brake/throttle traces smooth or jagged (indicating uncertainty)?
 2. **Correlation:** Explain the physics behind the mistakes.
 
+OUTPUT FORMAT:
+**Directive:** [Short, actionable instruction. Max 10 words.]
+### Analysis
+[Detailed markdown analysis including headers like **Physics Diagnosis**, **Telemetry**, **Fix**]
+
 INPUT CONTEXT:
 ${contextString}
 `;
 
-      const prompt = `
-${model === 'pro' ? promptPro : promptFlash}
+        const prompt = `
+${model === "pro" ? promptPro : promptFlash}
  `;
 
-      const requestBody: any = {
-        contents: [{
-          parts: [{ text: prompt }]
-        }]
-      };
+        const requestBody: any = {
+          contents: [
+            {
+              parts: [{ text: prompt }],
+            },
+          ],
+        };
 
-      if (model === 'pro') {
+        if (model === "pro") {
           // Gemini 1.5 Pro config (or 1.0 Pro if using that)
           // No systemInstruction field for 1.0 Pro text-only usually, but for 1.5 it is fine.
           // Let's stick to simple prompt injection in contents for now to be safe across versions, unless using 1.5 specific API
-      } else {
-        // Flash config
-        // requestBody.systemInstruction = { ... } if needing separate system prompt
-      }
-
-
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestBody)
+        } else {
+          // Flash config
+          // requestBody.systemInstruction = { ... } if needing separate system prompt
         }
-      );
 
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(requestBody),
+          }
+        );
 
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error?.message || response.statusText);
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.error?.message || response.statusText);
+        }
+
+        const data = await response.json();
+        const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        setStatus((prev) => ({ ...prev, state: "success" }));
+        return generatedText || "";
+      } catch (err: unknown) {
+        console.error("Gemini Cloud generation failed:", err);
+        setStatus((prev) => ({
+          ...prev,
+          state: "error",
+          error: (err as Error).message || "Unknown error",
+        }));
+        return "";
       }
-
-      const data = await response.json();
-      const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      
-      setStatus(prev => ({ ...prev, state: 'success' }));
-      return generatedText || '';
-
-    } catch (err: unknown) {
-      console.error('Gemini Cloud generation failed:', err);
-      setStatus(prev => ({ 
-        ...prev, 
-        state: 'error', 
-        error: (err as Error).message || 'Unknown error' 
-      }));
-      return '';
-    }
-  }, [apiKey]);
+    },
+    [apiKey]
+  );
 
   return {
     status,
     generateFeedback,
-    setApiKey
+    setApiKey,
   };
 };
