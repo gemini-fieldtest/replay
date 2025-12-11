@@ -288,6 +288,9 @@ export const RealtimePage = () => {
                 <span className="text-gray-500 text-xs">SOURCE</span>
                 <input 
                     type="text" 
+                    name="telemetryUrl"
+                    autoComplete="off"
+                    spellCheck="false"
                     value={sourceUrl || ''} 
                     onChange={(e) => setSourceUrl(e.target.value)}
                     className="bg-transparent border-none text-xs text-white w-48 focus:outline-none"
