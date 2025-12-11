@@ -220,13 +220,13 @@ export const RealtimePage = () => {
         <div className="flex items-center gap-4">
           <button 
             onClick={toggleTheme}
-            className="flex items-center gap-2 text-red-600 dark:text-red-500 hover:scale-105 transition-transform cursor-pointer"
+            className="flex items-center gap-2 text-green-600 dark:text-green-500 hover:scale-105 transition-transform cursor-pointer"
             title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
           >
             {isStacked ? <Rows size={20} className="animate-pulse" /> : <LayoutGrid size={20} />}
             <span className="font-bold tracking-tight text-xl italic font-mono">
               KORU<span className="text-gray-900 dark:text-white">CIRCUIT</span>
-              <span className="text-xs ml-1 not-italic font-sans bg-red-500 text-white px-1 rounded font-bold">LIVE</span>
+              <span className="text-xs ml-1 not-italic font-sans bg-yellow-400 text-black px-1.5 py-0.5 rounded font-bold">VIK</span>
             </span>
           </button>
           

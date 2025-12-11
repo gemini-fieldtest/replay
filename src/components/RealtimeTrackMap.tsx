@@ -148,7 +148,7 @@ export const RealtimeTrackMap: React.FC<RealtimeTrackMapProps> = ({
       } else {
           // Debug alignment line - very faint
           ctx.beginPath();
-          ctx.strokeStyle = theme === 'dark' ? 'rgba(59, 130, 246, 0.3)' : 'rgba(37, 99, 235, 0.3)'; // blue-500/600 with low opacity
+          ctx.strokeStyle = theme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.5)';
           ctx.lineWidth = 1;
           
           const start = project(positions[0], positions[2]);

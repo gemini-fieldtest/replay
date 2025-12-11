@@ -242,13 +242,13 @@ export function ReplayPage() {
         <div className="flex items-center gap-4">
           <button 
             onClick={toggleTheme}
-            className="flex items-center gap-2 text-blue-600 dark:text-blue-500 hover:scale-105 transition-transform cursor-pointer"
+            className="flex items-center gap-2 text-green-600 dark:text-green-500 hover:scale-105 transition-transform cursor-pointer"
             title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
           >
             {layoutMode === 'grid' ? <LayoutGrid size={20} /> : <Rows size={20} />}
             <span className="font-bold tracking-tight text-xl italic font-mono">
               KORU<span className="text-gray-900 dark:text-white">CIRCUIT</span>
-              <span className="text-xs ml-1 not-italic font-sans bg-yellow-400 text-black px-1 rounded font-bold">RACE</span>
+              <span className="text-xs ml-1 not-italic font-sans bg-yellow-400 text-black px-1.5 py-0.5 rounded font-bold">VIK</span>
             </span>
           </button>
           
