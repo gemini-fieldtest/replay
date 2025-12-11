@@ -62,7 +62,7 @@ export const ReplayPitView: React.FC<ReplayPitViewProps> = ({
                         const delta = idealLap ? lap.lapTime - idealLap.lapTime : null;
                         return (
                             <div key={i} className="flex justify-between items-center p-2 bg-gray-800/50 rounded border border-gray-700">
-                                <span className="text-gray-400 text-sm">Lap {lap.lapIndex + 1}</span>
+                                <span className="text-gray-400 text-sm">Lap {lap.lapIndex}</span>
                                 <div className="flex items-center gap-2">
                                     {showGhost && delta !== null && (
                                         <span className={`text-xs font-mono font-bold ${delta > 0 ? 'text-red-500' : 'text-green-500'}`}>

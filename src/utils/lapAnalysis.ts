@@ -57,7 +57,7 @@ export function detectLaps(frames: TelemetryFrame[], startLine?: { lat: number, 
              // const crossIndex = i - 1;
              const timeSinceLast = frame.time - lapStartTime;
 
-             if (timeSinceLast > MIN_LAP_TIME) {
+             if (timeSinceLast > MIN_LAP_TIME || !onLap) {
                  if (onLap) {
                      // Complete the current lap
                      // Calculate distance

@@ -93,24 +93,41 @@ export function useTelemetry(source: string | File | null) {
     // console.log('Loop', stateRef.current.isPlaying, time);
     if (!stateRef.current.isPlaying) return;
     
-    if (lastTimeRef.current !== undefined) {
-      const deltaTime = (time - lastTimeRef.current) * playbackSpeed; // ms
-      // Convert to seconds for telemetry time comparison
-      const deltaSeconds = deltaTime / 1000;
-      
+    // Initialize lastTimeRef if it's the first frame of playback
+    if (lastTimeRef.current === undefined || lastTimeRef.current === 0) {
+        lastTimeRef.current = time;
+        requestRef.current = requestAnimationFrame(loopRef.current);
+        return;
+    }
+
+    const deltaTimeMs = (time - lastTimeRef.current) * playbackSpeed;
+    
+    // Prevent huge jumps (e.g. tab switch or startup glitch)
+    // If delta is > 500ms (at 1x), treat it as a skip
+    const maxDelta = 500 * Math.max(1, playbackSpeed);
+    
+    let deltaSeconds = 0;
+    if (deltaTimeMs > maxDelta) {
+        // console.warn('Skipping large delta', deltaTimeMs);
+        lastTimeRef.current = time; // reset baseline
+         // Don't advance time
+    } else {
+        deltaSeconds = deltaTimeMs / 1000;
+    }
+
+    if (deltaSeconds > 0) {
       playbackTimeRef.current += deltaSeconds;
+      
       const targetTime = playbackTimeRef.current;
       
       // Advance index until we reach targetTime
       let newIndex = stateRef.current.currentIndex;
       
-      // Optimization: start from current index
-      // If we are behind (e.g. looped or seeked back), we might need to handle that?
-      // But playbackTimeRef should be synced.
-      
       // Check if we need to move forward
       while (newIndex < stateRef.current.data.length - 1) {
-        if (stateRef.current.data[newIndex + 1].time > targetTime) {
+        // Check next frame's time
+        const nextTime = stateRef.current.data[newIndex + 1].time;
+        if (nextTime > targetTime) {
           break;
         }
         newIndex++;
@@ -124,6 +141,7 @@ export function useTelemetry(source: string | File | null) {
            playbackTimeRef.current = stateRef.current.data[0].time;
         } else {
            setIsPlaying(false);
+           stateRef.current.isPlaying = false; // Sync local state immediately
         }
       }
 
