@@ -26,10 +26,25 @@ export const ReplayDriverView: React.FC<ReplayDriverViewProps> = ({
   startLinePos,
   isPlaying = false 
 }) => {
-  const [viewMode, setViewMode] = useState<'3d' | 'video'>('3d');
+  const [viewMode, setViewModeState] = useState<'3d' | 'video'>(() => {
+      return (localStorage.getItem('driver_view_mode') as '3d' | 'video') || '3d';
+  });
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
-  const [videoOffset, setVideoOffset] = useState<number>(0);
+  const [videoOffset, setVideoOffsetState] = useState<number>(() => {
+      const saved = localStorage.getItem('driver_video_offset');
+      return saved ? parseFloat(saved) : 0;
+  });
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  const setViewMode = (mode: '3d' | 'video') => {
+      setViewModeState(mode);
+      localStorage.setItem('driver_view_mode', mode);
+  };
+
+  const setVideoOffset = (offset: number) => {
+      setVideoOffsetState(offset);
+      localStorage.setItem('driver_video_offset', offset.toString());
+  };
 
   // Handle File Upload
   const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

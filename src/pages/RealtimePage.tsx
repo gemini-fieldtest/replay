@@ -16,7 +16,9 @@ export const RealtimePage = () => {
   
   const [layoutMode, setLayoutMode] = useState<'grid' | 'stacked'>(() => {
     const params = new URLSearchParams(window.location.search);
-    return (params.get('mode') as 'grid' | 'stacked') || 'stacked';
+    const urlMode = params.get('mode') as 'grid' | 'stacked';
+    if (urlMode) return urlMode;
+    return (localStorage.getItem('realtime_layout_mode') as 'grid' | 'stacked') || 'grid';
   });
 
   // Layout State - Force defaults if loaded in stacked mode
@@ -178,6 +180,7 @@ export const RealtimePage = () => {
   }, [isResizing, handleMouseMove, handleMouseUp]);
   
   const toggleLayoutMode = (mode: 'grid' | 'stacked') => {
+    localStorage.setItem('realtime_layout_mode', mode);
     const params = new URLSearchParams(window.location.search);
     params.set('mode', mode);
     window.history.pushState({}, '', `${window.location.pathname}?${params.toString()}`);
@@ -210,20 +213,21 @@ export const RealtimePage = () => {
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 text-red-500">
             {isStacked ? <GalleryVerticalEnd size={20} className="animate-pulse" /> : <LayoutDashboard size={20} />}
-            <span className="font-bold tracking-tight">RACE<span className="text-white">LIVE</span></span>
+            <span className="font-bold tracking-tight">KORU<span className="text-white">CIRCUIT</span></span>
           </div>
           
           <div className="h-6 w-px bg-gray-800 mx-2" />
           
-          <div className="flex items-center bg-gray-800 rounded-lg p-1 gap-1">
-            <Link to="/replay" className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium text-gray-400 hover:text-white hover:bg-gray-700/50 transition-colors">
-                <LayoutDashboard size={14} />
-                <span>Replay</span>
-            </Link>
-            <div className="w-px h-4 bg-gray-700 mx-1" />
+          <Link to="/replay" className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-colors border border-transparent hover:border-gray-700">
+              <LayoutDashboard size={14} />
+              <span>Replay</span>
+          </Link>
 
-            { !isStacked && (
-              <>
+          { !isStacked && (
+            <>
+              <div className="h-6 w-px bg-gray-800 mx-2" />
+              
+              <div className="flex items-center bg-gray-800 rounded-lg p-1 gap-1">
                 <button
                   onClick={() => setShowPitView(!showPitView)}
                   className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
@@ -248,9 +252,9 @@ export const RealtimePage = () => {
                 >
                   Coach
                 </button>
-              </>
-            )}
-          </div>
+              </div>
+            </>
+          )}
           
            <div className="h-6 w-px bg-gray-800 mx-2" />
 

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useTelemetry } from '../hooks/useTelemetry';
-import { Play, Pause, SkipForward, SkipBack, FileText, Upload, LayoutDashboard, Repeat, GalleryVerticalEnd, Ghost } from 'lucide-react';
+import { Play, Pause, SkipForward, SkipBack, FileText, LayoutDashboard, Repeat, GalleryVerticalEnd, Ghost } from 'lucide-react';
 import { ReplayPitView } from './ReplayPitView';
 import { ReplayDriverView } from './ReplayDriverView';
 import { PerformanceCoach } from './PerformanceCoach';
@@ -25,9 +25,12 @@ export function ReplayPage() {
   const [isResizing, setIsResizing] = useState(false);
   const [layoutMode, setLayoutMode] = useState<'grid' | 'stacked'>(() => {
     const params = new URLSearchParams(window.location.search);
-    return (params.get('mode') as 'grid' | 'stacked') || 'stacked';
+    const urlMode = params.get('mode') as 'grid' | 'stacked';
+    if (urlMode) return urlMode;
+    return (localStorage.getItem('replay_layout_mode') as 'grid' | 'stacked') || 'stacked';
   });
   const containerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Force stacked view defaults if loaded in stacked mode
   useEffect(() => {
@@ -98,6 +101,7 @@ export function ReplayPage() {
   } = useTelemetry(selectedSource, startLine);
 
   const toggleLayoutMode = (mode: 'grid' | 'stacked') => {
+    localStorage.setItem('replay_layout_mode', mode);
     const params = new URLSearchParams(window.location.search);
     params.set('mode', mode);
     window.history.pushState({}, '', `${window.location.pathname}?${params.toString()}`);
@@ -236,20 +240,22 @@ export function ReplayPage() {
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 text-blue-500">
             {layoutMode === 'grid' ? <LayoutDashboard size={20} /> : <GalleryVerticalEnd size={20} />}
-            <span className="font-bold tracking-tight">RACE<span className="text-white">REPLAY</span></span>
+            <span className="font-bold tracking-tight">KORU<span className="text-white">CIRCUIT</span></span>
           </div>
           
           
+          <div className="h-6 w-px bg-gray-800 mx-2" />
+          
+          <Link to="/" className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-colors border border-transparent hover:border-gray-700">
+              <LayoutDashboard size={14} />
+              <span>Live</span>
+          </Link>
+
           {layoutMode === 'grid' && (
             <>
               <div className="h-6 w-px bg-gray-800 mx-2" />
               
               <div className="flex items-center bg-gray-800 rounded-lg p-1 gap-1">
-                <Link to="/" className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium text-gray-400 hover:text-white hover:bg-gray-700/50 transition-colors">
-                    <LayoutDashboard size={14} />
-                    <span>Live</span>
-                </Link>
-                <div className="w-px h-4 bg-gray-700 mx-1" />
                 <button
                   onClick={() => setShowPitView(!showPitView)}
                   className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
@@ -386,21 +392,31 @@ export function ReplayPage() {
               <select 
                 className="bg-transparent text-sm focus:outline-none max-w-[200px]"
                 value={typeof selectedSource === 'string' ? selectedSource : ''}
-                onChange={(e) => setSelectedSource(e.target.value)}
+                onChange={(e) => {
+                  if (e.target.value === '__custom_upload__') {
+                    fileInputRef.current?.click();
+                  } else {
+                    setSelectedSource(e.target.value);
+                  }
+                }}
               >
                 {manifest.map(file => (
                   <option key={file.url} value={file.url}>{file.name}</option>
                 ))}
                 {selectedSource instanceof File && <option value="">{selectedSource.name} (Local)</option>}
+                <option disabled>──────────</option>
+                <option value="__custom_upload__">Browse for file...</option>
               </select>
             </div>
-
-            {/* Local File Upload */}
-            <label className="cursor-pointer flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white w-32 py-1.5 rounded-md text-sm font-medium transition-colors shadow-sm hover:shadow group" title="Upload local telemetry CSV file">
-              <Upload size={16} className="group-hover:scale-110 transition-transform" />
-              <span>Upload CSV</span>
-              <input type="file" accept=".csv" className="hidden" onChange={handleFileChange} />
-            </label>
+            
+            {/* Hidden Input for File Upload */}
+            <input 
+                ref={fileInputRef}
+                type="file" 
+                accept=".csv" 
+                className="hidden" 
+                onChange={handleFileChange} 
+            />
         </div>
       </header>
 
