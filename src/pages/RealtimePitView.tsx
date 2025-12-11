@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Map as MapIcon, MapPinOff } from 'lucide-react';
 import { RealtimeGauges } from '../components/RealtimeGauges';
 import { CoordinatesDisplay } from '../components/CoordinatesDisplay';
@@ -7,9 +7,18 @@ import { RealtimeTrackMap } from '../components/RealtimeTrackMap';
 import { type TelemetryFrame } from '../utils/telemetryParser';
 import { type LapData } from '../utils/lapAnalysis';
 
+interface Sector {
+  id: string;
+  name: string;
+  shortName: string;
+  color: string;
+  startRatio: number;
+  endRatio: number;
+}
+
 interface RealtimePitViewProps {
   currentFrame: TelemetryFrame | null;
-  trackPositions: Float32Array;
+  positions: Float32Array; 
   currentIndex: number;
   ghostFrame?: TelemetryFrame | null;
   ghostPosition?: [number, number, number] | null;
@@ -21,7 +30,7 @@ interface RealtimePitViewProps {
 
 export const RealtimePitView: React.FC<RealtimePitViewProps> = ({ 
   currentFrame, 
-  trackPositions, 
+  positions: trackPositions, 
   currentIndex, 
   ghostFrame,
   ghostPosition,
@@ -31,6 +40,7 @@ export const RealtimePitView: React.FC<RealtimePitViewProps> = ({
   laps = []
 }) => {
   const [showMap, setShowMap] = useState(false);
+  const [sectors] = useState<Sector[]>([]);
   const [calibration, setCalibration] = useState({
       scale: 1,
       offsetX: 0,
@@ -39,6 +49,20 @@ export const RealtimePitView: React.FC<RealtimePitViewProps> = ({
   });
 
   const [showCalibration, setShowCalibration] = useState(false);
+
+  // Load Sectors
+
+
+  // Calculate Current Sector
+  const currentSector = useMemo(() => {
+      if (!trackPositions || trackPositions.length === 0 || sectors.length === 0) return null;
+      // Calculate progress ratio (0 to 1)
+      const totalPoints = trackPositions.length / 3;
+      const progress = currentIndex / totalPoints;
+      
+      const ratio = Math.max(0, Math.min(1, progress));
+      return sectors.find(s => ratio >= s.startRatio && ratio < s.endRatio) || sectors[sectors.length - 1];
+  }, [currentIndex, trackPositions, sectors]);
 
   return (
     <div className="flex-grow flex gap-4 h-full">
@@ -136,7 +160,14 @@ export const RealtimePitView: React.FC<RealtimePitViewProps> = ({
 
             {/* Lap Times Panel */}
             <div className="w-64 bg-gray-900 rounded-lg border border-gray-800 p-4 flex flex-col overflow-hidden">
-                <h3 className="text-sm font-bold text-gray-400 mb-3 uppercase tracking-wider">Lap Times</h3>
+                <div className="flex justify-between items-center mb-3">
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Lap Times</h3>
+                    {currentSector && (
+                      <span className="px-2 py-0.5 rounded text-xs font-bold text-gray-900" style={{ backgroundColor: currentSector.color }}>
+                        {currentSector.id}
+                      </span>
+                    )}
+                </div>
                 
                 <div className="flex-grow overflow-y-auto space-y-2 pr-2 custom-scrollbar">
                     {idealLap && (

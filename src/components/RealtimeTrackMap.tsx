@@ -27,7 +27,7 @@ export const RealtimeTrackMap: React.FC<RealtimeTrackMapProps> = ({
 
   // Calculate bounds from positions (X and Z)
   const bounds = useMemo(() => {
-    if (positions.length === 0) return null;
+    if (!positions || positions.length === 0) return null;
     let minX = Infinity, maxX = -Infinity;
     let minZ = Infinity, maxZ = -Infinity;
 
@@ -46,7 +46,7 @@ export const RealtimeTrackMap: React.FC<RealtimeTrackMapProps> = ({
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !bounds || positions.length === 0) return;
+    if (!canvas || !bounds || !positions || positions.length === 0) return;
 
     const draw = () => {
       const ctx = canvas.getContext('2d');
@@ -158,6 +158,21 @@ export const RealtimeTrackMap: React.FC<RealtimeTrackMapProps> = ({
           }
           ctx.stroke();
       }
+
+      // Start/Finish Line
+      const startPos = project(positions[0], positions[2]);
+      
+      ctx.beginPath();
+      ctx.fillStyle = '#ffffff';
+      ctx.arc(startPos.x, startPos.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Draw "0" label at Start
+      ctx.font = 'bold 12px monospace';
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('0', startPos.x, startPos.y - 12);
 
       // Draw Ghost Marker
       if (ghostPosition) {
