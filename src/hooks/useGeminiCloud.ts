@@ -32,59 +32,131 @@ export const useGeminiCloud = () => {
       }
   }, []);
 
-  const generateFeedback = useCallback(async (model: CloudModel, baseMessage: string, contextString: string) => {
+  const generateFeedback = useCallback(async (model: CloudModel, contextString: string) => {
     if (!apiKey) {
       setStatus({ state: 'error', hasKey: false, error: 'API Key missing' });
-      return baseMessage;
+      return '';
     }
 
     setStatus(prev => ({ ...prev, state: 'loading', error: undefined }));
 
     try {
       const modelName = model === 'pro' ? 'gemini-3-pro-preview' : 'gemini-2.0-flash-exp';
-      const prompt = `
-Context: ${contextString}
-Base Message: "${baseMessage}"
-Task: You are a professional racing engineer. Rewrite the base message to be concise, technical, and actionable. Use specific vocabulary: 'Brake later', 'Turn in earlier', 'Track out further', 'Apex late'. Do NOT use emojis. Do NOT include praise unless explicitly stated in Context as 'New Best'. Do NOT mention the 'ghost'.
+      const RACING_PHYSICS_KNOWLEDGE = `
+CORE PRINCIPLES:
+1. **The Friction Circle:** A tire has 100% grip. If you use 100% for braking, you have 0% for turning. 
+   - *Error:* Turning while 100% braking = Understeer (Plowing).
+   - *Fix:* "Trail braking" (releasing brake pressure as steering angle increases).
+
+2. **Weight Transfer:** - Braking shifts weight forward (Front grip UP, Rear grip DOWN).
+   - Accelerating shifts weight backward (Front grip DOWN, Rear grip UP).
+   - *Error:* Lifting off throttle mid-corner shifts weight forward abruptly -> Oversteer (Spin risk).
+
+3. **The geometric line vs. The racing line:**
+   - We prioritize "Exit Speed" onto straights (Turn 15).
+   - We prioritize "Entry Speed" into non-critical corners (Turn 11).
+   - *Rule:* "Slow in, Fast out" applies to corners leading onto long straights.
+
+THUNDERHILL EAST SPECIFICS:
+- **Turn 2 (Carousel):** Long duration. Patience is key. Late apex allows full throttle earlier.
+- **Turn 5 (Bypass):** Uphill blind entry. The car gains grip due to compression. Commit to throttle.
+- **Turn 9 (Crest):** The road drops away. Grip reduces drastically at the top. All braking must be done *before* the crest.
 `;
 
+      const promptFlash = `
+You are a Race Engineer. 
+Reference the [RACING_PHYSICS_KNOWLEDGE] below to diagnose the user's telemetry.
+
+${RACING_PHYSICS_KNOWLEDGE}
+
+INPUT DATA:
+- Telemetry Context: ${contextString}
+
+TASK:
+1. Identify the corner with the biggest "Time Loss" (Delta).
+2. Use the [RACING_PHYSICS_KNOWLEDGE] to explain the error.
+
+EXAMPLE REASONING:
+- *Observation:* Driver is applying 80% Brake and 50% Steering in Turn 2 Entry.
+- *Physics Violation:* Friction Circle. The tire cannot support this load.
+- *Output:* "You are overloading the front tires in T2. You must trail off the brake before turning in (See: Friction Circle)."
+`;
+
+      const promptPro = `
+You are an Elite Driver Coach. 
+Use the [RACING_PHYSICS_KNOWLEDGE] to analyze the correlation between Telemetry and ideal physics.
+
+${RACING_PHYSICS_KNOWLEDGE}
+
+### EXAMPLES OF EXPERT ANALYSIS (FEW-SHOT):
+
+**Scenario A (Bad Coaching):** "You went too fast in Turn 2. Slow down." -> *Critique: Too generic.*
+
+**Scenario B (Expert Coaching - EMULATE THIS):**
+"In Turn 2, the video shows your hands fighting the wheel (counter-steering) while the telemetry shows a sudden lift in throttle. 
+**Physics Diagnosis:** By lifting off mid-corner, you triggered 'Lift-Off Oversteer' (Rule #2: Weight Transfer).
+**Fix:** Keep a 'maintenance throttle' (10-20%) to keep the rear planted."
+
+### YOUR MISSION:
+Analyze the user's session context below. Look for:
+1. **Inputs:** Are the brake/throttle traces smooth or jagged (indicating uncertainty)?
+2. **Correlation:** Explain the physics behind the mistakes.
+
+INPUT CONTEXT:
+${contextString}
+`;
+
+      const prompt = `
+${model === 'pro' ? promptPro : promptFlash}
+ `;
+
       const requestBody: any = {
-        contents: [{ parts: [{ text: prompt }] }]
+        contents: [{
+          parts: [{ text: prompt }]
+        }]
       };
 
       if (model === 'pro') {
-          requestBody.generationConfig = {
-              thinkingConfig: {
-                  thinkingLevel: 'HIGH'
-              }
-          };
+          // Gemini 1.5 Pro config (or 1.0 Pro if using that)
+          // No systemInstruction field for 1.0 Pro text-only usually, but for 1.5 it is fine.
+          // Let's stick to simple prompt injection in contents for now to be safe across versions, unless using 1.5 specific API
+      } else {
+        // Flash config
+        // requestBody.systemInstruction = { ... } if needing separate system prompt
       }
 
+
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1alpha/models/${modelName}:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+          },
           body: JSON.stringify(requestBody)
         }
       );
 
+
       if (!response.ok) {
-        throw new Error(`API Error: ${response.statusText}`);
+        const errData = await response.json();
+        throw new Error(errData.error?.message || response.statusText);
       }
 
       const data = await response.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-      if (!text) throw new Error('No content in response');
-
+      const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      
       setStatus(prev => ({ ...prev, state: 'success' }));
-      return text.trim();
+      return generatedText || '';
 
     } catch (err: unknown) {
       console.error('Gemini Cloud generation failed:', err);
-      setStatus({ state: 'error', hasKey: true, error: (err as Error).message });
-      return baseMessage;
+      setStatus(prev => ({ 
+        ...prev, 
+        state: 'error', 
+        error: (err as Error).message || 'Unknown error' 
+      }));
+      return '';
     }
   }, [apiKey]);
 

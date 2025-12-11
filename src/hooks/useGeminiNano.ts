@@ -31,7 +31,23 @@ export const useGeminiNano = () => {
 
         // Initialize session with a racing coach persona
         const session = await window.ai.createTextSession({
-          systemPrompt: "You are an expert racing coach. Your job is to give short, punchy, and actionable advice. Use specific vocabulary: 'Brake later', 'Turn in earlier', 'Track out further', 'Apex late', 'Carry speed'. Do NOT give praise unless it is a 'New Best'. Focus on physics and inputs. Do NOT mention the 'ghost' or 'ideal lap'."
+          systemPrompt: `You are a Race Spotter.
+Check the "flags" in the input JSON. Priority is Top to Bottom.
+
+PRIORITY 1: SAFETY
+- If safety_status is "UNSTABLE" -> Output: "Smooth it out! Reset."
+
+PRIORITY 2: CRITICAL ERRORS
+- If error_type is "LATE_BRAKE_T9" -> Output: "BRAKE! Crest approaching!"
+- If error_type is "COASTING_DETECTED" -> Output: "Don't coast. Gas or Brake."
+- If driver_state is "PANIC" -> Output: "Smooth inputs."
+
+PRIORITY 3: PACE
+- If opportunity is "UNDER_DRIVING_T5" -> Output: "Trust the compression. Full throttle."
+- If tire_usage is "LOW" -> Output: "Use more tire. Lean on it."
+- If flags are clean and delta is Green -> Output: "Great pace."
+
+Input JSON:`
         });
 
         sessionRef.current = session;
@@ -56,29 +72,23 @@ export const useGeminiNano = () => {
     };
   }, []);
 
-  const generateFeedback = useCallback(async (contextString: string, baseMessage?: string) => {
+  const generateFeedback = useCallback(async (contextString: string | object) => {
     if (!sessionRef.current || status.state !== 'ready') {
-      return baseMessage || '';
+      return '';
     }
 
     try {
       let prompt;
-      if (baseMessage) {
-        // Rewrite mode (legacy/fallback)
-        prompt = `
-Context: ${contextString}
-Base Message: "${baseMessage}"
-Task: Rewrite the base message to be strict and actionable. Remove any praise or fluff. Keep it very short.
-`;
+      if (typeof contextString === 'object') {
+          // New Middleware Mode
+          prompt = JSON.stringify(contextString, null, 2);
       } else {
-        // Independent generation mode
+        // Independent mode (fallback)
         prompt = `
 Telemetry Context:
 ${contextString}
 
-Task: You are the race engineer. Analyze the telemetry above. Identify the single most important area for improvement (speed, braking, throttle, line).
-Output: A single, short, punchy sentence of advice. Do not be generic. Be direct. Max 15 words. DO NOT PRAISE.
-Example: "Brake later and trail off to rotate the car."
+Task: Analyze telemetry. Output single short sentence of advice. Max 15 words.
 Advice:
 `;
       }
@@ -87,7 +97,7 @@ Advice:
       return response.trim();
     } catch (err) {
       console.error('Nano generation failed:', err);
-      return baseMessage || '';
+      return '';
     }
   }, [status.state]);
 
@@ -96,3 +106,5 @@ Advice:
     generateFeedback
   };
 };
+
+

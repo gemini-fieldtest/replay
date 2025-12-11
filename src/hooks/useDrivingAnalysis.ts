@@ -9,6 +9,8 @@ export interface DrivingAnalysis {
   isPedalChoppy: boolean;
   rpmBand: 'Low' | 'Power' | 'Over-rev' | null;
   gradient?: number;
+  isCoasting?: boolean;
+  isPanicBraking?: boolean;
 }
 
 export function useDrivingAnalysis(currentFrame: TelemetryFrame | null): DrivingAnalysis {
@@ -99,6 +101,31 @@ export function useDrivingAnalysis(currentFrame: TelemetryFrame | null): Driving
         else if (currentFrame.rpm > 7200) rpmBand = 'Over-rev';
         else rpmBand = 'Power';
 
+        // 5. Advanced Flags
+        // Coasting: Throttle < 5% AND Brake < 5% for > 0.4s
+        // 0.4s at 60Hz is approx 24 frames
+        let isCoasting = false;
+        if (currentFrame.speed > 30) { // Only check if moving significant speed
+             const recent = history.slice(-24);
+             if (recent.length >= 24) {
+                 isCoasting = recent.every(f => f.throttle < 5 && f.brake < 5);
+             }
+        }
+
+        // Panic Braking: Brake Pressure spikes 0->100 in < 0.1s (approx 6 frames)
+        let isPanicBraking = false;
+        // Check last 6 frames for 0 -> >90 spike
+        if (history.length > 6) {
+             const framePast = history[history.length - 6];
+             // If brake was 0 and now is > 90
+             if (framePast.brake < 5 && currentFrame.brake > 90) {
+                 // Check steering > 20
+                 if (Math.abs(currentFrame.steering) > 20) {
+                     isPanicBraking = true;
+                 }
+             }
+        }
+
         setAnalysis({
             phase,
             gripUsage: Number(comboG.toFixed(2)),
@@ -106,7 +133,9 @@ export function useDrivingAnalysis(currentFrame: TelemetryFrame | null): Driving
             isSteeringChoppy,
             isPedalChoppy,
             rpmBand,
-            gradient: currentFrame.gradient
+            gradient: currentFrame.gradient,
+            isCoasting,
+            isPanicBraking
         });
 
     }, [currentFrame]);

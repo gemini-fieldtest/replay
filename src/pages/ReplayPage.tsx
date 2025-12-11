@@ -216,6 +216,8 @@ export function ReplayPage() {
 
   // Helper to determine active views count for layout
   const activeViews = [showPitView, showDriverView, showCoachView].filter(Boolean).length;
+  // If we are in grid mode, have the coach enabled, and at least one other view, we use the "Sidebar" layout for the coach
+  const isCoachSideBar = layoutMode === 'grid' && showCoachView && activeViews > 1;
 
   return (
     <div className="h-screen w-full bg-black text-white flex flex-col overflow-hidden font-sans selection:bg-blue-500/30">
@@ -404,8 +406,12 @@ export function ReplayPage() {
           <div 
             className="flex flex-col min-w-0 overflow-hidden"
             style={{ 
-              width: layoutMode === 'stacked' ? '100%' : (activeViews === 1 ? '100%' : (activeViews === 2 && showDriverView && !showCoachView ? `${splitPosition}%` : `${100/activeViews}%`)),
-              flex: layoutMode === 'stacked' ? 'none' : ((activeViews === 2 && showDriverView && !showCoachView) ? 'none' : '1'),
+              width: layoutMode === 'stacked' 
+                  ? '100%' 
+                  : (isCoachSideBar ? 'auto' : (activeViews === 1 ? '100%' : (activeViews === 2 && showDriverView && !showCoachView ? `${splitPosition}%` : `${100/activeViews}%`))),
+              flex: layoutMode === 'stacked' 
+                  ? 'none' 
+                  : (isCoachSideBar ? '1' : ((activeViews === 2 && showDriverView && !showCoachView) ? 'none' : '1')),
               height: layoutMode === 'stacked' ? '70vh' : 'auto'
             }}
           >
@@ -439,8 +445,12 @@ export function ReplayPage() {
           <div 
             className="flex flex-col min-w-0 overflow-hidden"
             style={{ 
-              width: layoutMode === 'stacked' ? '100%' : (activeViews === 1 ? '100%' : (activeViews === 2 && showPitView && !showCoachView ? `${100 - splitPosition}%` : `${100/activeViews}%`)),
-              flex: layoutMode === 'stacked' ? 'none' : ((activeViews === 2 && showPitView && !showCoachView) ? 'none' : '1'),
+              width: layoutMode === 'stacked' 
+                  ? '100%' 
+                  : (isCoachSideBar ? 'auto' : (activeViews === 1 ? '100%' : (activeViews === 2 && showPitView && !showCoachView ? `${100 - splitPosition}%` : `${100/activeViews}%`))),
+              flex: layoutMode === 'stacked' 
+                  ? 'none' 
+                  : (isCoachSideBar ? '1' : ((activeViews === 2 && showPitView && !showCoachView) ? 'none' : '1')),
               height: layoutMode === 'stacked' ? '70vh' : 'auto'
             }}
           >
@@ -464,8 +474,8 @@ export function ReplayPage() {
              <div 
                 className="flex flex-col min-w-0 overflow-hidden"
                  style={{ 
-                   width: layoutMode === 'stacked' ? '100%' : (activeViews === 1 ? '100%' : `${100/activeViews}%`),
-                   flex: layoutMode === 'stacked' ? 'none' : '1',
+                   width: layoutMode === 'stacked' ? '100%' : (isCoachSideBar ? '350px' : (activeViews === 1 ? '100%' : `${100/activeViews}%`)),
+                   flex: layoutMode === 'stacked' ? 'none' : (isCoachSideBar ? 'none' : '1'),
                     height: layoutMode === 'stacked' ? '70vh' : 'auto'
                  }}
               >
