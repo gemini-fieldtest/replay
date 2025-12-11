@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ReplayGauges } from '../components/ReplayGauges';
 import { ReplayTrackMap } from '../components/ReplayTrackMap';
 import { type TelemetryFrame } from '../utils/telemetryParser';
@@ -29,6 +29,14 @@ export const ReplayPitView: React.FC<ReplayPitViewProps> = ({
   laps = [],
   isStacked = false
 }) => {
+  const [calibration, setCalibration] = useState({
+      scale: 1,
+      offsetX: 0,
+      offsetY: 0,
+      rotation: 0
+  });
+
+  const [showCalibration, setShowCalibration] = useState(false);
 
   // Helper to get ghost history (ideal lap frames up to current ghost time)
   const getGhostHistory = useMemo(() => {
@@ -47,8 +55,92 @@ export const ReplayPitView: React.FC<ReplayPitViewProps> = ({
       <div className="flex-grow flex flex-col gap-4 h-full">
         <div className="flex gap-4 h-96 shrink-0">
             {/* Track Map */}
-            <div className="bg-gray-900 rounded-lg flex-grow border border-gray-800 overflow-hidden relative group min-w-0">
-               <ReplayTrackMap positions={trackPositions} currentIndex={currentIndex} ghostPosition={showGhost ? ghostPosition : null} />
+            <div className="bg-gray-900 rounded-lg flex-grow border border-gray-800 overflow-hidden relative group min-w-0 flex flex-col">
+               <div className="absolute top-2 right-2 z-10">
+                    <button 
+                        onClick={() => setShowCalibration(!showCalibration)}
+                        className="p-1 rounded bg-gray-800 text-gray-400 hover:text-white border border-gray-700 text-xs"
+                    >
+                        {showCalibration ? 'Done' : 'Calibrate'}
+                    </button>
+                </div>
+                
+                {showCalibration && (
+                    <div className="absolute top-10 right-2 z-10 bg-gray-900/90 p-3 rounded border border-gray-700 w-64 backdrop-blur-sm shadow-xl">
+                        <div className="text-xs font-bold text-gray-400 mb-2 uppercase">Map Calibration</div>
+                        
+                        <div className="space-y-3">
+                            <div>
+                                <div className="flex justify-between text-xs text-gray-500 mb-1">
+                                    <span>Zoom</span>
+                                    <span>{calibration.scale.toFixed(2)}x</span>
+                                </div>
+                                <input 
+                                    type="range" min="0.1" max="3" step="0.01" 
+                                    value={calibration.scale}
+                                    onChange={(e) => setCalibration({...calibration, scale: parseFloat(e.target.value)})}
+                                    className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                />
+                            </div>
+                            
+                            <div>
+                                <div className="flex justify-between text-xs text-gray-500 mb-1">
+                                    <span>Rotate</span>
+                                    <span>{calibration.rotation}°</span>
+                                </div>
+                                <input 
+                                    type="range" min="-180" max="180" step="1" 
+                                    value={calibration.rotation}
+                                    onChange={(e) => setCalibration({...calibration, rotation: parseFloat(e.target.value)})}
+                                    className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                />
+                            </div>
+
+                            <div>
+                                <div className="flex justify-between text-xs text-gray-500 mb-1">
+                                    <span>Offset X (px)</span>
+                                    <span>{calibration.offsetX}</span>
+                                </div>
+                                <input 
+                                    type="range" min="-500" max="500" step="1" 
+                                    value={calibration.offsetX}
+                                    onChange={(e) => setCalibration({...calibration, offsetX: parseFloat(e.target.value)})}
+                                    className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                />
+                            </div>
+
+                            <div>
+                                <div className="flex justify-between text-xs text-gray-500 mb-1">
+                                    <span>Offset Y (px)</span>
+                                    <span>{calibration.offsetY}</span>
+                                </div>
+                                <input 
+                                    type="range" min="-500" max="500" step="1" 
+                                    value={calibration.offsetY}
+                                    onChange={(e) => setCalibration({...calibration, offsetY: parseFloat(e.target.value)})}
+                                    className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                />
+                            </div>
+                            
+                            <button 
+                                onClick={() => setCalibration({ scale: 1, offsetX: 0, offsetY: 0, rotation: 0 })}
+                                className="w-full py-1 text-xs bg-red-900/30 text-red-500 rounded hover:bg-red-900/50"
+                            >
+                                Reset
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+               <div className="flex-grow relative">
+                   <ReplayTrackMap 
+                        positions={trackPositions} 
+                        currentIndex={currentIndex} 
+                        ghostPosition={showGhost ? ghostPosition : null} 
+                        backgroundImage="/tracks/thunderhill/map.svg"
+                        calibration={calibration}
+                   />
+               </div>
             </div>
 
             {/* Lap Times Panel */}
@@ -60,16 +152,33 @@ export const ReplayPitView: React.FC<ReplayPitViewProps> = ({
 
                     {laps.map((lap, i) => {
                         const delta = idealLap ? lap.lapTime - idealLap.lapTime : null;
+                        
+                        // Check if this is the active lap
+                        const isActive = currentFrame && 
+                                         currentFrame.time >= lap.frames[0].time && 
+                                         currentFrame.time <= lap.frames[lap.frames.length-1].time;
+
                         return (
-                            <div key={i} className="flex justify-between items-center p-2 bg-gray-800/50 rounded border border-gray-700">
-                                <span className="text-gray-400 text-sm">Lap {lap.lapIndex}</span>
+                            <div 
+                                key={i} 
+                                className={`flex justify-between items-center p-2 rounded border transition-colors ${
+                                    isActive 
+                                        ? 'bg-blue-900/40 border-blue-500 shadow-sm ring-1 ring-blue-500/50' 
+                                        : 'bg-gray-800/50 border-gray-700 opacity-60 hover:opacity-100'
+                                }`}
+                            >
+                                <span className={`text-sm ${isActive ? 'text-blue-100 font-bold' : 'text-gray-400'}`}>
+                                    Lap {lap.lapIndex}
+                                </span>
                                 <div className="flex items-center gap-2">
                                     {showGhost && delta !== null && (
-                                        <span className={`text-xs font-mono font-bold ${delta > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                                        <span className={`text-xs font-mono font-bold ${delta > 0 ? 'text-red-400' : 'text-green-400'}`}>
                                             {delta > 0 ? '+' : ''}{delta.toFixed(3)}
                                         </span>
                                     )}
-                                    <span className="text-white font-mono">{lap.lapTime.toFixed(3)}s</span>
+                                    <span className={`font-mono ${isActive ? 'text-white font-bold' : 'text-gray-300'}`}>
+                                        {lap.lapTime.toFixed(3)}s
+                                    </span>
                                 </div>
                             </div>
                         );

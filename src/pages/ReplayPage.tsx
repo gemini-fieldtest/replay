@@ -52,6 +52,33 @@ export function ReplayPage() {
       .catch(err => console.error('Failed to load manifest:', err));
   }, []);
 
+  const [showGhost, setShowGhost] = useState(true);
+  const [trackPoints, setTrackPoints] = useState<any[]>([]);
+  const [trackDetails, setTrackDetails] = useState<string>('');
+
+  // Extract Start Line from Track Points
+  const startLine = useMemo(() => {
+      const startPoint = trackPoints.find((p: any) => p.name === 'start');
+      if (startPoint) {
+          return { lat: startPoint.lat, lon: startPoint.long };
+      }
+      return undefined;
+  }, [trackPoints]);
+
+  useEffect(() => {
+    // Load track points
+    fetch('/tracks/thunderhill/points.json')
+      .then(res => res.json())
+      .then(data => setTrackPoints(data))
+      .catch(err => console.error('Failed to load track points:', err));
+
+      // Load track details
+      fetch('/tracks/thunderhill/details.txt')
+        .then(res => res.text())
+        .then(text => setTrackDetails(text))
+        .catch(err => console.error('Failed to load track details:', err));
+  }, []);
+
   const { 
     loading, 
     error, 
@@ -68,25 +95,7 @@ export function ReplayPage() {
     idealLap,
     laps,
     getGhostFrame
-  } = useTelemetry(selectedSource);
-
-  const [showGhost, setShowGhost] = useState(true);
-  const [trackPoints, setTrackPoints] = useState<any[]>([]);
-  const [trackDetails, setTrackDetails] = useState<string>('');
-
-  useEffect(() => {
-    // Load track points
-    fetch('/tracks/thunderhill/points.json')
-      .then(res => res.json())
-      .then(data => setTrackPoints(data))
-      .catch(err => console.error('Failed to load track points:', err));
-
-      // Load track details
-      fetch('/tracks/thunderhill/details.txt')
-        .then(res => res.text())
-        .then(text => setTrackDetails(text))
-        .catch(err => console.error('Failed to load track details:', err));
-  }, []);
+  } = useTelemetry(selectedSource, startLine);
 
   const toggleLayoutMode = (mode: 'grid' | 'stacked') => {
     const params = new URLSearchParams(window.location.search);
