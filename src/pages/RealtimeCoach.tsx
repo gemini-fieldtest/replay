@@ -47,7 +47,6 @@ export const RealtimeCoach = ({ currentFrame, ghostFrame, currentIndex, trackPoi
   const [messages, setMessages] = useState<CoachMessage[]>([]);
   const [mode, setMode] = useState<CoachMode>('nano');
   const lastMessageTimeRef = useRef<number>(0);
-  const lastPositiveMessageTime = useRef<number>(0);
   const { status: nanoStatus, generateFeedback: generateNano } = useGeminiNano();
   const signalQuality = useSignalQuality(currentFrame);
   const trackLocation = useTrackLocation(currentFrame, trackPoints);
@@ -227,7 +226,6 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
     const timeSinceLastTrigger = now - lastTriggerTimeRef.current;
     
     let shouldTrigger = false;
-    let triggerReason = "";
 
     // A. Pace Deviation Trigger
     // If speed delta > 10 km/h (approx 10%) for > 3 seconds
@@ -237,7 +235,6 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
         } else if (now - deviationStartTimeRef.current > 3000) {
             // Sustained deviation
             shouldTrigger = true;
-            triggerReason = "Pace Deviation";
         }
     } else {
         deviationStartTimeRef.current = null;
@@ -245,21 +242,20 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
 
     // B. Hill Trigger (Gradient Change)
     // Threshold: 3% slope
-    const currentGradient = drivingAnalysis.gradient;
+    // Threshold: 3% slope
+    const currentGradient = drivingAnalysis.gradient || 0;
     let hillState: 'uphill' | 'downhill' | 'flat' = 'flat';
     if (currentGradient > 3) hillState = 'uphill';
     else if (currentGradient < -3) hillState = 'downhill';
 
     if (hillState !== lastHillStateRef.current) {
         shouldTrigger = true;
-        triggerReason = `Terrain Change: ${hillState}`;
         lastHillStateRef.current = hillState;
     }
 
     // C. explicit "New Best" Trigger (from previous logic)
     if (performanceStats.isNewBest) {
         shouldTrigger = true;
-        triggerReason = "New Best";
     }
 
     // D. Location Change Trigger
@@ -272,7 +268,6 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
         if (trackLocation && timeSinceLastTrigger > 8000) { // 8s cooldown specific to location triggers? Or utilize global?
              // Using global cooldown logic below, but we set flag here
              shouldTrigger = true;
-             triggerReason = `Location: ${trackLocation}`;
         }
     }
 
@@ -281,7 +276,7 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
     const COOLDOWN = 8000;
     
     if (shouldTrigger && timeSinceLastTrigger > COOLDOWN) {
-        console.log(`Triggering Coach: ${triggerReason} | Mode: ${mode} | Nano Status: ${nanoStatus.state}`);
+        
         const heuristicMessage = getCoachMessage(performanceStats, drivingAnalysis, currentFrame, ghostFrame);
         
         // Code Coach (Always Runs OR Fallback if Nano unavailable)
@@ -289,10 +284,6 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
         const useHeuristic = mode === 'code' || (mode === 'nano' && nanoStatus.state !== 'ready');
 
         if (useHeuristic) {
-             if (mode === 'nano') {
-                 console.log('[RealtimeCoach] Nano unavailable. Falling back to Heuristic Code Coach.');
-             }
-
              const newMessage: CoachMessage = {
                 id: now,
                 text: heuristicMessage.text,
@@ -310,7 +301,7 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
         // Gemini Nano (Middleware Mode)
         else if (mode === 'nano' && nanoStatus.state === 'ready') {
              
-             // --- MIDDLEWARE FLAGS ---
+             // --- MIDDLEWARE FLAGS (Enhanced with RaceMath) ---
              const flags: Record<string, string> = {
                  safety_status: "STABLE",
                  error_type: "NONE",
@@ -320,47 +311,46 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                  urgent_correction: "NONE"
              };
 
-             // Rule A: Safety (Placeholder - no Slip Angle yet)
-             // if (speed > 40 && slipAngle > 15) flags.safety_status = "UNSTABLE";
-
-             // Rule B: Coasting
-             if (drivingAnalysis.isCoasting) {
+             // 1. Safety & Errors (From RaceMath)
+             if (drivingAnalysis.safetyFlags.includes("COASTING_DETECTED")) {
                  flags.error_type = "COASTING_DETECTED";
              }
-
-             // Rule C: Panic Brake
-             if (drivingAnalysis.isPanicBraking) {
+             if (drivingAnalysis.safetyFlags.includes("PANIC_BRAKE_IN_TURN")) {
                  flags.driver_state = "PANIC";
+                 flags.urgent_correction = "PANIC_BRAKE_IN_TURN";
              }
 
-             // Rule D: Tun 9 Arrival (Death Crest)
-             // Need accurate location. Assuming "Turn 9" string match or similar logic
+             // 2. Tire Usage (From RaceMath Friction Circle)
+             if (drivingAnalysis.tireStatus === 'COLD_OR_CRUISING' || drivingAnalysis.tireStatus === 'UNDER_DRIVING') {
+                 // Contextualize: Only "Low" if in a corner
+                 if (drivingAnalysis.phase !== 'Straight') {
+                     flags.tire_usage = "LOW";
+                 }
+             } else if (drivingAnalysis.tireStatus === 'OVER_DRIVING') {
+                flags.tire_usage = "OVER_COMPRESSED";
+             }
+
+             // Rule D: Tu 9 Arrival (Legacy location rule)
              if (trackLocation === "Turn 9" && currentFrame.brake < 5) {
-                  // Rough approximation of "Approaching Crest"
                   flags.urgent_correction = "LATE_BRAKE_T9"; 
-                  flags.error_type = "LATE_BRAKE_T9"; // Map to system prompt logic
+                  flags.error_type = "LATE_BRAKE_T9";
              }
 
-             // Rule E: Turn 5 (Bypass)
+             // Rule E: Turn 5 (Legacy location rule)
              if (trackLocation === "Turn 5" && performanceStats?.speedDelta < -8 && Math.abs(currentFrame.gForceLat) < 0.8) {
                   flags.opportunity = "UNDER_DRIVING_T5";
-             }
-
-             // Rule F: Friction Circle
-             if (drivingAnalysis.phase !== 'Straight' && drivingAnalysis.gripUsage < 0.9) {
-                  flags.tire_usage = "LOW";
              }
 
              const payload = {
                  context: {
                      location: trackLocation || "Track",
-                     speed: Math.round(currentFrame.speed)
+                     speed: Math.round(currentFrame.speed),
+                     tire_status: drivingAnalysis.tireStatus, // Pass raw status too
+                     grip_pct: drivingAnalysis.tireUsagePct     // Pass raw pct too
                  },
                  flags,
                  delta: performanceStats?.speedDelta.toFixed(1)
              };
-
-             console.log('[RealtimeCoach] Attempting Nano Gen with payload:', payload);
 
              const genStartTime = performance.now();
              generateNano(payload).then(nanoText => { // Pass Object Payload
