@@ -101,17 +101,17 @@ export const ReplayDriverView: React.FC<ReplayDriverViewProps> = ({
 
 
   return (
-    <div className="flex-grow bg-gray-900 flex flex-col min-h-0 relative group">
+    <div className="flex-grow bg-gray-100 dark:bg-gray-900 flex flex-col min-h-0 relative group">
       
       {/* View Toggles & Controls Overlay */}
       <div className="absolute bottom-4 left-4 z-20 flex gap-2">
-          <div className="bg-gray-900/90 backdrop-blur-sm rounded-lg p-1 border border-gray-700 flex gap-1">
+          <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-lg p-1 border border-gray-200 dark:border-gray-700 flex gap-1 shadow-sm">
             <button
               onClick={() => setViewMode('3d')}
               className={`px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-2 transition-colors ${
                 viewMode === '3d'
                   ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
               }`}
             >
               <Box size={14} />
@@ -122,7 +122,7 @@ export const ReplayDriverView: React.FC<ReplayDriverViewProps> = ({
               className={`px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-2 transition-colors ${
                 viewMode === 'video'
                   ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
               }`}
             >
               <Video size={14} />
@@ -131,8 +131,8 @@ export const ReplayDriverView: React.FC<ReplayDriverViewProps> = ({
           </div>
 
           {viewMode === 'video' && videoSrc && (
-              <div className="bg-gray-900/90 backdrop-blur-sm rounded-lg p-2 border border-gray-700 flex items-center gap-3">
-                  <div className="flex items-center gap-2 text-xs text-gray-400">
+              <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-lg p-2 border border-gray-200 dark:border-gray-700 flex items-center gap-3 shadow-sm">
+                  <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                       <Settings2 size={14} />
                       <span className="font-mono">Sync: {videoOffset.toFixed(2)}s</span>
                   </div>
@@ -143,11 +143,11 @@ export const ReplayDriverView: React.FC<ReplayDriverViewProps> = ({
                       step="0.05"
                       value={videoOffset}
                       onChange={(e) => setVideoOffset(parseFloat(e.target.value))}
-                      className="w-32 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                      className="w-32 h-1 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
                   />
                   <button 
                       onClick={() => setVideoOffset(0)}
-                      className="text-[10px] bg-gray-700 px-1.5 py-0.5 rounded text-gray-300 hover:text-white"
+                      className="text-[10px] bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
                   >
                       Reset
                   </button>
@@ -170,9 +170,9 @@ export const ReplayDriverView: React.FC<ReplayDriverViewProps> = ({
         ) : (
             <div className="w-full h-full flex items-center justify-center bg-black">
                 {!videoSrc ? (
-                    <div className="text-center p-8 bg-gray-900 rounded-xl border border-gray-800 border-dashed">
-                        <Upload className="mx-auto text-gray-500 mb-4" size={48} />
-                        <h3 className="text-lg font-medium text-white mb-2">Upload Onboard Video</h3>
+                    <div className="text-center p-8 bg-gray-100 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 border-dashed">
+                        <Upload className="mx-auto text-gray-400 dark:text-gray-500 mb-4" size={48} />
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Upload Onboard Video</h3>
                         <p className="text-gray-500 text-sm mb-6 max-w-xs mx-auto">
                             Load a local video file to verify simulation accuracy.
                         </p>

@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 
 import { Activity, ThumbsUp, TrendingUp, MessageSquare, Brain, Volume2 } from 'lucide-react';
 import type { TelemetryFrame } from '../utils/telemetryParser';
@@ -122,7 +122,7 @@ export const RealtimeCoach = ({ currentFrame, ghostFrame, currentIndex, trackPoi
   }, [currentFrame, ghostFrame]);
 
   // Helper function to get coach message (extracted from original heuristic logic)
-  const getCoachMessage = (perfStats: NonNullable<typeof performanceStats>, drivingAnalysis: ReturnType<typeof useDrivingAnalysis>, currentFrame: TelemetryFrame, ghostFrame: TelemetryFrame | null): { text: string; type: 'positive' | 'neutral' | 'info' } => {
+  const getCoachMessage = (perfStats: NonNullable<typeof performanceStats>, _drivingAnalysis: ReturnType<typeof useDrivingAnalysis>, currentFrame: TelemetryFrame, ghostFrame: TelemetryFrame | null): { text: string; type: 'positive' | 'neutral' | 'info' } => {
     let baseText = "";
     let msgType: 'positive' | 'neutral' | 'info' = 'info';
 
@@ -416,20 +416,20 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
 
 
   return (
-    <div className="flex-grow bg-gray-900 rounded-lg border border-gray-800 p-4 flex flex-col gap-4 h-full overflow-hidden relative">
+    <div className="flex-grow bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4 flex flex-col gap-4 h-full overflow-hidden relative shadow-sm">
 
 
-      <div className="flex items-center justify-between border-b border-gray-800 pb-2 shrink-0">
+      <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-800 pb-2 shrink-0">
         <div className="flex items-center gap-3">
-            <Activity className="text-purple-500" size={20} />
-            <h2 className="text-lg font-bold text-white">REALTIME COACH</h2>
+            <Activity className="text-purple-600 dark:text-purple-500" size={20} />
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">REALTIME COACH</h2>
         </div>
         
         <div className="flex items-center gap-4">
             {/* Intelligence Group */}
             <div className="flex items-center gap-2">
                 <Brain size={16} className="text-purple-400" />
-                <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
+                <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
                     {(['code', 'nano'] as CoachMode[]).map((m) => (
                         <button
                             key={m}
@@ -437,7 +437,7 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                             className={`px-3 py-1 rounded-md text-[10px] uppercase font-bold transition-all ${
                                 mode === m 
                                     ? 'bg-purple-600 text-white shadow-lg' 
-                                    : 'text-gray-400 hover:text-gray-200'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                             }`}
                         >
                            {m}
@@ -449,13 +449,13 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
             {/* Audio Group */}
             <div className="flex items-center gap-2 pl-4 border-l border-gray-700">
                 <Volume2 size={16} className="text-blue-400" />
-                <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
+                <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
                     <button
                         onClick={() => setIsAudioEnabled(false)}
                         className={`px-2 py-1 rounded-md text-[10px] uppercase font-bold transition-all flex items-center gap-1 ${
                             !isAudioEnabled
-                                ? 'bg-gray-700 text-white shadow-lg'
-                                : 'text-gray-400 hover:text-gray-200'
+                                ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white shadow-lg'
+                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                         }`}
                         title="Audio Off"
                     >
@@ -466,7 +466,7 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                         className={`px-3 py-1 rounded-md text-[10px] uppercase font-bold transition-all ${
                             isAudioEnabled && audioProvider === 'browser'
                                 ? 'bg-blue-600 text-white shadow-lg'
-                                : 'text-gray-400 hover:text-gray-200'
+                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                         }`}
                     >
                         NATIVE
@@ -485,33 +485,33 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
       {/* HUD Section */}
       <div className="grid grid-cols-2 gap-4 shrink-0">
         {/* Speed Comparison */}
-        <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700">
-           <div className="text-xs text-gray-400 mb-1">Speed Delta</div>
+        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700 shadow-sm">
+           <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Speed Delta</div>
            <div className={`text-3xl font-mono font-bold ${
-               (performanceStats?.speedDelta || 0) > 0 ? 'text-green-400' : 'text-red-400'
+               (performanceStats?.speedDelta || 0) > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
            }`}>
-               {performanceStats?.speedDelta ? (performanceStats.speedDelta > 0 ? '+' : '') + performanceStats.speedDelta.toFixed(1) : '0.0'} <span className="text-sm text-gray-500">km/h</span>
+               {performanceStats?.speedDelta ? (performanceStats.speedDelta > 0 ? '+' : '') + performanceStats.speedDelta.toFixed(1) : '0.0'} <span className="text-sm text-gray-400 dark:text-gray-500">km/h</span>
            </div>
         </div>
 
         {/* Status Icon */}
-        <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700 flex flex-col items-center justify-center text-center">
+        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center text-center shadow-sm">
             {performanceStats?.isGoodSpeed && performanceStats?.isGoodLine ? (
-                <ThumbsUp className="text-green-500" size={32} />
+                <ThumbsUp className="text-green-600 dark:text-green-500" size={32} />
             ) : performanceStats?.isFaster ? (
-                <TrendingUp className="text-blue-500" size={32} />
+                <TrendingUp className="text-blue-600 dark:text-blue-500" size={32} />
             ) : (
-                <Activity className="text-gray-600" size={32} />
+                <Activity className="text-gray-400 dark:text-gray-600" size={32} />
             )}
-            <div className="text-xs text-gray-400 mt-1">
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 {performanceStats?.isFaster ? 'GAINING' : performanceStats?.isGoodLine ? 'MATCHING' : 'LOSING'}
             </div>
         </div>
       </div>
       
       {/* Streaming Chat Interface */}
-      <div className="flex-1 min-h-0 bg-gray-950/50 rounded-lg border border-gray-800/50 flex flex-col overflow-hidden relative">
-          <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-gray-900/90 to-transparent z-10 pointer-events-none" />
+      <div className="flex-1 min-h-0 bg-white dark:bg-gray-950/50 rounded-lg border border-gray-200 dark:border-gray-800/50 flex flex-col overflow-hidden relative shadow-inner">
+          <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-gray-50/90 dark:from-gray-900/90 to-transparent z-10 pointer-events-none" />
           
           <div className="flex-grow overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
               {messages.length === 0 && (
@@ -539,9 +539,9 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                       </div>
                   <div className="flex flex-col max-w-[85%]">
                           <div className={`rounded-2xl rounded-tl-none px-4 py-2 text-sm transition-all ${
-                              msg.type === 'positive' ? 'bg-green-900/20 text-green-100 border border-green-900/30' : 
-                              msg.type === 'info' ? 'bg-blue-900/20 text-blue-100 border border-blue-900/30' : 'bg-gray-800 text-gray-200'
-                          } ${isNewest ? 'shadow-lg shadow-black/50 font-medium scale-[1.02] origin-left' : ''}`}>
+                              msg.type === 'positive' ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-100 border border-green-200 dark:border-green-900/30' : 
+                              msg.type === 'info' ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-100 border border-blue-200 dark:border-blue-900/30' : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700'
+                          } ${isNewest ? 'shadow-lg shadow-black/5 dark:shadow-black/50 font-medium scale-[1.02] origin-left' : ''}`}>
                               {msg.text}
                           </div>
                           <span className="text-[10px] text-gray-600 mt-1 ml-1 flex items-center gap-2 flex-wrap">

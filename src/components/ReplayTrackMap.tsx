@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useMemo } from 'react';
+import { useTheme } from './ThemeProvider';
 
 interface ReplayTrackMapProps {
   positions: Float32Array;
@@ -22,6 +23,7 @@ export const ReplayTrackMap: React.FC<ReplayTrackMapProps> = ({
   backgroundImage,
   calibration = { scale: 1, offsetX: 0, offsetY: 0, rotation: 0 } 
 }) => {
+  const { theme } = useTheme();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -146,7 +148,7 @@ export const ReplayTrackMap: React.FC<ReplayTrackMapProps> = ({
       } else {
           // Debug alignment line - very faint
           ctx.beginPath();
-          ctx.strokeStyle = 'rgba(59, 130, 246, 0.3)'; // blue-500 with low opacity
+          ctx.strokeStyle = theme === 'dark' ? 'rgba(59, 130, 246, 0.3)' : 'rgba(59, 130, 246, 0.5)'; // blue-500 with low opacity
           ctx.lineWidth = 1;
           
           const start = project(positions[0], positions[2]);
@@ -163,13 +165,13 @@ export const ReplayTrackMap: React.FC<ReplayTrackMapProps> = ({
       const startPos = project(positions[0], positions[2]);
       
       ctx.beginPath();
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = theme === 'dark' ? '#ffffff' : '#111827';
       ctx.arc(startPos.x, startPos.y, 4, 0, Math.PI * 2);
       ctx.fill();
 
       // Draw "0" label at Start
       ctx.font = 'bold 12px monospace';
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = theme === 'dark' ? '#ffffff' : '#111827';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('0', startPos.x, startPos.y - 12);
@@ -179,12 +181,12 @@ export const ReplayTrackMap: React.FC<ReplayTrackMapProps> = ({
         const { x, y } = project(ghostPosition[0], ghostPosition[2]);
         
         ctx.beginPath();
-        ctx.fillStyle = '#fbbf24'; // amber-400 (Gold)
+        ctx.fillStyle = theme === 'dark' ? '#fbbf24' : '#d97706'; // amber-400 (Gold) or amber-600
         ctx.arc(x, y, 6, 0, Math.PI * 2);
         ctx.fill();
         
         ctx.beginPath();
-        ctx.strokeStyle = '#ffffff';
+        ctx.strokeStyle = theme === 'dark' ? '#ffffff' : '#000000';
         ctx.lineWidth = 2;
         ctx.arc(x, y, 6, 0, Math.PI * 2);
         ctx.stroke();
@@ -214,7 +216,7 @@ export const ReplayTrackMap: React.FC<ReplayTrackMapProps> = ({
         ctx.fill();
         
         ctx.beginPath();
-        ctx.strokeStyle = '#ffffff';
+        ctx.strokeStyle = theme === 'dark' ? '#ffffff' : '#000000';
         ctx.lineWidth = 2;
         ctx.arc(x, y, 8, 0, Math.PI * 2);
         ctx.stroke();
@@ -234,16 +236,18 @@ export const ReplayTrackMap: React.FC<ReplayTrackMapProps> = ({
     return () => {
       resizeObserver.disconnect();
     };
+    
+  }, [bounds, positions, currentIndex, ghostPosition, carPosition, backgroundImage, calibration, theme]);
 
-  }, [bounds, positions, currentIndex, ghostPosition, carPosition, backgroundImage, calibration]);
 
   return (
-    <div ref={containerRef} className="relative w-full h-full min-w-0 min-h-0">
+    <div ref={containerRef} className="relative w-full h-full min-w-0 min-h-0 bg-gray-50 dark:bg-transparent rounded-lg">
         {backgroundImage && (
             <img 
                 src={backgroundImage} 
                 alt="Track Map" 
-                className="absolute inset-0 w-full h-full object-contain p-5 opacity-80" 
+                className="absolute inset-0 w-full h-full object-contain p-5"
+                style={{ filter: theme === 'dark' ? 'brightness(0) invert(1)' : 'none' }}
             />
         )}
         <canvas 

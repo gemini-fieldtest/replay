@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Map as MapIcon, MapPinOff } from 'lucide-react';
+
 import { RealtimeGauges } from '../components/RealtimeGauges';
 import { CoordinatesDisplay } from '../components/CoordinatesDisplay';
 import { GoogleMapsEmbed } from '../components/GoogleMapsEmbed';
@@ -67,19 +68,19 @@ export const RealtimePitView: React.FC<RealtimePitViewProps> = ({
   return (
     <div className="flex-grow flex gap-4 h-full overflow-hidden">
         {/* Track Map - Full Height, Flexible Width */}
-        <div className="flex-grow bg-gray-900 rounded-lg border border-gray-800 relative overflow-hidden group min-w-0 flex flex-col h-full">
+        <div className="flex-grow bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 relative overflow-hidden group min-w-0 flex flex-col h-full">
             <div className="absolute top-2 right-2 z-10">
                 <button 
                     onClick={() => setShowCalibration(!showCalibration)}
-                    className="p-1 rounded bg-gray-800 text-gray-400 hover:text-white border border-gray-700 text-xs"
+                    className="p-1 rounded bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-gray-200 dark:border-gray-700 text-xs shadow-sm"
                 >
                     {showCalibration ? 'Done' : 'Calibrate'}
                 </button>
             </div>
             
             {showCalibration && (
-                <div className="absolute top-10 right-2 z-10 bg-gray-900/90 p-3 rounded border border-gray-700 w-64 backdrop-blur-sm shadow-xl">
-                    <div className="text-xs font-bold text-gray-400 mb-2 uppercase">Map Calibration</div>
+                <div className="absolute top-10 right-2 z-10 bg-white/90 dark:bg-gray-900/90 p-3 rounded border border-gray-200 dark:border-gray-700 w-64 backdrop-blur-sm shadow-xl">
+                    <div className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase">Map Calibration</div>
                     
                     <div className="space-y-3">
                         <div>
@@ -150,7 +151,7 @@ export const RealtimePitView: React.FC<RealtimePitViewProps> = ({
                     currentIndex={currentIndex} 
                     ghostPosition={ghostPosition}
                     carPosition={carPosition}
-                    backgroundImage="/tracks/thunderhill/map.svg"
+                    backgroundImage="/tracks/thunderhill/map.svg?v=4"
                     calibration={calibration}
                 />
             </div>
@@ -160,7 +161,7 @@ export const RealtimePitView: React.FC<RealtimePitViewProps> = ({
         <div className="w-[400px] flex flex-col gap-4 shrink-0 h-full overflow-y-auto custom-scrollbar">
             
             {/* 1. GPS Signal */}
-            <div className="bg-gray-900 border border-gray-800 rounded-lg p-3">
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-3 shadow-sm">
                 <CoordinatesDisplay
                     latitude={currentFrame?.latitude}
                     longitude={currentFrame?.longitude}
@@ -171,7 +172,7 @@ export const RealtimePitView: React.FC<RealtimePitViewProps> = ({
 
             {/* 2. Current Telemetry & Gauges */}
             <div className="flex flex-col gap-2">
-                <div className="text-sm font-bold text-blue-400 uppercase">Current Lap</div>
+                <div className="text-sm font-bold text-blue-600 dark:text-blue-400 uppercase">Current Lap</div>
                 <RealtimeGauges 
                   frame={currentFrame}
                   ghostFrame={showGhost ? ghostFrame : null}
@@ -179,12 +180,12 @@ export const RealtimePitView: React.FC<RealtimePitViewProps> = ({
             </div>
 
             {/* 3. Maps */}
-             <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 flex flex-col gap-2">
+             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-3 flex flex-col gap-2 shadow-sm">
                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-gray-500 uppercase">Track Map</span>
+                    <span className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase">Track Map</span>
                     <button
                         onClick={() => setShowMap(!showMap)}
-                        className={`p-1.5 rounded-lg border transition-colors ${showMap ? 'bg-blue-600 border-blue-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'}`}
+                        className={`p-1.5 rounded-lg border transition-colors ${showMap ? 'bg-blue-600 border-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
                         title={showMap ? "Hide Map" : "Show Map"}
                     >
                         {showMap ? <MapPinOff size={16} /> : <MapIcon size={16} />}
@@ -200,9 +201,9 @@ export const RealtimePitView: React.FC<RealtimePitViewProps> = ({
             </div>
 
             {/* 4. Lap Times Panel (Bottom) */}
-            <div className="bg-gray-900 rounded-lg border border-gray-800 p-4 flex flex-col shrink-0 h-40">
+            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4 flex flex-col shrink-0 h-40 shadow-sm">
                 <div className="flex justify-between items-center mb-3">
-                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Lap Times</h3>
+                    <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Lap Times</h3>
                     {currentSector && (
                       <span className="px-2 py-0.5 rounded text-xs font-bold text-gray-900" style={{ backgroundColor: currentSector.color }}>
                         {currentSector.id}
@@ -215,15 +216,15 @@ export const RealtimePitView: React.FC<RealtimePitViewProps> = ({
                     {[...laps].reverse().map((lap) => {
                         const delta = idealLap ? lap.lapTime - idealLap.lapTime : null;
                         return (
-                            <div key={lap.lapIndex} className="flex justify-between items-center p-2 bg-gray-800/50 rounded border border-gray-700">
-                                <span className="text-gray-400 text-sm">Lap {lap.lapIndex}</span>
+                            <div key={lap.lapIndex} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-800/50 rounded border border-gray-200 dark:border-gray-700">
+                                <span className="text-gray-600 dark:text-gray-400 text-sm">Lap {lap.lapIndex}</span>
                                 <div className="flex items-center gap-2">
                                     {showGhost && delta !== null && (
-                                        <span className={`text-xs font-mono font-bold ${delta > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                                        <span className={`text-xs font-mono font-bold ${delta > 0 ? 'text-red-600 dark:text-red-500' : 'text-green-600 dark:text-green-500'}`}>
                                             {delta > 0 ? '+' : ''}{delta.toFixed(3)}
                                         </span>
                                     )}
-                                    <span className="text-white font-mono">{lap.lapTime.toFixed(3)}s</span>
+                                    <span className="text-gray-900 dark:text-white font-mono">{lap.lapTime.toFixed(3)}s</span>
                                 </div>
                             </div>
                         );

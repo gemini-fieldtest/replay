@@ -1,11 +1,16 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useRealtimeTelemetry } from '../hooks/useRealtimeTelemetry';
-import { Activity, Trophy, LayoutDashboard, GalleryVerticalEnd, History } from 'lucide-react';
+import { 
+  Activity, Trophy, LayoutGrid, Rows,
+  Gauge, Flag, Map, CarFront, Headset // Racing Icons
+} from 'lucide-react';
 import { LiveVideoPlayer } from '../components/LiveVideoPlayer';
 import { RealtimePitView } from './RealtimePitView';
 import { RealtimeCoach } from './RealtimeCoach';
 import { loadKML, type GeoCoordinate } from '../utils/kmlLoader';
+import { useTheme } from '../components/ThemeProvider';
+
 
 
 
@@ -14,6 +19,8 @@ export const RealtimePage = () => {
   const [sourceUrl, setSourceUrl] = useState<string | null>('http://localhost:8000/events');
   const [videoUrl, setVideoUrl] = useState<string>(''); // Default empty for now
   
+  const { theme, toggleTheme } = useTheme();
+
   const [layoutMode, setLayoutMode] = useState<'grid' | 'stacked'>(() => {
     const params = new URLSearchParams(window.location.search);
     const urlMode = params.get('mode') as 'grid' | 'stacked';
@@ -200,83 +207,93 @@ export const RealtimePage = () => {
       </div>
   );
   
-  if (error) return <div className="flex items-center justify-center h-screen bg-gray-900 text-red-500">Error: {error.message}</div>;
+  if (error) return <div className="flex items-center justify-center h-screen bg-white dark:bg-gray-900 text-red-500">Error: {error.message}</div>;
 
   const activeViews = [showPitView, showDriverView, showCoachView].filter(Boolean).length;
   const isStacked = layoutMode === 'stacked';
 
   return (
-    <div className="h-full w-full bg-black text-white flex flex-col overflow-hidden font-sans selection:bg-red-500/30">
+    <div className="h-full w-full bg-white dark:bg-black text-gray-900 dark:text-white flex flex-col overflow-hidden font-sans selection:bg-red-500/30">
       
       {/* Header */}
-      <header className="h-14 border-b border-gray-800 bg-gray-900/50 backdrop-blur flex items-center justify-between px-4 shrink-0 z-50">
+      <header className="h-14 border-b border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-gray-900/50 backdrop-blur flex items-center justify-between px-4 shrink-0 z-50">
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-red-500">
-            {isStacked ? <GalleryVerticalEnd size={20} className="animate-pulse" /> : <LayoutDashboard size={20} />}
-            <span className="font-bold tracking-tight">KORU<span className="text-white">CIRCUIT</span></span>
-          </div>
+          <button 
+            onClick={toggleTheme}
+            className="flex items-center gap-2 text-red-600 dark:text-red-500 hover:scale-105 transition-transform cursor-pointer"
+            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+          >
+            {isStacked ? <Rows size={20} className="animate-pulse" /> : <LayoutGrid size={20} />}
+            <span className="font-bold tracking-tight text-xl italic font-mono">
+              KORU<span className="text-gray-900 dark:text-white">CIRCUIT</span>
+              <span className="text-xs ml-1 not-italic font-sans bg-red-500 text-white px-1 rounded font-bold">LIVE</span>
+            </span>
+          </button>
           
-          <div className="h-6 w-px bg-gray-800 mx-2" />
+          <div className="h-6 w-px bg-gray-200 dark:bg-gray-800 mx-2" />
           
-          <div className="flex items-center bg-gray-800 rounded-lg p-1 gap-1">
-            <div title="Live" className="flex items-center justify-center p-1.5 rounded-md bg-gray-700 text-white shadow-sm cursor-default">
-                <Activity size={16} />
+          <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1 gap-1">
+            <div title="Live Telemetry" className="flex items-center justify-center p-1.5 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm ring-1 ring-black/5 dark:ring-transparent cursor-default">
+                <Gauge size={16} />
             </div>
-            <Link to="/replay" title="Replay" className="flex items-center justify-center p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-gray-700/50 transition-colors">
-                <History size={16} />
+            <Link to="/replay" title="Replay Analysis" className="flex items-center justify-center p-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-gray-700/50 transition-colors">
+                <Flag size={16} />
             </Link>
           </div>
 
           { !isStacked && (
             <>
-              <div className="h-6 w-px bg-gray-800 mx-1" />
+              <div className="h-6 w-px bg-gray-200 dark:bg-gray-800 mx-1" />
               
-              <div className="flex items-center bg-gray-800 rounded-lg p-1 gap-0.5">
+              <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1 gap-0.5">
                 <button
                   onClick={() => setShowPitView(!showPitView)}
-                  className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                    showPitView ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                  className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                    showPitView ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm ring-1 ring-black/5 dark:ring-transparent' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-gray-700/50'
                   }`}
                 >
+                  <Map size={14} />
                   Pit
                 </button>
                 <button
                   onClick={() => setShowDriverView(!showDriverView)}
-                  className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                    showDriverView ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                  className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                    showDriverView ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm ring-1 ring-black/5 dark:ring-transparent' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-gray-700/50'
                   }`}
                 >
+                  <CarFront size={14} />
                   Driver
                 </button>
                 <button
                   onClick={() => setShowCoachView(!showCoachView)}
-                  className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                    showCoachView ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                  className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                    showCoachView ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm ring-1 ring-black/5 dark:ring-transparent' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-gray-700/50'
                   }`}
                 >
+                  <Headset size={14} />
                   Coach
                 </button>
               </div>
             </>
           )}
           
-           <div className="h-6 w-px bg-gray-800 mx-2" />
+           <div className="h-6 w-px bg-gray-200 dark:bg-gray-800 mx-2" />
 
            {/* Layout Toggle */}
-           <div className="flex items-center bg-gray-800 rounded-lg p-1 gap-1">
+           <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1 gap-1">
               <button
                 onClick={() => toggleLayoutMode('grid')}
-                className={`p-1.5 rounded-md transition-colors ${!isStacked ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'}`}
+                className={`p-1.5 rounded-md transition-colors ${layoutMode === 'grid' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm ring-1 ring-black/5 dark:ring-transparent' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-gray-700/50'}`}
                 title="Grid View"
               >
-                <LayoutDashboard size={14} />
+                <LayoutGrid size={14} />
               </button>
               <button
                 onClick={() => toggleLayoutMode('stacked')}
-                className={`p-1.5 rounded-md transition-colors ${isStacked ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'}`}
+                className={`p-1.5 rounded-md transition-colors ${layoutMode === 'stacked' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm ring-1 ring-black/5 dark:ring-transparent' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-gray-700/50'}`}
                 title="Stacked View"
               >
-               <GalleryVerticalEnd size={14} /> 
+               <Rows size={14} /> 
               </button>
            </div>
         </div>
@@ -284,7 +301,7 @@ export const RealtimePage = () => {
         <div className="flex items-center gap-6">
 
 
-            <div className="flex items-center gap-2 bg-gray-800 rounded px-2 py-1 border border-gray-700">
+            <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded px-2 py-1 border border-gray-200 dark:border-gray-700">
                 <span className="text-gray-500 text-xs">SOURCE</span>
                 <input 
                     type="text" 
@@ -293,7 +310,7 @@ export const RealtimePage = () => {
                     spellCheck="false"
                     value={sourceUrl || ''} 
                     onChange={(e) => setSourceUrl(e.target.value)}
-                    className="bg-transparent border-none text-xs text-white w-48 focus:outline-none"
+                    className="bg-transparent border-none text-xs text-gray-900 dark:text-white w-48 focus:outline-none"
                     placeholder="Telemetry URL"
                 />
             </div>
@@ -302,16 +319,16 @@ export const RealtimePage = () => {
 
 
 
-            <div className="flex items-center gap-2 px-3 py-1 rounded bg-red-500/10 border border-red-500/20 text-red-500">
-                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            <div className="flex items-center gap-2 px-3 py-1 rounded bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-500">
+                <div className="w-2 h-2 rounded-full bg-red-600 dark:bg-red-500 animate-pulse" />
                 <span className="text-xs font-bold tracking-wider">LIVE</span>
             </div>
 
             {idealLap && (
-                <div className="flex items-center gap-2 bg-gray-800/50 px-3 py-1 rounded border border-gray-700">
-                    <Trophy size={14} className="text-yellow-500" />
-                    <span className="text-xs text-gray-400">Best Lap:</span>
-                    <span className="text-sm font-mono font-bold text-yellow-400">{idealLap.lapTime.toFixed(3)}s</span>
+                <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800/50 px-3 py-1 rounded border border-gray-200 dark:border-gray-700">
+                    <Trophy size={14} className="text-yellow-600 dark:text-yellow-500" />
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Best Lap:</span>
+                    <span className="text-sm font-mono font-bold text-yellow-600 dark:text-yellow-400">{idealLap.lapTime.toFixed(3)}s</span>
                 </div>
             )}
             
@@ -349,10 +366,10 @@ export const RealtimePage = () => {
         {/* Resizer */}
         {!isStacked && showPitView && showDriverView && !showCoachView && (
           <div
-            className="w-1 bg-gray-800 hover:bg-blue-500 cursor-col-resize flex items-center justify-center transition-colors group z-10"
+            className="w-1 bg-gray-200 dark:bg-gray-800 hover:bg-blue-500 cursor-col-resize flex items-center justify-center transition-colors group z-10"
             onMouseDown={startResizing}
           >
-            <div className="h-8 w-1 bg-gray-600 group-hover:bg-white rounded-full" />
+            <div className="h-8 w-1 bg-gray-400 dark:bg-gray-600 group-hover:bg-white rounded-full" />
           </div>
         )}
 

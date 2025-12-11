@@ -440,64 +440,64 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
   }
 
   return (
-    <div className="flex-grow bg-gray-900 rounded-lg border border-gray-800 p-4 flex flex-col gap-4 h-full overflow-hidden relative">
+    <div className="flex-grow bg-gray-100 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4 flex flex-col gap-4 h-full overflow-hidden relative">
       {/* Settings Modal */}
       {showSettings && (
-          <div className="absolute inset-0 z-50 bg-gray-900/95 flex flex-col items-center justify-center p-6 backdrop-blur-sm">
-              <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 w-full max-w-sm shadow-2xl">
-                  <div className="flex items-center gap-2 mb-4 text-purple-400">
+          <div className="absolute inset-0 z-50 bg-white/95 dark:bg-gray-900/95 flex flex-col items-center justify-center p-6 backdrop-blur-sm">
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 w-full max-w-sm shadow-2xl">
+                  <div className="flex items-center gap-2 mb-4 text-purple-600 dark:text-purple-400">
                       <Settings size={20} />
                       <h3 className="font-bold text-lg">Coach Settings</h3>
                   </div>
                   
                   <div className="space-y-4">
                       <div>
-                          <label className="block text-xs text-gray-400 mb-1 ml-1">Gemini API Key</label>
+                          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1 ml-1">Gemini API Key</label>
                           <input 
                               type="password"
                               value={settingsKey}
                               onChange={(e) => setSettingsKey(e.target.value)}
                               placeholder="Enter your API Key"
-                              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-purple-500 placeholder-gray-600 font-mono"
+                              className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:border-purple-500 placeholder-gray-500 dark:placeholder-gray-600 font-mono"
                           />
                           <p className="text-[10px] text-gray-500 mt-2">
                               Required for Flash and Pro modes. Your key is stored locally in your browser.
                           </p>
                       </div>
 
-                      <div className="border-t border-gray-700 pt-3">
+                      <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
                           <label className="flex items-center gap-2 cursor-pointer mb-2">
                               <input 
                                   type="checkbox"
                                   checked={serializeRequests}
                                   onChange={(e) => setSerializeRequests(e.target.checked)}
-                                  className="w-4 h-4 rounded border-gray-600 text-purple-600 focus:ring-purple-500 bg-gray-900"
+                                  className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-purple-600 focus:ring-purple-500 bg-white dark:bg-gray-900"
                               />
-                              <span className="text-sm text-gray-300">Serialize Requests</span>
+                              <span className="text-sm text-gray-700 dark:text-gray-300">Serialize Requests</span>
                           </label>
                           <p className="text-[10px] text-gray-500 ml-6">
                               Wait for the previous AI response before sending a new one. Reduces API usage and errors.
                           </p>
                       </div>
 
-                      <div className="border-t border-gray-700 pt-3">
-                          <label className="block text-xs text-gray-400 mb-1 ml-1">Message History</label>
+                      <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
+                          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1 ml-1">Message History</label>
                           <input 
                               type="number"
                               min={1}
                               value={historyLength}
                               onChange={(e) => setHistoryLength(Math.max(1, parseInt(e.target.value) || 50))}
-                              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-purple-500 placeholder-gray-600 font-mono"
+                              className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:border-purple-500 placeholder-gray-500 dark:placeholder-gray-600 font-mono"
                           />
                           <p className="text-[10px] text-gray-500 mt-2">
                               Number of previous messages to keep visible.
                           </p>
                       </div>
                       
-                      <div className="flex gap-2 pt-2 border-t border-gray-700 mt-2">
+                      <div className="flex gap-2 pt-2 border-t border-gray-200 dark:border-gray-700 mt-2">
                           <button 
                               onClick={() => setShowSettings(false)}
-                              className="flex-1 px-4 py-2 rounded-lg text-xs font-bold text-gray-400 hover:bg-gray-700 transition-colors"
+                              className="flex-1 px-4 py-2 rounded-lg text-xs font-bold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                           >
                               DONE
                           </button>
@@ -513,17 +513,17 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
           </div>
       )}
 
-      <div className="flex items-center justify-between border-b border-gray-800 pb-2 shrink-0">
+      <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-800 pb-2 shrink-0">
         <div className="flex items-center gap-3">
-            <Activity className="text-purple-500" size={20} />
-            <h2 className="text-lg font-bold text-white">PERFORMANCE COACH</h2>
+            <Activity className="text-purple-600 dark:text-purple-500" size={20} />
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">PERFORMANCE COACH</h2>
         </div>
         
         <div className="flex items-center gap-4">
             {/* Intelligence Group */}
             <div className="flex items-center gap-2">
                 <Brain size={16} className="text-purple-400" />
-                <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
+                <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
                     {(['code', 'nano', 'flash', 'pro'] as CoachMode[]).map((m) => (
                         <button
                             key={m}
@@ -531,7 +531,7 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                             className={`px-3 py-1 rounded-md text-[10px] uppercase font-bold transition-all ${
                                 mode === m 
                                     ? 'bg-purple-600 text-white shadow-lg' 
-                                    : 'text-gray-400 hover:text-gray-200'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                             }`}
                         >
                            {m}
@@ -541,15 +541,15 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
             </div>
 
             {/* Audio Group */}
-            <div className="flex items-center gap-2 pl-4 border-l border-gray-700">
-                <Volume2 size={16} className="text-blue-400" />
-                <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
+            <div className="flex items-center gap-2 pl-4 border-l border-gray-200 dark:border-gray-700">
+                <Volume2 size={16} className="text-blue-500 dark:text-blue-400" />
+                <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
                     <button
                         onClick={() => setIsAudioEnabled(false)}
                         className={`px-2 py-1 rounded-md text-[10px] uppercase font-bold transition-all flex items-center gap-1 ${
                             !isAudioEnabled
-                                ? 'bg-gray-700 text-white shadow-lg'
-                                : 'text-gray-400 hover:text-gray-200'
+                                ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white shadow-lg'
+                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                         }`}
                         title="Audio Off"
                     >
@@ -560,7 +560,7 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                         className={`px-3 py-1 rounded-md text-[10px] uppercase font-bold transition-all ${
                             isAudioEnabled && audioProvider === 'browser'
                                 ? 'bg-blue-600 text-white shadow-lg'
-                                : 'text-gray-400 hover:text-gray-200'
+                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                         }`}
                     >
                         NATIVE
@@ -570,7 +570,7 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                         className={`px-3 py-1 rounded-md text-[10px] uppercase font-bold transition-all ${
                             isAudioEnabled && audioProvider === 'google'
                                 ? 'bg-indigo-600 text-white shadow-lg'
-                                : 'text-gray-400 hover:text-gray-200'
+                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                         }`}
                     >
                         GEMINI
@@ -580,7 +580,7 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
             
             <button  
                 onClick={toggleSettings}
-                className={`p-1.5 rounded-lg transition-colors ${showSettings || cloudStatus.hasKey ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-yellow-500 animate-pulse bg-yellow-500/10'}`}
+                className={`p-1.5 rounded-lg transition-colors ${showSettings || cloudStatus.hasKey ? 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800' : 'text-yellow-500 animate-pulse bg-yellow-500/10'}`}
                 title="Settings"
             >
                 <Settings size={16} />
@@ -600,37 +600,37 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
       {/* HUD Section */}
       <div className="grid grid-cols-2 gap-4 shrink-0">
         {/* Speed Comparison */}
-        <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700">
-           <div className="text-xs text-gray-400 mb-1">Speed Delta</div>
+        <div className="bg-white dark:bg-gray-800/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700 shadow-sm">
+           <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Speed Delta</div>
            <div className={`text-3xl font-mono font-bold ${
-               (performanceStats?.speedDelta || 0) > 0 ? 'text-green-400' : 'text-red-400'
+               (performanceStats?.speedDelta || 0) > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
            }`}>
                {performanceStats?.speedDelta ? (performanceStats.speedDelta > 0 ? '+' : '') + performanceStats.speedDelta.toFixed(1) : '0.0'} <span className="text-sm text-gray-500">km/h</span>
            </div>
         </div>
 
         {/* Status Icon */}
-        <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700 flex flex-col items-center justify-center text-center">
+        <div className="bg-white dark:bg-gray-800/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col items-center justify-center text-center">
             {performanceStats?.isGoodSpeed && performanceStats?.isGoodLine ? (
                 <ThumbsUp className="text-green-500" size={32} />
             ) : performanceStats?.isFaster ? (
                 <TrendingUp className="text-blue-500" size={32} />
             ) : (
-                <Activity className="text-gray-600" size={32} />
+                <Activity className="text-gray-400 dark:text-gray-600" size={32} />
             )}
-            <div className="text-xs text-gray-400 mt-1">
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 {performanceStats?.isFaster ? 'GAINING' : performanceStats?.isGoodLine ? 'MATCHING' : 'LOSING'}
             </div>
         </div>
       </div>
       
       {/* Streaming Chat Interface */}
-      <div className="flex-1 min-h-0 bg-gray-950/50 rounded-lg border border-gray-800/50 flex flex-col overflow-hidden relative">
-          <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-gray-900/90 to-transparent z-10 pointer-events-none" />
+      <div className="flex-1 min-h-0 bg-gray-50 dark:bg-gray-950/50 rounded-lg border border-gray-200 dark:border-gray-800/50 flex flex-col overflow-hidden relative">
+          <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-gray-100/90 dark:from-gray-900/90 to-transparent z-10 pointer-events-none" />
           
-          <div className="flex-grow overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+          <div className="flex-grow overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 scrollbar-track-transparent">
               {messages.length === 0 && (
-                  <div className="text-center text-gray-600 text-sm mt-10 italic">
+                  <div className="text-center text-gray-400 dark:text-gray-600 text-sm mt-10 italic">
                       Coach is analyzing your driving...
                   </div>
               )}
@@ -642,45 +642,45 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                     className={`flex gap-3 transition-all duration-500 ${isNewest ? 'animate-in slide-in-from-top-2' : ''}`}
                   >
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                          msg.type === 'positive' ? 'bg-green-900/30 text-green-400' : 
-                          msg.type === 'info' ? 'bg-blue-900/30 text-blue-400' : 'bg-gray-800 text-gray-400'
+                          msg.type === 'positive' ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 
+                          msg.type === 'info' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'bg-gray-200 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
                       } ${isNewest ? 'ring-2 ring-white/20 scale-110' : ''}`}>
                           <MessageSquare size={14} />
                       </div>
                   <div className="flex flex-col max-w-[85%]">
                           <div className={`rounded-2xl rounded-tl-none px-4 py-2 text-sm transition-all ${
-                              msg.type === 'positive' ? 'bg-green-900/20 text-green-100 border border-green-900/30' : 
-                              msg.type === 'info' ? 'bg-blue-900/20 text-blue-100 border border-blue-900/30' : 'bg-gray-800 text-gray-200'
-                          } ${isNewest ? 'shadow-lg shadow-black/50 font-medium scale-[1.02] origin-left' : ''}`}>
+                              msg.type === 'positive' ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-100 border border-green-200 dark:border-green-900/30' : 
+                              msg.type === 'info' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-100 border border-blue-200 dark:border-blue-900/30' : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700'
+                          } ${isNewest ? 'shadow-lg shadow-black/5 dark:shadow-black/50 font-medium scale-[1.02] origin-left' : ''}`}>
                               {msg.text}
                           </div>
-                          <span className="text-[10px] text-gray-600 mt-1 ml-1 flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] text-gray-500 dark:text-gray-600 mt-1 ml-1 flex items-center gap-2 flex-wrap">
                               <span>
                                 {new Date(msg.timestamp).toLocaleTimeString([], { hour12: false, minute: '2-digit', second: '2-digit' })}
                               </span>
-                              <span className="text-gray-500 border-l border-gray-700 pl-2">
+                              <span className="text-gray-400 dark:text-gray-500 border-l border-gray-300 dark:border-gray-700 pl-2">
                                 T+{msg.telemetryTime.toFixed(1)}s
                               </span>
                               
                               {msg.mode === 'nano' && (
                                   <>
-                                  <span className="inline-flex items-center gap-1 text-indigo-400 border-l border-gray-700 pl-2" title="Refined by Nano">
+                                  <span className="inline-flex items-center gap-1 text-indigo-500 dark:text-indigo-400 border-l border-gray-300 dark:border-gray-700 pl-2" title="Refined by Nano">
                                       <Brain size={10} /> Nano
                                   </span>
-                                  {msg.generationTime && <span className="text-gray-500 text-[10px] ml-1">Gen: {msg.generationTime.toFixed(0)}ms</span>}
+                                  {msg.generationTime && <span className="text-gray-400 dark:text-gray-500 text-[10px] ml-1">Gen: {msg.generationTime.toFixed(0)}ms</span>}
                                   </>
                               )}
                               {msg.mode === 'flash' && (
                                   <>
-                                  <span className="inline-flex items-center gap-1 text-yellow-500 border-l border-gray-700 pl-2" title="Refined by Flash">
+                                  <span className="inline-flex items-center gap-1 text-yellow-600 dark:text-yellow-500 border-l border-gray-300 dark:border-gray-700 pl-2" title="Refined by Flash">
                                       <Zap size={10} /> Flash
                                   </span>
-                                  {msg.generationTime && <span className="text-gray-500 text-[10px] ml-1">Gen: {msg.generationTime.toFixed(0)}ms</span>}
+                                  {msg.generationTime && <span className="text-gray-400 dark:text-gray-500 text-[10px] ml-1">Gen: {msg.generationTime.toFixed(0)}ms</span>}
                                   </>
                               )}
                               {msg.mode === 'pro' && (
                                   <>
-                                  <span className="inline-flex items-center gap-1 text-purple-400 border-l border-gray-700 pl-2" title="Refined by Pro">
+                                  <span className="inline-flex items-center gap-1 text-purple-600 dark:text-purple-400 border-l border-gray-300 dark:border-gray-700 pl-2" title="Refined by Pro">
                                       <Settings size={10} /> Pro
                                   </span>
                                   {msg.generationTime && <span className="text-gray-500 text-[10px] ml-1">Gen: {msg.generationTime.toFixed(0)}ms</span>}
@@ -691,11 +691,11 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                           {/* Analysis Toggle */}
                           {msg.analysis && (
                               <details className="mt-2 group">
-                                  <summary className="list-none text-[10px] text-gray-500 cursor-pointer hover:text-gray-300 transition-colors flex items-center gap-1 select-none">
+                                  <summary className="list-none text-[10px] text-gray-500 cursor-pointer hover:text-gray-700 dark:hover:text-gray-300 transition-colors flex items-center gap-1 select-none">
                                       <div className="w-0 h-0 border-l-4 border-l-transparent border-t-4 border-t-gray-500 border-r-4 border-r-transparent transform -rotate-90 group-open:rotate-0 transition-transform" />
                                       View Analysis
                                   </summary>
-                                  <div className="mt-2 p-2 bg-black/20 rounded border border-white/5 text-xs text-gray-400 font-mono leading-relaxed [&>ul]:list-disc [&>ul]:pl-4 [&>ol]:list-decimal [&>ol]:pl-4 [&>h3]:font-bold [&>h3]:mt-2 [&>h3]:mb-1 [&>p]:mb-2 [&>strong]:text-gray-300">
+                                  <div className="mt-2 p-2 bg-gray-100 dark:bg-black/20 rounded border border-gray-200 dark:border-white/5 text-xs text-gray-600 dark:text-gray-400 font-mono leading-relaxed [&>ul]:list-disc [&>ul]:pl-4 [&>ol]:list-decimal [&>ol]:pl-4 [&>h3]:font-bold [&>h3]:mt-2 [&>h3]:mb-1 [&>p]:mb-2 [&>strong]:text-gray-700 dark:[&>strong]:text-gray-300">
                                       <ReactMarkdown>{msg.analysis}</ReactMarkdown>
                                   </div>
                               </details>

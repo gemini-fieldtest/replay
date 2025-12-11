@@ -1,5 +1,6 @@
 import React from 'react';
 import { type TelemetryFrame } from '../utils/telemetryParser';
+import { useTheme } from '../components/ThemeProvider';
 
 interface AnalogGaugeProps {
   value: number;
@@ -20,6 +21,7 @@ const AnalogGauge: React.FC<AnalogGaugeProps> = ({
   color = '#3b82f6',
   size = 160
 }) => {
+  const { theme } = useTheme(); 
   const radius = size / 2;
   const center = size / 2;
   const startAngle = 135;
@@ -61,8 +63,8 @@ const AnalogGauge: React.FC<AnalogGaugeProps> = ({
 
     ticks.push(
       <g key={i}>
-        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#4b5563" strokeWidth="2" />
-        <text x={tx} y={ty} textAnchor="middle" dominantBaseline="middle" className="text-[10px] fill-gray-400 font-mono font-bold">
+        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={theme === 'dark' ? "#4b5563" : "#d1d5db"} strokeWidth="2" />
+        <text x={tx} y={ty} textAnchor="middle" dominantBaseline="middle" className={`text-[10px] ${theme === 'dark' ? 'fill-gray-400' : 'fill-gray-500'} font-mono font-bold`}>
           {Math.round(tickValue)}
         </text>
       </g>
@@ -72,9 +74,9 @@ const AnalogGauge: React.FC<AnalogGaugeProps> = ({
   return (
     <div className="flex flex-col items-center justify-center">
       <div className="mb-2 text-center relative max-w-[120px]">
-        <span className="text-3xl font-bold font-mono text-white inline-block tracking-tight">{Math.round(isNaN(value) ? 0 : value)}</span>
+        <span className="text-3xl font-bold font-mono text-gray-900 dark:text-white inline-block tracking-tight">{Math.round(isNaN(value) ? 0 : value)}</span>
          {ghostValue !== undefined && !isNaN(ghostValue) && (
-             <span className="absolute -right-10 top-2 text-sm font-mono text-yellow-500 font-bold ml-2">
+             <span className="absolute -right-10 top-2 text-sm font-mono text-yellow-600 dark:text-yellow-500 font-bold ml-2">
                  {Math.round(ghostValue)}
              </span>
          )}
@@ -82,30 +84,30 @@ const AnalogGauge: React.FC<AnalogGaugeProps> = ({
       <div className="relative" style={{ width: size, height: size }}>
         <svg width={size} height={size}>
           {/* Background Circle */}
-          <circle cx={center} cy={center} r={radius - 2} fill="#111827" stroke="#374151" strokeWidth="2" />
+          <circle cx={center} cy={center} r={radius - 2} fill={theme === 'dark' ? "#111827" : "#f3f4f6"} stroke={theme === 'dark' ? "#374151" : "#e5e7eb"} strokeWidth="2" />
 
           {/* Ticks */}
           {ticks}
 
           {/* Label */}
-          <text x={center} y={center + 30} textAnchor="middle" className="fill-gray-300 text-xs font-bold uppercase tracking-widest">
+          <text x={center} y={center + 30} textAnchor="middle" className={`${theme === 'dark' ? 'fill-gray-300' : 'fill-gray-600'} text-xs font-bold uppercase tracking-widest`}>
             {label}
           </text>
-          <text x={center} y={center + 45} textAnchor="middle" className="fill-gray-400 text-[10px] font-medium">
+          <text x={center} y={center + 45} textAnchor="middle" className={`${theme === 'dark' ? 'fill-gray-400' : 'fill-gray-500'} text-[10px] font-medium`}>
             {unit}
           </text>
 
           {/* Ghost Needle */}
           {ghostNeedleAngle !== null && (
               <g transform={`rotate(${ghostNeedleAngle} ${center} ${center})`}>
-                <line x1={center} y1={center} x2={center + radius - 15} y2={center} stroke="#eab308" strokeWidth="3" strokeOpacity="1" strokeLinecap="round" />
+                <line x1={center} y1={center} x2={center + radius - 15} y2={center} stroke={theme === 'dark' ? "#eab308" : "#ca8a04"} strokeWidth="3" strokeOpacity="1" strokeLinecap="round" />
               </g>
           )}
 
           {/* Main Needle */}
           <g transform={`rotate(${needleAngle} ${center} ${center})`}>
             <line x1={center} y1={center} x2={center + radius - 15} y2={center} stroke={color} strokeWidth="4" strokeLinecap="round" />
-            <circle cx={center} cy={center} r="6" fill="#1f2937" stroke={color} strokeWidth="2" />
+            <circle cx={center} cy={center} r="6" fill={theme === 'dark' ? "#1f2937" : "#fff"} stroke={color} strokeWidth="2" />
           </g>
         </svg>
       </div>
@@ -122,7 +124,7 @@ export const RealtimeGauges: React.FC<RealtimeGaugesProps> = ({ frame, ghostFram
   if (!frame) return <div className="text-gray-500">No Data</div>;
 
   return (
-    <div className="bg-gray-900 p-6 rounded-lg border border-gray-800 flex flex-col items-center gap-6">
+    <div className="bg-white dark:bg-gray-900 p-6 rounded-lg border border-gray-200 dark:border-gray-800 flex flex-col items-center gap-6">
       <AnalogGauge 
         value={frame.speed} 
         ghostValue={ghostFrame?.speed}

@@ -37,7 +37,7 @@ export const LiveVideoPlayer: React.FC<LiveVideoPlayerProps> = ({ streamUrl, onV
   };
 
   return (
-    <div className="w-full aspect-video bg-gray-900 rounded-lg overflow-hidden border border-gray-800 relative group flex flex-col items-center justify-center">
+    <div className="w-full aspect-video bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-800 relative group flex flex-col items-center justify-center">
         
        {/* Video Feed */}
        {streamUrl ? (

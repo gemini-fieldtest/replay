@@ -55,19 +55,19 @@ export const ReplayPitView: React.FC<ReplayPitViewProps> = ({
       <div className="flex-grow flex flex-col gap-4 h-full">
         <div className="flex gap-4 h-96 shrink-0">
             {/* Track Map */}
-            <div className="bg-gray-900 rounded-lg flex-grow border border-gray-800 overflow-hidden relative group min-w-0 flex flex-col">
+            <div className="bg-gray-100 dark:bg-gray-900 rounded-lg flex-grow border border-gray-200 dark:border-gray-800 overflow-hidden relative group min-w-0 flex flex-col">
                <div className="absolute top-2 right-2 z-10">
                     <button 
                         onClick={() => setShowCalibration(!showCalibration)}
-                        className="p-1 rounded bg-gray-800 text-gray-400 hover:text-white border border-gray-700 text-xs"
+                        className="p-1 rounded bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-gray-200 dark:border-gray-700 text-xs shadow-sm"
                     >
                         {showCalibration ? 'Done' : 'Calibrate'}
                     </button>
                 </div>
                 
                 {showCalibration && (
-                    <div className="absolute top-10 right-2 z-10 bg-gray-900/90 p-3 rounded border border-gray-700 w-64 backdrop-blur-sm shadow-xl">
-                        <div className="text-xs font-bold text-gray-400 mb-2 uppercase">Map Calibration</div>
+                    <div className="absolute top-10 right-2 z-10 bg-white/90 dark:bg-gray-900/90 p-3 rounded border border-gray-200 dark:border-gray-700 w-64 backdrop-blur-sm shadow-xl">
+                        <div className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase">Map Calibration</div>
                         
                         <div className="space-y-3">
                             <div>
@@ -79,7 +79,7 @@ export const ReplayPitView: React.FC<ReplayPitViewProps> = ({
                                     type="range" min="0.1" max="3" step="0.01" 
                                     value={calibration.scale}
                                     onChange={(e) => setCalibration({...calibration, scale: parseFloat(e.target.value)})}
-                                    className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                    className="w-full h-1 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
                                 />
                             </div>
                             
@@ -92,7 +92,7 @@ export const ReplayPitView: React.FC<ReplayPitViewProps> = ({
                                     type="range" min="-180" max="180" step="1" 
                                     value={calibration.rotation}
                                     onChange={(e) => setCalibration({...calibration, rotation: parseFloat(e.target.value)})}
-                                    className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                    className="w-full h-1 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
                                 />
                             </div>
 
@@ -105,7 +105,7 @@ export const ReplayPitView: React.FC<ReplayPitViewProps> = ({
                                     type="range" min="-500" max="500" step="1" 
                                     value={calibration.offsetX}
                                     onChange={(e) => setCalibration({...calibration, offsetX: parseFloat(e.target.value)})}
-                                    className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                    className="w-full h-1 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
                                 />
                             </div>
 
@@ -118,13 +118,13 @@ export const ReplayPitView: React.FC<ReplayPitViewProps> = ({
                                     type="range" min="-500" max="500" step="1" 
                                     value={calibration.offsetY}
                                     onChange={(e) => setCalibration({...calibration, offsetY: parseFloat(e.target.value)})}
-                                    className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                    className="w-full h-1 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
                                 />
                             </div>
                             
                             <button 
                                 onClick={() => setCalibration({ scale: 1, offsetX: 0, offsetY: 0, rotation: 0 })}
-                                className="w-full py-1 text-xs bg-red-900/30 text-red-500 rounded hover:bg-red-900/50"
+                                className="w-full py-1 text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-500 rounded hover:bg-red-200 dark:hover:bg-red-900/50"
                             >
                                 Reset
                             </button>
@@ -137,15 +137,15 @@ export const ReplayPitView: React.FC<ReplayPitViewProps> = ({
                         positions={trackPositions} 
                         currentIndex={currentIndex} 
                         ghostPosition={showGhost ? ghostPosition : null} 
-                        backgroundImage="/tracks/thunderhill/map.svg"
+                        backgroundImage="/tracks/thunderhill/map.svg?v=4"
                         calibration={calibration}
                    />
                </div>
             </div>
 
             {/* Lap Times Panel */}
-            <div className="w-64 bg-gray-900 rounded-lg border border-gray-800 p-4 flex flex-col overflow-hidden">
-                <h3 className="text-sm font-bold text-gray-400 mb-3 uppercase tracking-wider">Lap Times</h3>
+            <div className="w-64 bg-gray-100 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4 flex flex-col overflow-hidden">
+                <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-wider">Lap Times</h3>
 
                 <div className="flex-grow overflow-y-auto space-y-2 pr-2 custom-scrollbar">
 
@@ -163,20 +163,20 @@ export const ReplayPitView: React.FC<ReplayPitViewProps> = ({
                                 key={i} 
                                 className={`flex justify-between items-center p-2 rounded border transition-colors ${
                                     isActive 
-                                        ? 'bg-blue-900/40 border-blue-500 shadow-sm ring-1 ring-blue-500/50' 
-                                        : 'bg-gray-800/50 border-gray-700 opacity-60 hover:opacity-100'
+                                        ? 'bg-blue-100 dark:bg-blue-900/40 border-blue-400 dark:border-blue-500 shadow-sm ring-1 ring-blue-400/50 dark:ring-blue-500/50' 
+                                        : 'bg-white dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 opacity-60 hover:opacity-100'
                                 }`}
                             >
-                                <span className={`text-sm ${isActive ? 'text-blue-100 font-bold' : 'text-gray-400'}`}>
+                                <span className={`text-sm ${isActive ? 'text-blue-700 dark:text-blue-100 font-bold' : 'text-gray-600 dark:text-gray-400'}`}>
                                     Lap {lap.lapIndex}
                                 </span>
                                 <div className="flex items-center gap-2">
                                     {showGhost && delta !== null && (
-                                        <span className={`text-xs font-mono font-bold ${delta > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                                        <span className={`text-xs font-mono font-bold ${delta > 0 ? 'text-red-500 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                                             {delta > 0 ? '+' : ''}{delta.toFixed(3)}
                                         </span>
                                     )}
-                                    <span className={`font-mono ${isActive ? 'text-white font-bold' : 'text-gray-300'}`}>
+                                    <span className={`font-mono ${isActive ? 'text-gray-900 dark:text-white font-bold' : 'text-gray-500 dark:text-gray-300'}`}>
                                         {lap.lapTime.toFixed(3)}s
                                     </span>
                                 </div>

@@ -1,9 +1,15 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { 
+  Play, Pause, SkipBack, SkipForward, Repeat, 
+  LayoutGrid, Rows, 
+  Gauge, Flag, Map, CarFront, Headset, Ghost, FileText // Racing Icons
+} from 'lucide-react';
 import { useTelemetry } from '../hooks/useTelemetry';
-import { Play, Pause, SkipForward, SkipBack, FileText, LayoutDashboard, Repeat, GalleryVerticalEnd, Ghost, Activity, History } from 'lucide-react';
 import { ReplayPitView } from './ReplayPitView';
 import { ReplayDriverView } from './ReplayDriverView';
 import { PerformanceCoach } from './PerformanceCoach';
+
+import { useTheme } from '../components/ThemeProvider';
 import { Link } from 'react-router-dom';
 
 interface ManifestFile {
@@ -23,7 +29,7 @@ export function ReplayPage() {
   const [showCoachView, setShowCoachView] = useState(true);
   const [splitPosition, setSplitPosition] = useState(50); // Percentage
   const [isResizing, setIsResizing] = useState(false);
-  const [layoutMode, setLayoutMode] = useState<'grid' | 'stacked'>(() => {
+  const [layoutMode] = useState<'grid' | 'stacked'>(() => {
     const params = new URLSearchParams(window.location.search);
     const urlMode = params.get('mode') as 'grid' | 'stacked';
     if (urlMode) return urlMode;
@@ -32,14 +38,9 @@ export function ReplayPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Force stacked view defaults if loaded in stacked mode
-  useEffect(() => {
-    if (layoutMode === 'stacked') {
-        setShowPitView(true);
-        setShowDriverView(true);
-        setShowCoachView(true);
-    }
-  }, [layoutMode]);
+
+  
+  const { theme, toggleTheme } = useTheme();
 
   // Load manifest
   useEffect(() => {
@@ -82,6 +83,7 @@ export function ReplayPage() {
         .catch(err => console.error('Failed to load track details:', err));
   }, []);
 
+  // Load telemetry data using hook
   const { 
     loading, 
     error, 
@@ -91,13 +93,13 @@ export function ReplayPage() {
     seek, 
     currentIndex, 
     data,
-    playbackSpeed,
-    setPlaybackSpeed,
-    isLooping,
-    setIsLooping,
     idealLap,
     laps,
-    getGhostFrame
+    getGhostFrame,
+    isLooping,
+    setIsLooping,
+    playbackSpeed,
+    setPlaybackSpeed
   } = useTelemetry(selectedSource, startLine);
 
   const toggleLayoutMode = (mode: 'grid' | 'stacked') => {
@@ -215,7 +217,7 @@ export function ReplayPage() {
       window.addEventListener('mouseup', handleMouseUp);
     } else {
       window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.addEventListener('mouseup', handleMouseUp);
     }
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
@@ -233,101 +235,113 @@ export function ReplayPage() {
 
 
   return (
-    <div className="h-screen w-full bg-black text-white flex flex-col overflow-hidden font-sans selection:bg-blue-500/30">
+    <div className="h-screen w-full bg-white dark:bg-black text-gray-900 dark:text-white flex flex-col overflow-hidden font-sans selection:bg-blue-500/30">
       
       {/* Header */}
-      <header className="h-14 border-b border-gray-800 bg-gray-900/50 backdrop-blur flex items-center justify-between px-4 shrink-0 z-50">
+      <header className="h-14 border-b border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-gray-900/50 backdrop-blur flex items-center justify-between px-4 shrink-0 z-50">
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-blue-500">
-            {layoutMode === 'grid' ? <LayoutDashboard size={20} /> : <GalleryVerticalEnd size={20} />}
-            <span className="font-bold tracking-tight">KORU<span className="text-white">CIRCUIT</span></span>
-          </div>
+          <button 
+            onClick={toggleTheme}
+            className="flex items-center gap-2 text-blue-600 dark:text-blue-500 hover:scale-105 transition-transform cursor-pointer"
+            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+          >
+            {layoutMode === 'grid' ? <LayoutGrid size={20} /> : <Rows size={20} />}
+            <span className="font-bold tracking-tight text-xl italic font-mono">
+              KORU<span className="text-gray-900 dark:text-white">CIRCUIT</span>
+              <span className="text-xs ml-1 not-italic font-sans bg-yellow-400 text-black px-1 rounded font-bold">RACE</span>
+            </span>
+          </button>
           
           
-          <div className="h-6 w-px bg-gray-800 mx-2" />
+          <div className="h-6 w-px bg-gray-200 dark:bg-gray-800 mx-2" />
           
-          <div className="flex items-center bg-gray-800 rounded-lg p-1 gap-1">
-            <Link to="/" title="Live" className="flex items-center justify-center p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-gray-700/50 transition-colors">
-                <Activity size={16} />
+          <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1 gap-1">
+            <Link to="/" title="Live Telemetry" className="flex items-center justify-center p-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-gray-700/50 transition-colors">
+                <Gauge size={16} />
             </Link>
-            <div title="Replay" className="flex items-center justify-center p-1.5 rounded-md bg-gray-700 text-white shadow-sm cursor-default">
-                <History size={16} />
+            <div title="Replay Analysis" className="flex items-center justify-center p-1.5 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm ring-1 ring-black/5 dark:ring-transparent cursor-default">
+                <Flag size={16} />
             </div>
           </div>
 
           {layoutMode === 'grid' && (
             <>
-              <div className="h-6 w-px bg-gray-800 mx-1" />
+              <div className="h-6 w-px bg-gray-200 dark:bg-gray-800 mx-1" />
               
-              <div className="flex items-center bg-gray-800 rounded-lg p-1 gap-0.5">
+              <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1 gap-0.5">
                 <button
                   onClick={() => setShowPitView(!showPitView)}
-                  className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                    showPitView ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                  className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                    showPitView ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm ring-1 ring-black/5 dark:ring-transparent' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-gray-700/50'
                   }`}
                 >
+                  <Map size={14} />
                   Pit
                 </button>
                 <button
                   onClick={() => setShowDriverView(!showDriverView)}
-                  className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                    showDriverView ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                  className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                    showDriverView ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm ring-1 ring-black/5 dark:ring-transparent' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-gray-700/50'
                   }`}
                 >
+                  <CarFront size={14} />
                   Driver
                 </button>
                 <button
                   onClick={() => setShowCoachView(!showCoachView)}
-                  className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                    showCoachView ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                  className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                    showCoachView ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm ring-1 ring-black/5 dark:ring-transparent' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-gray-700/50'
                   }`}
                 >
+                  <Headset size={14} />
                   Coach
                 </button>
               </div>
             </>
           )}
 
-          <div className="h-6 w-px bg-gray-800 mx-2" />
+          <div className="h-6 w-px bg-gray-200 dark:bg-gray-800 mx-2" />
 
            {/* Layout Toggle */}
-           <div className="flex items-center bg-gray-800 rounded-lg p-1 gap-1">
+           <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1 gap-1">
               <button
                 onClick={() => toggleLayoutMode('grid')}
-                className={`p-1.5 rounded-md transition-colors ${layoutMode === 'grid' ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'}`}
+                className={`p-1.5 rounded-md transition-colors ${layoutMode === 'grid' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm ring-1 ring-black/5 dark:ring-transparent' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-gray-700/50'}`}
                 title="Grid View"
               >
-                <LayoutDashboard size={14} />
+                <LayoutGrid size={14} />
               </button>
               <button
                 onClick={() => toggleLayoutMode('stacked')}
-                className={`p-1.5 rounded-md transition-colors ${layoutMode === 'stacked' ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'}`}
+                className={`p-1.5 rounded-md transition-colors ${layoutMode === 'stacked' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm ring-1 ring-black/5 dark:ring-transparent' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-gray-700/50'}`}
                 title="Stacked View"
               >
-                <GalleryVerticalEnd size={14} />
+                <Rows size={14} />
               </button>
            </div>
            
-           <div className="h-6 w-px bg-gray-800 mx-2" />
+           <div className="h-6 w-px bg-gray-200 dark:bg-gray-800 mx-2" />
 
            {/* Ghost Toggle */}
            <button
              onClick={() => setShowGhost(!showGhost)}
              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-               showGhost ? 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/50' : 'text-gray-400 hover:text-white hover:bg-gray-800 border border-transparent'
+               showGhost ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-500 border border-yellow-500/50' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 border border-transparent'
              }`}
              title="Toggle Ideal Lap Overlay"
            >
              <Ghost size={14} />
              <span>Ghost Lap</span>
            </button>
+
+            <div className="h-6 w-px bg-gray-200 dark:bg-gray-800 mx-2" />
         </div>
         
         {/* Playback Controls - Moved to Header */}
         <div className="flex items-center gap-2 mx-4">
              <button 
                onClick={() => seek(Math.max(0, currentIndex - 100))}
-               className="p-1.5 hover:bg-gray-800 rounded-full transition text-gray-400 hover:text-white"
+               className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                title="Rewind"
              >
                <SkipBack size={16} />
@@ -342,7 +356,7 @@ export function ReplayPage() {
              
              <button 
                onClick={() => seek(Math.min(data.length - 1, currentIndex + 100))}
-               className="p-1.5 hover:bg-gray-800 rounded-full transition text-gray-400 hover:text-white"
+               className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                title="Skip Forward"
              >
                <SkipForward size={16} />
@@ -356,24 +370,24 @@ export function ReplayPage() {
                     max={data.length > 0 ? data.length - 1 : 100} 
                     value={currentIndex} 
                     onChange={(e) => seek(parseInt(e.target.value))}
-                    className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                    className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-600 dark:accent-blue-500"
                 />
              </div>
 
              <button
                onClick={() => setIsLooping(!isLooping)}
-               className={`p-1.5 rounded-full transition ${isLooping ? 'text-blue-500 bg-blue-500/10' : 'text-gray-400 hover:text-white hover:bg-gray-800'}`}
+               className={`p-1.5 rounded-full transition ${isLooping ? 'text-blue-600 dark:text-blue-500 bg-blue-500/10' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                title="Loop"
              >
                <Repeat size={16} />
              </button>
              
-             <div className="h-4 w-px bg-gray-700 mx-1" />
+             <div className="h-4 w-px bg-gray-300 dark:bg-gray-700 mx-1" />
              
              <select
                 value={playbackSpeed}
                 onChange={(e) => setPlaybackSpeed(parseFloat(e.target.value))}
-                className="bg-transparent text-xs font-medium text-gray-400 hover:text-white focus:outline-none cursor-pointer"
+                className="bg-transparent text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white focus:outline-none cursor-pointer"
                 title="Playback Speed"
               >
                 <option value={0.1}>0.1x</option>
@@ -387,14 +401,14 @@ export function ReplayPage() {
 
         <div className="flex items-center gap-6">
 
-            <div className="text-sm text-gray-400 w-56 text-right tabular-nums font-mono mr-2">
+            <div className="text-sm text-gray-500 dark:text-gray-400 w-56 text-right tabular-nums font-mono mr-2">
               {currentFrame?.time.toFixed(2)}s / {data[data.length-1]?.time.toFixed(2)}s
             </div>
             {/* File Selector */}
-            <div className="flex items-center gap-2 bg-gray-800 rounded px-2 py-1">
-              <FileText size={16} className="text-gray-400" />
+            <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded px-2 py-1">
+              <FileText size={16} className="text-gray-500 dark:text-gray-400" />
               <select 
-                className="bg-transparent text-sm focus:outline-none max-w-[200px]"
+                className="bg-transparent text-sm focus:outline-none max-w-[200px] text-gray-900 dark:text-white"
                 value={typeof selectedSource === 'string' ? selectedSource : ''}
                 onChange={(e) => {
                   if (e.target.value === '__custom_upload__') {
@@ -462,7 +476,7 @@ export function ReplayPage() {
         {/* Resizer */}
         {showPitView && showDriverView && !showCoachView && layoutMode === 'grid' && (
           <div
-            className="w-1 bg-gray-800 hover:bg-blue-500 cursor-col-resize flex items-center justify-center transition-colors group z-10"
+            className="w-1 bg-gray-200 dark:bg-gray-800 hover:bg-blue-500 hover:dark:bg-blue-500 cursor-col-resize flex items-center justify-center transition-colors group z-10"
             onMouseDown={startResizing}
           >
             <div className="h-8 w-1 bg-gray-600 group-hover:bg-white rounded-full" />

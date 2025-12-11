@@ -3,6 +3,7 @@ import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera, Line } from '@react-three/drei';
 import * as THREE from 'three';
 import { Video, Globe, ZoomIn } from 'lucide-react';
+import { useTheme } from './ThemeProvider';
 
 // ... (Imports and other components)
 import type { TelemetryFrame } from '../utils/telemetryParser';
@@ -429,9 +430,12 @@ export const ReplayTrackMap3D: React.FC<ReplayTrackMap3DProps> = ({ positions, c
     setZoomLevel((prev) => (prev + 1) % 3);
   };
 
+  const { theme } = useTheme();
+
   return (
-    <div className="w-full h-full bg-black rounded-lg overflow-hidden border border-gray-800 relative group">
+    <div className="w-full h-full bg-gray-100 dark:bg-black rounded-lg overflow-hidden border border-gray-200 dark:border-gray-800 relative group">
       <Canvas shadows dpr={[1, 2]} gl={{ antialias: true }}>
+        <color attach="background" args={[theme === 'light' ? '#f3f4f6' : '#000000']} />
         <PerspectiveCamera makeDefault position={[0, 50, 0]} fov={50} />
         <SceneContent
             positions={positions}
@@ -448,13 +452,13 @@ export const ReplayTrackMap3D: React.FC<ReplayTrackMap3DProps> = ({ positions, c
         {startLinePos && <StartLine position={startLinePos} />}
       </Canvas>
 
-      <div className="absolute top-4 left-4 z-10 flex bg-gray-900/90 backdrop-blur-sm rounded-lg p-1 border border-gray-700 gap-1">
+      <div className="absolute top-4 left-4 z-10 flex bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-lg p-1 border border-gray-200 dark:border-gray-700 gap-1 shadow-sm">
         <button
           onClick={() => setFollowMode(false)}
           className={`px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-2 transition-colors ${
             !followMode
               ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
           }`}
         >
           <Globe size={14} />
@@ -465,7 +469,7 @@ export const ReplayTrackMap3D: React.FC<ReplayTrackMap3DProps> = ({ positions, c
           className={`px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-2 transition-colors ${
             followMode
               ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
           }`}
         >
           <Video size={14} />
@@ -474,10 +478,10 @@ export const ReplayTrackMap3D: React.FC<ReplayTrackMap3DProps> = ({ positions, c
 
         {followMode && (
           <>
-            <div className="w-px bg-gray-700 mx-1" />
+            <div className="w-px bg-gray-300 dark:bg-gray-700 mx-1" />
             <button
               onClick={cycleZoom}
-              className="px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-2 transition-colors text-gray-400 hover:text-white hover:bg-gray-800"
+              className="px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-2 transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
               title="Cycle Zoom Level"
             >
               <ZoomIn size={14} />
@@ -495,29 +499,29 @@ export const ReplayTrackMap3D: React.FC<ReplayTrackMap3DProps> = ({ positions, c
 
       {/* Fixed HUD Overlay */}
       {currentFrame && (
-        <div className="absolute top-4 right-4 z-10 bg-black/80 backdrop-blur-md p-3 rounded-lg border border-gray-700 text-xs font-mono text-white flex flex-col gap-2 shadow-xl min-w-[140px]">
-          <div className="flex justify-between items-center border-b border-gray-700 pb-1 mb-1">
-            <span className="text-gray-400 font-semibold">TELEMETRY</span>
+        <div className="absolute top-4 right-4 z-10 bg-white/80 dark:bg-black/80 backdrop-blur-md p-3 rounded-lg border border-gray-200 dark:border-gray-700 text-xs font-mono text-gray-900 dark:text-white flex flex-col gap-2 shadow-xl min-w-[140px]">
+          <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-1 mb-1">
+            <span className="text-gray-500 dark:text-gray-400 font-semibold">TELEMETRY</span>
           </div>
           <div className="flex justify-between gap-4">
-            <span className="text-gray-400">Speed</span>
-            <span className="font-bold text-blue-400 text-lg">{currentFrame.speed?.toFixed(0) ?? '0'} <span className="text-xs text-gray-500">km/h</span></span>
+            <span className="text-gray-500 dark:text-gray-400">Speed</span>
+            <span className="font-bold text-blue-600 dark:text-blue-400 text-lg">{currentFrame.speed?.toFixed(0) ?? '0'} <span className="text-xs text-gray-500 dark:text-gray-500">km/h</span></span>
           </div>
           <div className="flex justify-between gap-4">
-            <span className="text-gray-400">G-Lat</span>
-            <span className={`font-bold ${Math.abs(currentFrame.gForceLat ?? 0) > 0.5 ? 'text-red-400' : 'text-white'}`}>
+            <span className="text-gray-500 dark:text-gray-400">G-Lat</span>
+            <span className={`font-bold ${Math.abs(currentFrame.gForceLat ?? 0) > 0.5 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
               {currentFrame.gForceLat?.toFixed(2) ?? '0.00'}
             </span>
           </div>
           <div className="flex justify-between gap-4">
-            <span className="text-gray-400">G-Long</span>
-            <span className={`font-bold ${Math.abs(currentFrame.gForceLong ?? 0) > 0.5 ? 'text-yellow-400' : 'text-white'}`}>
+            <span className="text-gray-500 dark:text-gray-400">G-Long</span>
+            <span className={`font-bold ${Math.abs(currentFrame.gForceLong ?? 0) > 0.5 ? 'text-yellow-600 dark:text-yellow-400' : 'text-gray-900 dark:text-white'}`}>
               {currentFrame.gForceLong?.toFixed(2) ?? '0.00'}
             </span>
           </div>
           <div className="flex justify-between gap-4">
-            <span className="text-gray-400">Slope</span>
-            <span className="font-bold text-green-400">{currentFrame.gradient?.toFixed(1) ?? '0.0'}%</span>
+            <span className="text-gray-500 dark:text-gray-400">Slope</span>
+            <span className="font-bold text-green-600 dark:text-green-400">{currentFrame.gradient?.toFixed(1) ?? '0.0'}%</span>
           </div>
         </div>
       )}
