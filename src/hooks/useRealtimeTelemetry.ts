@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { type TelemetryFrame } from '../utils/telemetryParser';
 import { detectLaps, calculateIdealLap, type LapData } from '../utils/lapAnalysis';
 
-export function useRealtimeTelemetry(sourceUrl: string | null) {
+export function useRealtimeTelemetry(sourceUrl: string | null, startLine?: { lat: number, lon: number }) {
   const [data, setData] = useState<TelemetryFrame[]>([]);
   const [laps, setLaps] = useState<LapData[]>([]);
   const [idealLap, setIdealLap] = useState<LapData | null>(null);
@@ -223,12 +223,12 @@ export function useRealtimeTelemetry(sourceUrl: string | null) {
     if (data.length === 0) return;
     
     // Also laps calculation could be expensive on big array, good thing data is throttled now
-    const detected = detectLaps(data);
+    const detected = detectLaps(data, startLine);
     setLaps(detected);
     if (detected.length > 0) {
         setIdealLap(calculateIdealLap(detected));
     }
-  }, [data]);
+  }, [data, startLine]);
 
   
     // Helper to get ghost car frame

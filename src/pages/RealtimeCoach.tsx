@@ -26,6 +26,16 @@ interface CoachMessage {
 
 type CoachMode = 'code' | 'nano';
 
+const loadingMessages = [
+  "Calibrating sensors...",
+  "Warming up tires...",
+  "Checking ghost data...",
+  "Analyzing corner entries...",
+  "Calculating optimal lines...",
+  "Reviewing sector split times...",
+  "Syncing telemetry..."
+];
+
 export const RealtimeCoach: React.FC<PerformanceCoachProps> = ({ currentFrame, ghostFrame, currentIndex }) => {
   const [messages, setMessages] = useState<CoachMessage[]>([]);
   const [mode, setMode] = useState<CoachMode>('code');
@@ -40,8 +50,17 @@ export const RealtimeCoach: React.FC<PerformanceCoachProps> = ({ currentFrame, g
     speak 
   } = useTTS({ apiKey: '' });
   
-  // Hardcoded history length for now as settings are removed
   const historyLength = 100;
+  
+  const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
+
+  useEffect(() => {
+    if (messages.length > 0) return;
+    const interval = setInterval(() => {
+        setLoadingMessageIndex(i => (i + 1) % loadingMessages.length);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [messages.length]);
 
   // Reset messages when restarting (index 0)
   useEffect(() => {
@@ -420,8 +439,13 @@ Status: ${performanceStats.isFaster ? 'GAINING TIME' : performanceStats.isGoodLi
           
           <div className="flex-grow overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
               {messages.length === 0 && (
-                  <div className="text-center text-gray-600 text-sm mt-10 italic">
-                      Coach is analyzing your driving...
+                  <div className="flex flex-col items-center justify-center text-center mt-10 space-y-3 opacity-80">
+                      <div className="text-gray-400 italic">
+                          Coach is analyzing your driving... until you finish your lap
+                      </div>
+                      <div className="text-xs text-purple-400 font-mono animate-pulse">
+                          {loadingMessages[loadingMessageIndex]}
+                      </div>
                   </div>
               )}
               {messages.map((msg, index) => {

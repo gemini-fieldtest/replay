@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useRealtimeTelemetry } from '../hooks/useRealtimeTelemetry';
-import { Play, Pause, Activity, Trophy, Radio, LayoutDashboard } from 'lucide-react';
+import { Activity, Trophy, LayoutDashboard, GalleryVerticalEnd } from 'lucide-react';
 import { LiveVideoPlayer } from '../components/LiveVideoPlayer';
 import { RealtimePitView } from './RealtimePitView';
 import { RealtimeCoach } from './RealtimeCoach';
@@ -14,13 +14,24 @@ export const RealtimePage = () => {
   const [sourceUrl, setSourceUrl] = useState<string | null>('http://localhost:8000/events');
   const [videoUrl, setVideoUrl] = useState<string>(''); // Default empty for now
   
-  // Layout State
+  const [layoutMode, setLayoutMode] = useState<'grid' | 'stacked'>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return (params.get('mode') as 'grid' | 'stacked') || 'stacked';
+  });
+
+  // Layout State - Force defaults if loaded in stacked mode
   const [showPitView, setShowPitView] = useState(true);
   const [showDriverView, setShowDriverView] = useState(true);
   const [showCoachView, setShowCoachView] = useState(true);
+  
   const [splitPosition, setSplitPosition] = useState(50); // Percentage for the split
   const [isResizing, setIsResizing] = useState(false);
+  
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const [showGhost] = useState(true);
+  const [kmlTrack, setKmlTrack] = useState<GeoCoordinate[]>([]);
+  const [startLine, setStartLine] = useState<{ lat: number, lon: number } | undefined>(undefined);
 
   const { 
     data,
@@ -28,27 +39,36 @@ export const RealtimePage = () => {
     error, 
     currentFrame, 
     currentIndex, 
-    isPlaying: isLive, 
-    togglePlay: toggleLive, 
 
     idealLap,
     laps,
     getGhostFrame,
     fullTrackBuffer // Use this for stable map projection
-  } = useRealtimeTelemetry(sourceUrl);
-
-  const [showGhost] = useState(true);
-  const [kmlTrack, setKmlTrack] = useState<GeoCoordinate[]>([]);
+  } = useRealtimeTelemetry(sourceUrl, startLine);
 
   useEffect(() => {
-    const fetchKML = async () => {
-      // Load KML from new tracks folder
+    const fetchTrackData = async () => {
+      // Load KML
       const coords = await loadKML('/tracks/thunderhill/track.kml');
       if (coords.length > 0) {
         setKmlTrack(coords);
       }
+      
+      // Load Points for Start/Finish
+      try {
+        const response = await fetch('/tracks/thunderhill/points.json');
+        if (response.ok) {
+            const points = await response.json();
+            const startPoint = points.find((p: any) => p.name === 'start');
+            if (startPoint) {
+                setStartLine({ lat: startPoint.lat, lon: startPoint.long });
+            }
+        }
+      } catch (e) {
+        console.error("Failed to load points.json", e);
+      }
     };
-    fetchKML();
+    fetchTrackData();
   }, []);
 
   // Calculate projection parameters from the FULL TRACK BUFFER (stable coordinates) or KML
@@ -154,6 +174,18 @@ export const RealtimePage = () => {
       window.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isResizing, handleMouseMove, handleMouseUp]);
+  
+  const toggleLayoutMode = (mode: 'grid' | 'stacked') => {
+    const params = new URLSearchParams(window.location.search);
+    params.set('mode', mode);
+    window.history.pushState({}, '', `${window.location.pathname}?${params.toString()}`);
+    setLayoutMode(mode);
+    if (mode === 'stacked') {
+        setShowPitView(true);
+        setShowDriverView(true);
+        setShowCoachView(true);
+    }
+  };
 
 
   if (loading && !data.length) return (
@@ -166,6 +198,7 @@ export const RealtimePage = () => {
   if (error) return <div className="flex items-center justify-center h-screen bg-gray-900 text-red-500">Error: {error.message}</div>;
 
   const activeViews = [showPitView, showDriverView, showCoachView].filter(Boolean).length;
+  const isStacked = layoutMode === 'stacked';
 
   return (
     <div className="h-full w-full bg-black text-white flex flex-col overflow-hidden font-sans selection:bg-red-500/30">
@@ -174,7 +207,7 @@ export const RealtimePage = () => {
       <header className="h-14 border-b border-gray-800 bg-gray-900/50 backdrop-blur flex items-center justify-between px-4 shrink-0 z-50">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 text-red-500">
-            <Radio size={20} className="animate-pulse" />
+            {isStacked ? <GalleryVerticalEnd size={20} className="animate-pulse" /> : <LayoutDashboard size={20} />}
             <span className="font-bold tracking-tight">RACE<span className="text-white">LIVE</span></span>
           </div>
           
@@ -186,43 +219,56 @@ export const RealtimePage = () => {
                 <span>Replay</span>
             </Link>
             <div className="w-px h-4 bg-gray-700 mx-1" />
-            
-             <button 
-                  onClick={toggleLive}
-                  className={`p-1.5 rounded-full transition shadow-lg ${isLive ? 'bg-red-600 hover:bg-red-700 shadow-red-900/20' : 'bg-green-600 hover:bg-green-700'}`}
-                  title={isLive ? "Pause Live Feed" : "Resume Live Feed"}
-                >
-                  {isLive ? <Pause size={14} /> : <Play size={14} />}
-            </button>
-                 <div className="flex items-center gap-2 text-gray-400 text-xs font-mono w-16 justify-end tabular-nums">
-                    <span className={isLive ? "text-red-500" : "text-gray-500"}>{currentFrame?.time?.toFixed(2) ?? '0.00'}s</span>
-                 </div>
 
-            <button
-              onClick={() => setShowPitView(!showPitView)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                showPitView ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-              }`}
-            >
-              Pit Wall
-            </button>
-            <button
-              onClick={() => setShowDriverView(!showDriverView)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                showDriverView ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-              }`}
-            >
-              Driver Cam
-            </button>
-            <button
-              onClick={() => setShowCoachView(!showCoachView)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                showCoachView ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-              }`}
-            >
-              Coach
-            </button>
+            { !isStacked && (
+              <>
+                <button
+                  onClick={() => setShowPitView(!showPitView)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                    showPitView ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                  }`}
+                >
+                  Pit Wall
+                </button>
+                <button
+                  onClick={() => setShowDriverView(!showDriverView)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                    showDriverView ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                  }`}
+                >
+                  Driver Cam
+                </button>
+                <button
+                  onClick={() => setShowCoachView(!showCoachView)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                    showCoachView ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                  }`}
+                >
+                  Coach
+                </button>
+              </>
+            )}
           </div>
+          
+           <div className="h-6 w-px bg-gray-800 mx-2" />
+
+           {/* Layout Toggle */}
+           <div className="flex items-center bg-gray-800 rounded-lg p-1 gap-1">
+              <button
+                onClick={() => toggleLayoutMode('grid')}
+                className={`p-1.5 rounded-md transition-colors ${!isStacked ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'}`}
+                title="Grid View"
+              >
+                <LayoutDashboard size={14} />
+              </button>
+              <button
+                onClick={() => toggleLayoutMode('stacked')}
+                className={`p-1.5 rounded-md transition-colors ${isStacked ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'}`}
+                title="Stacked View"
+              >
+               <GalleryVerticalEnd size={14} /> 
+              </button>
+           </div>
         </div>
 
         <div className="flex items-center gap-6">
@@ -261,15 +307,16 @@ export const RealtimePage = () => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-grow p-4 flex gap-4 overflow-hidden" ref={containerRef}>
+      <main className={`flex-grow p-4 flex gap-4 ${isStacked ? 'flex-col overflow-y-auto' : 'overflow-hidden'}`} ref={containerRef}>
         
         {/* Pit View */}
         {showPitView && (
           <div 
             className="flex flex-col min-w-0 overflow-hidden"
             style={{ 
-              width: activeViews === 1 ? '100%' : (activeViews === 2 && showDriverView && !showCoachView ? `${splitPosition}%` : `${100/activeViews}%`),
-              flex: (activeViews === 2 && showDriverView && !showCoachView) ? 'none' : '1'
+              width: isStacked ? '100%' : (activeViews === 1 ? '100%' : (activeViews === 2 && showDriverView && !showCoachView ? `${splitPosition}%` : `${100/activeViews}%`)),
+              flex: isStacked ? 'none' : ((activeViews === 2 && showDriverView && !showCoachView) ? 'none' : '1'),
+              height: isStacked ? '70vh' : 'auto'
             }}
           >
             <RealtimePitView 
@@ -287,7 +334,7 @@ export const RealtimePage = () => {
         )}
 
         {/* Resizer */}
-        {showPitView && showDriverView && !showCoachView && (
+        {!isStacked && showPitView && showDriverView && !showCoachView && (
           <div
             className="w-1 bg-gray-800 hover:bg-blue-500 cursor-col-resize flex items-center justify-center transition-colors group z-10"
             onMouseDown={startResizing}
@@ -301,8 +348,9 @@ export const RealtimePage = () => {
           <div 
             className="flex flex-col min-w-0 overflow-hidden"
             style={{ 
-              width: activeViews === 1 ? '100%' : (activeViews === 2 && showPitView && !showCoachView ? `${100 - splitPosition}%` : `${100/activeViews}%`),
-              flex: (activeViews === 2 && showPitView && !showCoachView) ? 'none' : '1'
+              width: isStacked ? '100%' : (activeViews === 1 ? '100%' : (activeViews === 2 && showPitView && !showCoachView ? `${100 - splitPosition}%` : `${100/activeViews}%`)),
+              flex: isStacked ? 'none' : ((activeViews === 2 && showPitView && !showCoachView) ? 'none' : '1'),
+              height: isStacked ? '70vh' : 'auto'
             }}
           >
             <div className="flex-grow relative h-full flex flex-col">
@@ -319,8 +367,9 @@ export const RealtimePage = () => {
              <div 
                 className="flex flex-col min-w-0 overflow-hidden"
                 style={{ 
-                  width: activeViews === 1 ? '100%' : `${100/activeViews}%`,
-                  flex: '1'
+                  width: isStacked ? '100%' : (activeViews === 1 ? '100%' : `${100/activeViews}%`),
+                  flex: isStacked ? 'none' : '1',
+                  height: isStacked ? '70vh' : 'auto'
                 }}
               >
                 <RealtimeCoach 

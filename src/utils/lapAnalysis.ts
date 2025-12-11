@@ -26,17 +26,8 @@ function deg2rad(deg: number) {
   return deg * (Math.PI / 180);
 }
 
-export function detectLaps(frames: TelemetryFrame[]): LapData[] {
+export function detectLaps(frames: TelemetryFrame[], startLine?: { lat: number, lon: number }): LapData[] {
   if (frames.length < 100) return [];
-
-  // Heuristic: Try a few candidate start positions from the beginning of the data
-  // to handle cases where the recording starts in the pits or off-track.
-  // We'll check the first 3 minutes of data (approx 10000 frames at 60Hz)
-  // or 20% of the data, whichever is smaller, stepping every 5 seconds (300 frames).
-  const searchLimit = Math.min(frames.length, 10000); // ~3 mins
-  const step = 300; // ~5 seconds
-  
-  let bestLaps: LapData[] = [];
 
   // Helper to detect laps for a given start position
   const findLapsForPos = (startPos: { lat: number, lon: number }) => {
@@ -122,6 +113,21 @@ export function detectLaps(frames: TelemetryFrame[]): LapData[] {
 
     return detectedLaps;
   };
+
+  // If fixed start line is provided, use it directly
+  if (startLine) {
+      return findLapsForPos(startLine);
+  }
+
+  // Otherwise, fallback to Heuristic Search
+  // Heuristic: Try a few candidate start positions from the beginning of the data
+  // to handle cases where the recording starts in the pits or off-track.
+  // We'll check the first 3 minutes of data (approx 10000 frames at 60Hz)
+  // or 20% of the data, whichever is smaller, stepping every 5 seconds (300 frames).
+  const searchLimit = Math.min(frames.length, 10000); // ~3 mins
+  const step = 300; // ~5 seconds
+  
+  let bestLaps: LapData[] = [];
 
   // Try candidates
   for (let i = 0; i < searchLimit; i += step) {
