@@ -41,11 +41,14 @@ export const RealtimePage = () => {
   const [kmlTrack, setKmlTrack] = useState<GeoCoordinate[]>([]);
 
   useEffect(() => {
-    loadKML('/data/Thunderhill racetrack.kml').then(coords => {
+    const fetchKML = async () => {
+      // Load KML from new tracks folder
+      const coords = await loadKML('/tracks/thunderhill/track.kml');
       if (coords.length > 0) {
         setKmlTrack(coords);
       }
-    });
+    };
+    fetchKML();
   }, []);
 
   // Calculate projection parameters from the FULL TRACK BUFFER (stable coordinates) or KML

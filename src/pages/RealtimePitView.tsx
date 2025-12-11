@@ -128,7 +128,7 @@ export const RealtimePitView: React.FC<RealtimePitViewProps> = ({
                     currentIndex={currentIndex} 
                     ghostPosition={ghostPosition}
                     carPosition={carPosition}
-                    backgroundImage="/data/thunderhill.svg"
+                    backgroundImage="/tracks/thunderhill/map.svg"
                     calibration={calibration}
                 />
                </div>
