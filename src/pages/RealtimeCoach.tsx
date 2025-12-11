@@ -86,9 +86,9 @@ export const RealtimeCoach = ({ currentFrame, ghostFrame, currentIndex, trackPoi
 
   // const { speak: speakSynthesis } = useSpeechSynthesis(); // Removed unused
   
-  // Trigger State Refs
   // const lastSectorRef = useRef<number>(-1); // Removed unused
   const deviationStartTimeRef = useRef<number | null>(null);
+  const lastTrackLocationRef = useRef<string | null>(null);
   const lastHillStateRef = useRef<'uphill' | 'downhill' | 'flat'>('flat');
   const lastTriggerTimeRef = useRef<number>(0); // This replaces lastMessageTimeRef for trigger logic
 
@@ -196,7 +196,7 @@ export const RealtimeCoach = ({ currentFrame, ghostFrame, currentIndex, trackPoi
     if (!performanceStats || !currentFrame) return;
 
     const now = Date.now();
-    // Limit message frequency (original logic)
+    //. Limit message frequency (original logic)
     // if (now - lastMessageTimeRef.current < 3000) return; // This is now handled by trigger logic cooldown
 
     // Context for AI models
@@ -262,16 +262,37 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
         triggerReason = "New Best";
     }
 
+    // D. Location Change Trigger
+    if (trackLocation !== lastTrackLocationRef.current) {
+        // Only trigger if entering a significant location
+        // AND cooldown respected? 
+        // We update ref immediately to avoid chatter
+        lastTrackLocationRef.current = trackLocation;
+
+        if (trackLocation && timeSinceLastTrigger > 8000) { // 8s cooldown specific to location triggers? Or utilize global?
+             // Using global cooldown logic below, but we set flag here
+             shouldTrigger = true;
+             triggerReason = `Location: ${trackLocation}`;
+        }
+    }
+
     // Global Cooldown (don't spam, even if triggers overlap)
     // Minimum 5 seconds between messages unless it's critical? Let's say 8s.
     const COOLDOWN = 8000;
     
     if (shouldTrigger && timeSinceLastTrigger > COOLDOWN) {
-        // console.log(`Triggering Coach: ${triggerReason}`);
+        console.log(`Triggering Coach: ${triggerReason} | Mode: ${mode} | Nano Status: ${nanoStatus.state}`);
         const heuristicMessage = getCoachMessage(performanceStats, drivingAnalysis, currentFrame, ghostFrame);
         
-        // Code Coach (Always Runs)
-        if (mode === 'code') {
+        // Code Coach (Always Runs OR Fallback if Nano unavailable)
+        // If mode is Nano but it's not ready, use Code heuristics as fallback
+        const useHeuristic = mode === 'code' || (mode === 'nano' && nanoStatus.state !== 'ready');
+
+        if (useHeuristic) {
+             if (mode === 'nano') {
+                 console.log('[RealtimeCoach] Nano unavailable. Falling back to Heuristic Code Coach.');
+             }
+
              const newMessage: CoachMessage = {
                 id: now,
                 text: heuristicMessage.text,
@@ -338,6 +359,8 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                  flags,
                  delta: performanceStats?.speedDelta.toFixed(1)
              };
+
+             console.log('[RealtimeCoach] Attempting Nano Gen with payload:', payload);
 
              const genStartTime = performance.now();
              generateNano(payload).then(nanoText => { // Pass Object Payload

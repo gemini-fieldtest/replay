@@ -67,7 +67,7 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
       }
   }, [currentIndex]);
 
-  const { speak: speakBrowser } = useSpeechSynthesis();
+
 
   // Trigger State Refs
   const deviationStartTimeRef = useRef<number | null>(null);
@@ -102,7 +102,7 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
   }, [currentFrame, ghostFrame]);
 
   // Helper function to generate heuristic messages
-  const getCoachMessage = (perfStats: NonNullable<typeof performanceStats>, driveAnalysis: NonNullable<typeof drivingAnalysis>): CoachMessage => {
+  const getCoachMessage = (perfStats: NonNullable<typeof performanceStats>): CoachMessage => {
     let baseText = "";
     let msgType: 'positive' | 'neutral' | 'info' = 'info';
     const now = Date.now();
@@ -258,6 +258,7 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
         id: now,
         text: baseText,
         type: msgType,
+        timestamp: now,
         telemetryTime: currentFrame!.time,
     };
   };
@@ -285,7 +286,7 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
     }
 
     // B. Hill Trigger (Gradient Change)
-    const currentGradient = drivingAnalysis.gradient;
+    const currentGradient = drivingAnalysis.gradient ?? 0;
     let hillState: 'uphill' | 'downhill' | 'flat' = 'flat';
     if (currentGradient > 3) hillState = 'uphill';
     else if (currentGradient < -3) hillState = 'downhill';
@@ -306,7 +307,7 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
     const COOLDOWN = 8000;
 
     if (shouldTrigger && timeSinceLastCall > COOLDOWN) {
-        const heuristicMessage = getCoachMessage(performanceStats, drivingAnalysis);
+        const heuristicMessage = getCoachMessage(performanceStats);
 
         // Context for AI models
         let contextString = `
@@ -345,7 +346,7 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
             setMessages(prev => [newMessage, ...prev.slice(0, historyLength - 1)]);
             lastMessageTimeRef.current = now;
             if (isAudioEnabled) {
-                speakTTS(text); // Use the TTS hook's speak function
+                speak(text); // Use the TTS hook's speak function
             }
         };
 
@@ -365,7 +366,7 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
             })();
             lastCallTime.current = now;
         }
-        else if ((mode === 'flash' || mode === 'pro') && cloudStatus.state === 'ready' && cloudStatus.hasKey) {
+        else if ((mode === 'flash' || mode === 'pro') && cloudStatus.hasKey) {
             if (serializeRequests && cloudStatus.state === 'loading') {
                 return; // Prevent overlapping requests
             }
@@ -386,7 +387,7 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
       currentFrame?.time, 
       performanceStats, 
       drivingAnalysis,
-      mode, nanoStatus.state, cloudStatus.state, isAudioEnabled, speakTTS, generateNano, generateCloud, signalQuality, trackLocation, historyLength, serializeRequests, cloudStatus.hasKey
+      mode, nanoStatus.state, cloudStatus.state, isAudioEnabled, speak, generateNano, generateCloud, signalQuality, trackLocation, historyLength, serializeRequests, cloudStatus.hasKey
   ]);
 
   const toggleSettings = () => {

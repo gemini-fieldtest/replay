@@ -124,3 +124,42 @@ The application expects CSV files with specific headers. See `src/utils/telemetr
 ## License
 
 MIT
+
+## 🤖 Gemini Nano Setup
+
+To unlock the AI Coaching features running locally in your browser, you must use **Google Chrome (Canary or Dev)** and enable the **Prompt API**.
+
+### 1. Install Chrome Canary
+
+The standard Chrome version may not have these features enabled yet. [Download Chrome Canary](https://www.google.com/chrome/canary/).
+
+### 2. Enable Flags
+
+Go to these URLs in Chrome and set them as follows:
+
+1.  `chrome://flags/#optimization-guide-on-device-model`
+    - Set to **Enabled BypassPerfRequirement**
+2.  `chrome://flags/#prompt-api-for-gemini-nano`
+    - Set to **Enabled**
+
+### 3. Restart & Download
+
+1.  Relaunch Chrome.
+2.  Go to `chrome://components`
+3.  Find **Optimization Guide On Device Model**
+4.  Click **Check for update** to force the model download.
+    - _Note: If it says "Component not updated", wait a few minutes and try again. The model is ~1GB._
+
+Once installed, the errors in the console will disappear, and the "Race Spotter" triggers will be AI-powered!
+
+### 4. Verify Installation
+
+To confirm everything is working, open the Chrome DevTools Console (F12) and run:
+
+```javascript
+await window.LanguageModel.availability();
+```
+
+- **Expected**: `"readily"` (Ready to go!)
+- **Expected**: `"after-download"` (Downloading... wait a bit)
+- **Error**: `"no"` or `undefined` (Check flags above)

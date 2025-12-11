@@ -12,26 +12,51 @@ export const useGeminiNano = () => {
     state: 'initializing'
   });
   
-  const sessionRef = useRef<AITextSession | null>(null);
+  const sessionRef = useRef<AILanguageModel | null>(null);
 
   useEffect(() => {
     const initNano = async () => {
       try {
-        if (!window.ai) {
-          setStatus({ isAvailable: false, state: 'unavailable', error: 'window.ai not found' });
-          return;
+        // 1. Check for API existence (Global LanguageModel)
+        if (!window.LanguageModel) {
+            // Fallback check for window.ai.languageModel just in case
+            if (window.ai?.languageModel) {
+                console.log('[useGeminiNano] Found window.ai.languageModel but not window.LanguageModel. Using alias.');
+                // Handling legacy/alias case
+                window.LanguageModel = window.ai.languageModel; 
+            } else {
+                const msg = 'window.LanguageModel not found (Chrome Canary + Flags required)';
+                console.warn(`[useGeminiNano] ${msg}`);
+                setStatus({ isAvailable: false, state: 'unavailable', error: msg });
+                return;
+            }
         }
 
-        const canCreate = await window.ai.canCreateTextSession();
-        
-        if (canCreate === 'no') {
-          setStatus({ isAvailable: false, state: 'unavailable' });
-          return;
+        // 2. Check Availability
+        let availability = 'no';
+        try {
+            availability = await window.LanguageModel!.availability();
+        } catch (_e) {
+            console.debug('availability() check failed, trying capabilities()', _e);
+            // Fallback to capabilities() if availability() missing (API flux)
+            if ('capabilities' in window.LanguageModel!) {
+               const caps = await window.LanguageModel!.capabilities();
+               availability = caps.available;
+            }
         }
 
-        // Initialize session with a racing coach persona
-        const session = await window.ai.createTextSession({
-          systemPrompt: `You are a Race Spotter.
+        console.log(`[useGeminiNano] Model availability: ${availability}`);
+
+        if (availability === 'no') {
+           setStatus({ isAvailable: false, state: 'unavailable', error: 'Model availability is "no"' });
+           return;
+        }
+
+        // 3. Create Session
+        const session = await window.LanguageModel!.create({
+          initialPrompts: [{
+              role: 'system',
+              content: `You are a Race Spotter.
 Check the "flags" in the input JSON. Priority is Top to Bottom.
 
 PRIORITY 1: SAFETY
@@ -48,6 +73,7 @@ PRIORITY 3: PACE
 - If flags are clean and delta is Green -> Output: "Great pace."
 
 Input JSON:`
+          }]
         });
 
         sessionRef.current = session;
@@ -67,17 +93,23 @@ Input JSON:`
 
     return () => {
       if (sessionRef.current) {
-        sessionRef.current.destroy();
+        // New API might use .destroy(), check docs or assume safe to leave for now
+        // Docs (Pos 15) say `session.destroy()` is likely correct for aborting/cleanup
+        if (typeof sessionRef.current.destroy === 'function') {
+            sessionRef.current.destroy();
+        }
       }
     };
   }, []);
 
   const generateFeedback = useCallback(async (contextString: string | object) => {
     if (!sessionRef.current || status.state !== 'ready') {
+      console.warn('[useGeminiNano] Session not ready or missing');
       return '';
     }
 
     try {
+      console.log('[useGeminiNano] Generating content for context:', contextString);
       let prompt;
       if (typeof contextString === 'object') {
           // New Middleware Mode
