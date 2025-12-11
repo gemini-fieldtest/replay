@@ -510,7 +510,7 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
       </div>
       
       {/* Streaming Chat Interface */}
-      <div className="h-[600px] bg-gray-950/50 rounded-lg border border-gray-800/50 flex flex-col overflow-hidden relative">
+      <div className="flex-1 min-h-0 bg-gray-950/50 rounded-lg border border-gray-800/50 flex flex-col overflow-hidden relative">
           <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-gray-900/90 to-transparent z-10 pointer-events-none" />
           
           <div className="flex-grow overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
@@ -526,13 +526,10 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
               )}
               {messages.map((msg, index) => {
                   const isNewest = index === 0;
-                  const opacity = Math.max(0.3, 1 - (index * 0.05)); // Slower fade out since we have more messages
-                  
                   return (
                   <div 
                     key={msg.id} 
                     className={`flex gap-3 transition-all duration-500 ${isNewest ? 'animate-in slide-in-from-top-2' : ''}`}
-                    style={{ opacity }}
                   >
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
                           msg.type === 'positive' ? 'bg-green-900/30 text-green-400' : 
