@@ -231,6 +231,62 @@ export function useRealtimeTelemetry(sourceUrl: string | null) {
   }, [data]);
 
   
+    // Helper to get ghost car frame
+    const getGhostFrame = (): TelemetryFrame | null => {
+        // Use local currentFrame if available, otherwise we can't calc ghost
+        
+        if (!currentFrame || !idealLap || !laps.length) return null;
+        
+        // Find which lap we are in
+        let currentLap = laps.find(l => 
+            currentFrame.time >= l.frames[0].time && 
+            currentFrame.time <= l.frames[l.frames.length-1].time
+        );
+        
+        // Fallback: If not found, but we are after the last lap, use the last lap
+        if (!currentLap && laps.length > 0) {
+            const lastLap = laps[laps.length - 1];
+            if (currentFrame.time > lastLap.frames[lastLap.frames.length - 1].time) {
+                currentLap = lastLap;
+            } else if (currentFrame.time < laps[0].frames[0].time) {
+               // Rolling Start: We are before the first lap (Out Lap)
+               // Show the ghost finishing the previous lap (wrap around)
+               const timeToStart = laps[0].frames[0].time - currentFrame.time;
+               
+               // Only show if within reasonable range (e.g. one lap duration)
+               if (timeToStart < idealLap.lapTime) {
+                   const ghostTime = idealLap.lapTime - timeToStart;
+                   // Find frame in ideal lap
+                   const ghostFrame = idealLap.frames.find(f => f.time >= idealLap.frames[0].time + ghostTime);
+                   return ghostFrame || idealLap.frames[idealLap.frames.length-1];
+               }
+               return null;
+            }
+        }
+  
+        if (!currentLap) return null;
+        
+        // Calculate relative time in current lap
+        const relativeTime = currentFrame.time - currentLap.frames[0].time;
+        
+        // Binary search for the closest frame in ideal lap
+        let low = 0;
+        let high = idealLap.frames.length - 1;
+        let bestIdx = 0;
+        
+        while (low <= high) {
+            const mid = Math.floor((low + high) / 2);
+            if (idealLap.frames[mid].time < relativeTime) {
+                bestIdx = mid;
+                low = mid + 1;
+            } else {
+                high = mid - 1;
+            }
+        }
+        
+        return idealLap.frames[bestIdx];
+    };
+
   return {
     data, // This is now throttled history (good for map)
     laps,
@@ -239,7 +295,7 @@ export function useRealtimeTelemetry(sourceUrl: string | null) {
     error,
     currentIndex: data.length - 1,
     currentFrame, // This needs to be the latest
-    getGhostFrame: (): TelemetryFrame | null => null,
+    getGhostFrame,
     isPlaying: isLive,
     togglePlay: () => setIsLive(!isLive),
     fullTrackBuffer: data // Expose full buffer if needed

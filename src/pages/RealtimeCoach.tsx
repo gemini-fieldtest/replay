@@ -275,10 +275,7 @@ Status: ${performanceStats.isFaster ? 'GAINING TIME' : performanceStats.isGoodLi
 
             if (baseText) {
                 // Apply refinement based on mode
-                const finalText = `
-Feedback:
-${baseText}
-`;
+                const finalText = baseText;
                 const currentMode = mode;
 
 
