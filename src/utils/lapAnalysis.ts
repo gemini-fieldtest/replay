@@ -219,11 +219,19 @@ export function resampleLap(lap: LapData, stepMeters: number = 5): LapData {
 
 export function calculateIdealLap(laps: LapData[], microSectorSize: number = 50): LapData | null {
     const completeLaps = laps.filter(l => l.isComplete);
-    if (completeLaps.length < 2) return null;
+    if (completeLaps.length === 0) return null;
 
     // 1. Resample all laps to same grid
     const step = 5; // 5 meters resolution
     const resampledLaps = completeLaps.map(l => resampleLap(l, step));
+
+    // If only one lap, it is the ideal lap
+    if (resampledLaps.length === 1) {
+        return {
+            ...resampledLaps[0],
+            lapIndex: -1 // ID for Ideal Lap
+        };
+    }
 
     // 2. Normalize distances? 
     // Laps might have slightly different lengths. 
