@@ -5,13 +5,18 @@ import type { TelemetryFrame } from '../utils/telemetryParser';
 import type { LapData } from '../utils/lapAnalysis';
 import { useGeminiNano } from '../hooks/useGeminiNano';
 import { useTTS } from '../hooks/useTTS';
+import { useSignalQuality } from '../hooks/useSignalQuality';
+import { useTrackLocation, type TrackPoint } from '../hooks/useTrackLocation';
+import { useDrivingAnalysis } from '../hooks/useDrivingAnalysis';
 
 interface PerformanceCoachProps {
   currentFrame: TelemetryFrame | null;
-  ghostFrame?: TelemetryFrame | null;
-  idealLap?: LapData | null;
+  ghostFrame: TelemetryFrame | null;
+  idealLap: LapData | null;
   currentIndex: number;
   laps: LapData[];
+  trackPoints?: TrackPoint[];
+  trackDetails?: string;
 }
 
 interface CoachMessage {
@@ -24,7 +29,7 @@ interface CoachMessage {
   generationTime?: number;
 }
 
-type CoachMode = 'code' | 'nano';
+
 
 const loadingMessages = [
   "Calibrating sensors...",
@@ -36,11 +41,17 @@ const loadingMessages = [
   "Syncing telemetry..."
 ];
 
-export const RealtimeCoach: React.FC<PerformanceCoachProps> = ({ currentFrame, ghostFrame, currentIndex }) => {
+type CoachMode = 'code' | 'nano' | 'flash' | 'pro';
+
+export const RealtimeCoach = ({ currentFrame, ghostFrame, currentIndex, trackPoints = [], trackDetails = '' }: PerformanceCoachProps) => {
   const [messages, setMessages] = useState<CoachMessage[]>([]);
-  const [mode, setMode] = useState<CoachMode>('code');
+  const [mode, setMode] = useState<CoachMode>('nano');
   const lastMessageTimeRef = useRef<number>(0);
+  const lastPositiveMessageTime = useRef<number>(0);
   const { status: nanoStatus, generateFeedback: generateNano } = useGeminiNano();
+  const signalQuality = useSignalQuality(currentFrame);
+  const trackLocation = useTrackLocation(currentFrame, trackPoints);
+  const drivingAnalysis = useDrivingAnalysis(currentFrame);
   // TTS Hook
   const { 
     isEnabled: isAudioEnabled, 
@@ -65,8 +76,11 @@ export const RealtimeCoach: React.FC<PerformanceCoachProps> = ({ currentFrame, g
   // Reset messages when restarting (index 0)
   useEffect(() => {
       if (currentIndex === 0) {
-          setMessages([]);
-          lastMessageTimeRef.current = 0;
+          // Defer state update to next tick to avoid synchronous render warning
+          setTimeout(() => {
+            setMessages([]);
+            lastMessageTimeRef.current = 0;
+          }, 0);
       }
   }, [currentIndex]);
 
@@ -104,7 +118,6 @@ export const RealtimeCoach: React.FC<PerformanceCoachProps> = ({ currentFrame, g
 
     
 
-
     // Async message generation wrapper
     const processMessage = async () => {
         let newMessage: CoachMessage | null = null;
@@ -113,15 +126,28 @@ export const RealtimeCoach: React.FC<PerformanceCoachProps> = ({ currentFrame, g
         const genStartTime = performance.now();
 
         // Context for AI models
-        const context = `
+        // Context for AI models
+        let context = `
 Speed: ${currentFrame.speed.toFixed(0)} km/h
 Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
-Gear: ${currentFrame.gear}
-Lat G: ${currentFrame.gForceLat.toFixed(2)}
-Throttle: ${currentFrame.throttle.toFixed(0)}%
-Brake: ${currentFrame.brake.toFixed(0)}%
-Status: ${performanceStats.isFaster ? 'GAINING TIME' : performanceStats.isGoodLine ? 'MATCHING PACE' : 'LOSING TIME'}
 `;
+        if (signalQuality.isGearActive) context += `Gear: ${currentFrame.gear}\n`;
+        if (signalQuality.isGForceActive) context += `Lat G: ${currentFrame.gForceLat.toFixed(2)}\n`;
+        if (signalQuality.isThrottleActive) context += `Throttle: ${currentFrame.throttle.toFixed(0)}%\n`;
+        if (signalQuality.isBrakeActive) context += `Brake: ${currentFrame.brake.toFixed(0)}%\n`;
+        
+        if (trackLocation) context += `Location: ${trackLocation}\n`;
+
+        // Advanced Context
+        if (drivingAnalysis.phase && drivingAnalysis.phase !== 'Straight') context += `Phase: ${drivingAnalysis.phase}\n`;
+        context += `Grip Usage: ${drivingAnalysis.gripUsage}G\n`;
+        if (drivingAnalysis.smoothnessScore < 70) context += `Smoothness: ${drivingAnalysis.smoothnessScore} (Rough)\n`;
+        if (drivingAnalysis.gradient) context += `Gradient: ${drivingAnalysis.gradient}%\n`;
+        if (drivingAnalysis.rpmBand === 'Over-rev') context += `RPM: ${currentFrame.rpm} (Over-revving!)\n`;
+
+        if (trackDetails) context += `Track Info: ${trackDetails}\n`;
+
+        context += `Status: ${performanceStats.isFaster ? 'GAINING TIME' : performanceStats.isGoodLine ? 'MATCHING PACE' : 'LOSING TIME'}\n`;
 
         if (mode === 'nano' && nanoStatus.state === 'ready') {
             // Independent Generation Mode
@@ -147,18 +173,25 @@ Status: ${performanceStats.isFaster ? 'GAINING TIME' : performanceStats.isGoodLi
             // "Code Coach" Heuristic Mode (for code, flash, pro)
             let baseText = "";
             if (performanceStats.isFaster) {
-              const phrases = [
-                "Great pace! You're gaining time!",
-                "Flying! Keep it up!",
-                "Faster than the ghost right now.",
-                "Excellent exit speed!",
-                "You're crushing this sector!",
-                "Nailed that corner!",
-                "Green sectors everywhere!",
-                "Leave that ghost in the dust!"
-              ];
-              baseText = phrases[Math.floor(Math.random() * phrases.length)];
-              msgType = 'positive';
+              // Only give positive feedback if enough time has passed to avoid distraction
+              const timeSinceLastPositive = now - lastPositiveMessageTime.current;
+              // 15 seconds cooldown for positive feedback + 30% random chance to make it less robotic
+              if (timeSinceLastPositive > 15000 && Math.random() > 0.7) {
+                  const phrases = [
+                    "Great pace! You're gaining time!",
+                    "Flying! Keep it up!",
+                    "Faster than the ghost right now.",
+                    "Excellent exit speed!",
+                    "You're crushing this sector!",
+                    "Nailed that corner!",
+                    "Green sectors everywhere!",
+                    "Leave that ghost in the dust!"
+                  ];
+                  baseText = phrases[Math.floor(Math.random() * phrases.length)];
+                  msgType = 'positive';
+                  lastPositiveMessageTime.current = now;
+              }
+
 
             } else if (performanceStats.isGoodSpeed && performanceStats.isGoodLine) {
               const phrases = [
@@ -325,7 +358,7 @@ Status: ${performanceStats.isFaster ? 'GAINING TIME' : performanceStats.isGoodLi
     };
 
     processMessage();
-  }, [performanceStats, currentFrame, ghostFrame, mode, nanoStatus.state, generateNano, historyLength, speak]);
+  }, [performanceStats, currentFrame, ghostFrame, mode, nanoStatus.state, generateNano, historyLength, speak, signalQuality, trackLocation]);
 
 
 

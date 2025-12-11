@@ -31,6 +31,7 @@ export const RealtimePage = () => {
 
   const [showGhost] = useState(true);
   const [kmlTrack, setKmlTrack] = useState<GeoCoordinate[]>([]);
+  const [trackPoints, setTrackPoints] = useState<any[]>([]);
   const [startLine, setStartLine] = useState<{ lat: number, lon: number } | undefined>(undefined);
 
   const { 
@@ -59,6 +60,7 @@ export const RealtimePage = () => {
         const response = await fetch('/tracks/thunderhill/points.json');
         if (response.ok) {
             const points = await response.json();
+            setTrackPoints(points);
             const startPoint = points.find((p: any) => p.name === 'start');
             if (startPoint) {
                 setStartLine({ lat: startPoint.lat, lon: startPoint.long });
@@ -378,6 +380,7 @@ export const RealtimePage = () => {
                     idealLap={idealLap}
                     currentIndex={currentIndex}
                     laps={laps}
+                    trackPoints={trackPoints}
                 />
               </div>
         )}

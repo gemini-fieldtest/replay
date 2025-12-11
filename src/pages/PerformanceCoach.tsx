@@ -1,18 +1,23 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 
-import { Activity, ThumbsUp, TrendingUp, MessageSquare, Brain, Zap, Settings, ShieldAlert, Volume2, VolumeX } from 'lucide-react';
+import { Activity, ThumbsUp, TrendingUp, MessageSquare, Brain, Zap, Settings, ShieldAlert, Volume2 } from 'lucide-react';
 import type { TelemetryFrame } from '../utils/telemetryParser';
 import type { LapData } from '../utils/lapAnalysis';
 import { useGeminiNano } from '../hooks/useGeminiNano';
 import { useGeminiCloud } from '../hooks/useGeminiCloud';
 import { useTTS } from '../hooks/useTTS';
+import { useSignalQuality } from '../hooks/useSignalQuality';
+import { useTrackLocation, type TrackPoint } from '../hooks/useTrackLocation';
+import { useDrivingAnalysis } from '../hooks/useDrivingAnalysis';
 
 interface PerformanceCoachProps {
   currentFrame: TelemetryFrame | null;
-  ghostFrame?: TelemetryFrame | null;
-  idealLap?: LapData | null;
+  ghostFrame: TelemetryFrame | null;
+  idealLap: LapData | null;
   currentIndex: number;
   laps: LapData[];
+  trackPoints?: TrackPoint[];
+  trackDetails?: string;
 }
 
 interface CoachMessage {
@@ -27,13 +32,16 @@ interface CoachMessage {
 
 type CoachMode = 'code' | 'nano' | 'flash' | 'pro';
 
-export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame, ghostFrame, currentIndex, laps }) => {
+export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame, ghostFrame, currentIndex, laps, trackPoints = [], trackDetails = '' }) => {
   const [messages, setMessages] = useState<CoachMessage[]>([]);
-  const [mode, setMode] = useState<CoachMode>('code');
+  const [mode, setMode] = useState<CoachMode>('nano');
   const [showSettings, setShowSettings] = useState(false);
   const lastMessageTimeRef = useRef<number>(0);
   const { status: nanoStatus, generateFeedback: generateNano } = useGeminiNano();
   const { status: cloudStatus, generateFeedback: generateCloud, setApiKey } = useGeminiCloud();
+  const signalQuality = useSignalQuality(currentFrame);
+  const trackLocation = useTrackLocation(currentFrame, trackPoints);
+  const drivingAnalysis = useDrivingAnalysis(currentFrame);
   const [settingsKey, setSettingsKey] = useState('');
   
   // TTS Hook
@@ -52,8 +60,10 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
   // Reset messages when restarting (index 0)
   useEffect(() => {
       if (currentIndex === 0) {
-          setMessages([]);
-          lastMessageTimeRef.current = 0;
+           setTimeout(() => {
+              setMessages([]);
+              lastMessageTimeRef.current = 0;
+           }, 0);
       }
   }, [currentIndex]);
 
@@ -96,7 +106,6 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
     }
     
 
-
     // Async message generation wrapper
     const processMessage = async () => {
         let newMessage: CoachMessage | null = null;
@@ -105,15 +114,28 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
         const genStartTime = performance.now();
 
         // Context for AI models
-        const context = `
+        // Context for AI models
+        let context = `
 Speed: ${currentFrame.speed.toFixed(0)} km/h
 Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
-Gear: ${currentFrame.gear}
-Lat G: ${currentFrame.gForceLat.toFixed(2)}
-Throttle: ${currentFrame.throttle.toFixed(0)}%
-Brake: ${currentFrame.brake.toFixed(0)}%
-Status: ${performanceStats.isFaster ? 'GAINING TIME' : performanceStats.isGoodLine ? 'MATCHING PACE' : 'LOSING TIME'}
 `;
+        if (signalQuality.isGearActive) context += `Gear: ${currentFrame.gear}\n`;
+        if (signalQuality.isGForceActive) context += `Lat G: ${currentFrame.gForceLat.toFixed(2)}\n`;
+        if (signalQuality.isThrottleActive) context += `Throttle: ${currentFrame.throttle.toFixed(0)}%\n`;
+        if (signalQuality.isBrakeActive) context += `Brake: ${currentFrame.brake.toFixed(0)}%\n`;
+
+        if (trackLocation) context += `Location: ${trackLocation}\n`;
+
+        // Advanced Context
+        if (drivingAnalysis.phase && drivingAnalysis.phase !== 'Straight') context += `Phase: ${drivingAnalysis.phase}\n`;
+        context += `Grip Usage: ${drivingAnalysis.gripUsage}G\n`;
+        if (drivingAnalysis.smoothnessScore < 70) context += `Smoothness: ${drivingAnalysis.smoothnessScore} (Rough)\n`;
+        if (drivingAnalysis.gradient) context += `Gradient: ${drivingAnalysis.gradient}%\n`;
+        if (drivingAnalysis.rpmBand === 'Over-rev') context += `RPM: ${currentFrame.rpm} (Over-revving!)\n`;
+
+        if (trackDetails) context += `Track Info: ${trackDetails}\n`;
+
+        context += `Status: ${performanceStats.isFaster ? 'GAINING TIME' : performanceStats.isGoodLine ? 'MATCHING PACE' : 'LOSING TIME'}\n`;
 
         if (mode === 'nano' && nanoStatus.state === 'ready') {
             // Independent Generation Mode
@@ -290,14 +312,19 @@ Status: ${performanceStats.isFaster ? 'GAINING TIME' : performanceStats.isGoodLi
                 const currentMode = mode;
 
                 // Context for AI models
-                const context = `
+                // Context for AI models
+                let context = `
 Speed: ${currentFrame.speed.toFixed(0)} km/h
 Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
-Gear: ${currentFrame.gear}
-Lat G: ${currentFrame.gForceLat.toFixed(2)}
-Throttle: ${currentFrame.throttle.toFixed(0)}%
-Brake: ${currentFrame.brake.toFixed(0)}%
-Analysis: ${msgType === 'positive' ? 'Car is faster' : msgType === 'neutral' ? 'Car is matching pace' : 'Car is losing time'}
+`;
+                if (signalQuality.isGearActive) context += `Gear: ${currentFrame.gear}\n`;
+                if (signalQuality.isGForceActive) context += `Lat G: ${currentFrame.gForceLat.toFixed(2)}\n`;
+                if (signalQuality.isThrottleActive) context += `Throttle: ${currentFrame.throttle.toFixed(0)}%\n`;
+                if (signalQuality.isBrakeActive) context += `Brake: ${currentFrame.brake.toFixed(0)}%\n`;
+                
+                if (trackLocation) context += `Location: ${trackLocation}\n`;
+
+                context += `Analysis: ${msgType === 'positive' ? 'Car is faster' : msgType === 'neutral' ? 'Car is matching pace' : 'Car is losing time'}
 Reason: ${baseText}
 `;
 
@@ -331,7 +358,7 @@ Reason: ${baseText}
     };
 
     processMessage();
-  }, [performanceStats, currentFrame, ghostFrame, mode, nanoStatus.state, generateNano, cloudStatus.hasKey, generateCloud, serializeRequests, historyLength, cloudStatus.state, speak]);
+  }, [performanceStats, currentFrame, ghostFrame, mode, nanoStatus.state, generateNano, cloudStatus.hasKey, generateCloud, serializeRequests, historyLength, cloudStatus.state, speak, signalQuality, trackLocation]);
 
   const toggleSettings = () => {
       setShowSettings(!showSettings);

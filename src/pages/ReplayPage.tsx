@@ -71,6 +71,22 @@ export function ReplayPage() {
   } = useTelemetry(selectedSource);
 
   const [showGhost, setShowGhost] = useState(true);
+  const [trackPoints, setTrackPoints] = useState<any[]>([]);
+  const [trackDetails, setTrackDetails] = useState<string>('');
+
+  useEffect(() => {
+    // Load track points
+    fetch('/tracks/thunderhill/points.json')
+      .then(res => res.json())
+      .then(data => setTrackPoints(data))
+      .catch(err => console.error('Failed to load track points:', err));
+
+      // Load track details
+      fetch('/tracks/thunderhill/details.txt')
+        .then(res => res.text())
+        .then(text => setTrackDetails(text))
+        .catch(err => console.error('Failed to load track details:', err));
+  }, []);
 
   const toggleLayoutMode = (mode: 'grid' | 'stacked') => {
     const params = new URLSearchParams(window.location.search);
@@ -453,13 +469,14 @@ export function ReplayPage() {
                     height: layoutMode === 'stacked' ? '70vh' : 'auto'
                  }}
               >
-                <PerformanceCoach
-                    currentFrame={currentFrame}
-                    ghostFrame={ghostFrame}
-                    idealLap={idealLap}
-                    currentIndex={currentIndex}
-                    laps={laps}
-                />
+                <PerformanceCoach 
+                currentFrame={currentFrame} 
+                ghostFrame={ghostFrame} 
+                currentIndex={currentIndex}
+                laps={laps}
+                trackPoints={trackPoints}
+                trackDetails={trackDetails}
+              />
               </div>
         )}
 
