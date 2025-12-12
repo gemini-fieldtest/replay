@@ -494,7 +494,7 @@ export function ReplayPage() {
               flex: layoutMode === 'stacked' 
                   ? 'none' 
                   : ((activeViews === 2 && showPitView && !showCoachView) ? 'none' : '1'),
-              height: layoutMode === 'stacked' ? '70vh' : 'auto'
+              height: layoutMode === 'stacked' ? 'auto' : 'auto'
             }}
           >
             <div className="flex-grow relative h-full flex flex-col">
@@ -520,7 +520,7 @@ export function ReplayPage() {
                  style={{ 
                    width: layoutMode === 'stacked' ? '100%' : (activeViews === 1 ? '100%' : `${100/activeViews}%`),
                    flex: layoutMode === 'stacked' ? 'none' : '1',
-                    height: layoutMode === 'stacked' ? '70vh' : 'auto'
+                    height: layoutMode === 'stacked' ? 'auto' : 'auto'
                  }}
               >
                 <PerformanceCoach 

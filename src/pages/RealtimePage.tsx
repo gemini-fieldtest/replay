@@ -406,7 +406,7 @@ export const RealtimePage = () => {
                 style={{ 
                   width: isStacked ? '100%' : (activeViews === 1 ? '100%' : `${100/activeViews}%`),
                   flex: isStacked ? 'none' : '1',
-                  height: isStacked ? '70vh' : 'auto'
+                  height: isStacked ? 'auto' : 'auto'
                 }}
               >
                 <RealtimeCoach 
