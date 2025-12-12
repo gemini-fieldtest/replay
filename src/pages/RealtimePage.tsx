@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useRealtimeTelemetry } from '../hooks/useRealtimeTelemetry';
 import { 
-  Activity, Trophy, LayoutGrid, Rows,
+  Trophy, LayoutGrid, Rows,
   Gauge, Flag, Map, CarFront, Headset // Racing Icons
 } from 'lucide-react';
 import { LiveVideoPlayer } from '../components/LiveVideoPlayer';
@@ -200,14 +200,9 @@ export const RealtimePage = () => {
   };
 
 
-  if (loading && !data.length) return (
-      <div className="flex flex-col items-center justify-center h-screen bg-gray-900 text-white gap-4">
-          <Activity className="animate-pulse text-red-500" size={48} />
-          <div className="text-xl font-mono">Connecting to Live Feed...</div>
-      </div>
-  );
+
   
-  if (error) return <div className="flex items-center justify-center h-screen bg-white dark:bg-gray-900 text-red-500">Error: {error.message}</div>;
+  // if (error) return <div className="flex items-center justify-center h-screen bg-white dark:bg-gray-900 text-red-500">Error: {error.message}</div>;
 
   const activeViews = [showPitView, showDriverView, showCoachView].filter(Boolean).length;
   const isStacked = layoutMode === 'stacked';
@@ -319,10 +314,22 @@ export const RealtimePage = () => {
 
 
 
-            <div className="flex items-center gap-2 px-3 py-1 rounded bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-500">
-                <div className="w-2 h-2 rounded-full bg-red-600 dark:bg-red-500 animate-pulse" />
-                <span className="text-xs font-bold tracking-wider">LIVE</span>
-            </div>
+            {error ? (
+                <div title={error.message} className="flex items-center gap-2 px-3 py-1 rounded bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-500">
+                     <div className="w-2 h-2 rounded-full bg-red-600 dark:bg-red-500 animate-pulse" />
+                    <span className="text-xs font-bold tracking-wider">OFFLINE</span>
+                </div>
+            ) : loading && !data.length ? (
+                <div className="flex items-center gap-2 px-3 py-1 rounded bg-yellow-500/10 border border-yellow-500/20 text-yellow-600 dark:text-yellow-500">
+                    <div className="w-2 h-2 rounded-full bg-yellow-600 dark:bg-yellow-500 animate-pulse" />
+                    <span className="text-xs font-bold tracking-wider">CONNECTING</span>
+                </div>
+            ) : (
+                <div className="flex items-center gap-2 px-3 py-1 rounded bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-500">
+                    <div className="w-2 h-2 rounded-full bg-red-600 dark:bg-red-500 animate-pulse" />
+                    <span className="text-xs font-bold tracking-wider">LIVE</span>
+                </div>
+            )}
 
             {idealLap && (
                 <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800/50 px-3 py-1 rounded border border-gray-200 dark:border-gray-700">
