@@ -51,12 +51,12 @@ export const ReplayPitView: React.FC<ReplayPitViewProps> = ({
   }, [idealLap, ghostFrame]);
 
   return (
-    <div className="flex-grow flex gap-4 h-full">
-      <div className="flex-grow flex flex-col gap-4 h-full">
-        <div className="flex gap-4 h-96 shrink-0">
+    <div className={`flex-grow flex gap-4 ${isStacked ? 'h-auto' : 'h-full'}`}>
+      <div className={`flex-grow flex flex-col gap-4 ${isStacked ? 'h-auto' : 'h-full'}`}>
+        <div className={`flex gap-4 h-96 shrink-0 relative z-20`}>
             {/* Track Map */}
-            <div className="bg-gray-100 dark:bg-gray-900 rounded-lg flex-grow border border-gray-200 dark:border-gray-800 overflow-hidden relative group min-w-0 flex flex-col">
-               <div className="absolute top-2 right-2 z-10">
+            <div className="bg-gray-100 dark:bg-gray-900 rounded-lg flex-grow border border-gray-200 dark:border-gray-800 overflow-hidden relative group min-w-0 flex flex-col shadow-sm">
+               <div className="absolute top-2 right-2 z-30">
                     <button 
                         onClick={() => setShowCalibration(!showCalibration)}
                         className="p-1 rounded bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-gray-200 dark:border-gray-700 text-xs shadow-sm"
@@ -66,7 +66,7 @@ export const ReplayPitView: React.FC<ReplayPitViewProps> = ({
                 </div>
                 
                 {showCalibration && (
-                    <div className="absolute top-10 right-2 z-10 bg-white/90 dark:bg-gray-900/90 p-3 rounded border border-gray-200 dark:border-gray-700 w-64 backdrop-blur-sm shadow-xl">
+                    <div className="absolute top-10 right-2 z-30 bg-white/90 dark:bg-gray-900/90 p-3 rounded border border-gray-200 dark:border-gray-700 w-64 backdrop-blur-sm shadow-xl">
                         <div className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase">Map Calibration</div>
                         
                         <div className="space-y-3">
@@ -132,7 +132,7 @@ export const ReplayPitView: React.FC<ReplayPitViewProps> = ({
                     </div>
                 )}
 
-               <div className="flex-grow relative">
+               <div className="flex-grow relative z-0">
                    <ReplayTrackMap 
                         positions={trackPositions} 
                         currentIndex={currentIndex} 
@@ -144,7 +144,7 @@ export const ReplayPitView: React.FC<ReplayPitViewProps> = ({
             </div>
 
             {/* Lap Times Panel */}
-            <div className="w-64 bg-gray-100 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4 flex flex-col overflow-hidden">
+            <div className="w-64 bg-gray-100 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4 flex flex-col overflow-hidden shadow-sm">
                 <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-wider">Lap Times</h3>
 
                 <div className="flex-grow overflow-y-auto space-y-2 pr-2 custom-scrollbar">
@@ -192,7 +192,7 @@ export const ReplayPitView: React.FC<ReplayPitViewProps> = ({
         </div>
 
         {/* Telemetry Area */}
-        <div className="flex-grow flex flex-col gap-4 min-h-0 overflow-y-auto">
+        <div className={`flex-grow flex flex-col gap-4 min-h-0 relative z-10 ${isStacked ? 'h-auto' : 'overflow-y-auto'}`}>
             <div className="flex-shrink-0 flex flex-col gap-2">
                 <div className="flex justify-between items-center mb-2">
                      <div className="text-sm font-bold text-blue-400 tracking-wider">TELEMETRY</div>

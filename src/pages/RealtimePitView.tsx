@@ -68,8 +68,8 @@ export const RealtimePitView: React.FC<RealtimePitViewProps> = ({
   return (
     <div className="flex-grow flex gap-4 h-full overflow-hidden">
         {/* Track Map - Full Height, Flexible Width */}
-        <div className="flex-grow bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 relative overflow-hidden group min-w-0 flex flex-col h-full">
-            <div className="absolute top-2 right-2 z-10">
+        <div className="flex-grow bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 relative overflow-hidden group min-w-0 flex flex-col h-full z-20">
+            <div className="absolute top-2 right-2 z-30">
                 <button 
                     onClick={() => setShowCalibration(!showCalibration)}
                     className="p-1 rounded bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-gray-200 dark:border-gray-700 text-xs shadow-sm"

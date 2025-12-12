@@ -353,7 +353,7 @@ export const RealtimePage = () => {
             style={{ 
               width: isStacked ? '100%' : (activeViews === 1 ? '100%' : (activeViews === 2 && showDriverView && !showCoachView ? `${splitPosition}%` : `${100/activeViews}%`)),
               flex: isStacked ? 'none' : ((activeViews === 2 && showDriverView && !showCoachView) ? 'none' : '1'),
-              height: isStacked ? '70vh' : 'auto'
+              height: isStacked ? 'auto' : 'auto'
             }}
           >
             <RealtimePitView 
@@ -387,7 +387,7 @@ export const RealtimePage = () => {
             style={{ 
               width: isStacked ? '100%' : (activeViews === 1 ? '100%' : (activeViews === 2 && showPitView && !showCoachView ? `${100 - splitPosition}%` : `${100/activeViews}%`)),
               flex: isStacked ? 'none' : ((activeViews === 2 && showPitView && !showCoachView) ? 'none' : '1'),
-              height: isStacked ? '70vh' : 'auto'
+              height: isStacked ? 'auto' : 'auto'
             }}
           >
             <div className="flex-grow relative h-full flex flex-col">
