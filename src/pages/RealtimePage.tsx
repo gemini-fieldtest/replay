@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useRealtimeTelemetry } from '../hooks/useRealtimeTelemetry';
 import { 
   Trophy, LayoutGrid, Rows,
-  Gauge, Flag, Map, CarFront, Headset // Racing Icons
+  Gauge, Flag, Map, CarFront, Headset, Sparkles // Racing Icons
 } from 'lucide-react';
 import { LiveVideoPlayer } from '../components/LiveVideoPlayer';
 import { RealtimePitView } from './RealtimePitView';
@@ -218,7 +218,7 @@ export const RealtimePage = () => {
             className="flex items-center gap-2 text-green-600 dark:text-green-500 hover:scale-105 transition-transform cursor-pointer"
             title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
           >
-            {isStacked ? <Rows size={20} className="animate-pulse" /> : <LayoutGrid size={20} />}
+            <Sparkles size={20} />
             <span className="font-bold tracking-tight text-xl italic font-mono">
               KORU<span className="text-gray-900 dark:text-white">CIRCUIT</span>
               <span className="text-xs ml-1 not-italic font-sans bg-yellow-400 text-black px-1.5 py-0.5 rounded font-bold">VIK</span>

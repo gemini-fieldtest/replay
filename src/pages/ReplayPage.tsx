@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { 
   Play, Pause, SkipBack, SkipForward, Repeat, 
   LayoutGrid, Rows, 
-  Gauge, Flag, Map, CarFront, Headset, Ghost, FileText // Racing Icons
+  Gauge, Flag, Map, CarFront, Headset, Ghost, FileText, Sparkles // Racing Icons
 } from 'lucide-react';
 import { useTelemetry } from '../hooks/useTelemetry';
 import { ReplayPitView } from './ReplayPitView';
@@ -245,7 +245,7 @@ export function ReplayPage() {
             className="flex items-center gap-2 text-green-600 dark:text-green-500 hover:scale-105 transition-transform cursor-pointer"
             title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
           >
-            {layoutMode === 'grid' ? <LayoutGrid size={20} /> : <Rows size={20} />}
+            <Sparkles size={20} />
             <span className="font-bold tracking-tight text-xl italic font-mono">
               KORU<span className="text-gray-900 dark:text-white">CIRCUIT</span>
               <span className="text-xs ml-1 not-italic font-sans bg-yellow-400 text-black px-1.5 py-0.5 rounded font-bold">VIK</span>
