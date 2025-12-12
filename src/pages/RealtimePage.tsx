@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useRealtimeTelemetry } from '../hooks/useRealtimeTelemetry';
 import { 
   Trophy, LayoutGrid, Rows,
-  Gauge, Flag, Map, CarFront, Headset // Racing Icons
+  Car, History, Map, CarFront, Headset // Racing Icons
 } from 'lucide-react';
 import { LiveVideoPlayer } from '../components/LiveVideoPlayer';
 import { RealtimePitView } from './RealtimePitView';
@@ -229,10 +229,10 @@ export const RealtimePage = () => {
           
           <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1 gap-1">
             <div title="Live Telemetry" className="flex items-center justify-center p-1.5 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm ring-1 ring-black/5 dark:ring-transparent cursor-default">
-                <Gauge size={16} />
+                <Car size={16} />
             </div>
             <Link to="/replay" title="Replay Analysis" className="flex items-center justify-center p-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-gray-700/50 transition-colors">
-                <Flag size={16} />
+                <History size={16} />
             </Link>
           </div>
 
