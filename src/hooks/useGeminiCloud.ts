@@ -11,11 +11,7 @@ interface CloudStatus {
 export const useGeminiCloud = () => {
   const [apiKey, setAutoApiKey] = useState<string | null>(() => {
     // Prioritize Local Storage
-    return (
-      localStorage.getItem("gemini_api_key") ||
-      import.meta.env.VITE_GEMINI_API_KEY ||
-      null
-    );
+    return localStorage.getItem("gemini_api_key") || null;
   });
 
   const [status, setStatus] = useState<CloudStatus>({
@@ -47,7 +43,7 @@ export const useGeminiCloud = () => {
 
       try {
         const modelName =
-          model === "pro" ? "gemini-3-pro-preview" : "gemini-2.0-flash-exp";
+          model === "pro" ? "gemini-3-pro-preview" : "fiercefalcon";
         const RACING_PHYSICS_KNOWLEDGE = `
 CORE PRINCIPLES:
 1. **The Friction Circle:** A tire has 100% grip. If you use 100% for braking, you have 0% for turning. 

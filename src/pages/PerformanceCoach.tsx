@@ -608,7 +608,7 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
       {(mode === 'flash' || mode === 'pro') && !cloudStatus.hasKey && (
           <div className="bg-red-500/10 border border-red-500/20 rounded p-2 flex items-center gap-2 text-xs text-red-400">
               <ShieldAlert size={14} />
-              <span>Missing VITE_GEMINI_API_KEY for {mode.toUpperCase()} mode.</span>
+              <span>Missing API Key for {mode.toUpperCase()} mode. Please add it in settings.</span>
           </div>
       )}
 
