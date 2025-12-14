@@ -47,7 +47,7 @@ export const useGeminiCloud = () => {
 
       try {
         const modelName =
-          model === "pro" ? "gemini-3-pro-preview" : "gemini-2.0-flash-exp";
+          model === "pro" ? "gemini-3-pro-preview" : "fiercefalcon";
         const RACING_PHYSICS_KNOWLEDGE = `
 CORE PRINCIPLES:
 1. **The Friction Circle:** A tire has 100% grip. If you use 100% for braking, you have 0% for turning. 
