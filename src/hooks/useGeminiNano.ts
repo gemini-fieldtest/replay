@@ -139,8 +139,37 @@ Advice:
     [status.state]
   );
 
+  /* Expose re-init for dynamic personas */
+  const initSession = useCallback(async (systemPrompt?: string) => {
+    // Clean up old session
+    if (sessionRef.current && typeof sessionRef.current.destroy === 'function') {
+      sessionRef.current.destroy();
+      sessionRef.current = null;
+    }
+
+    try {
+      if (!window.LanguageModel && !(window as any).ai?.languageModel) return;
+
+      const modelFactory = window.LanguageModel || (window as any).ai.languageModel;
+      const session = await modelFactory.create({
+        initialPrompts: [{
+          role: "system",
+          content: systemPrompt || "You are a Race Spotter. Be concise."
+        }]
+      });
+
+      sessionRef.current = session;
+      setStatus({ isAvailable: true, state: "ready" });
+
+    } catch (e: any) {
+      console.error("Failed to re-init session:", e);
+      setStatus({ isAvailable: false, state: "error", error: e.message });
+    }
+  }, []);
+
   return {
     status,
     generateFeedback,
+    initSession
   };
 };
