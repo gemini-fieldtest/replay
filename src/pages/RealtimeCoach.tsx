@@ -232,7 +232,10 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
         if (signalQuality.isThrottleActive) context += `Throttle: ${throttleVal.toFixed(0)}%\n`;
         if (signalQuality.isBrakeActive) context += `Brake: ${brakeVal.toFixed(0)}%\n`;
 
-        if (trackLocation) context += `Location: ${trackLocation}\n`;
+        // Generic Location Logic (Use "Turn" instead of "Turn 9")
+        // Check for undefined trackLocation to avoid issues
+        const genericLocation = trackLocation ? trackLocation.replace(/Turn \d+/, "Turn") : null;
+        if (genericLocation) context += `Location: ${genericLocation}\n`;
 
         // Advanced Context
         if (drivingAnalysis.phase && drivingAnalysis.phase !== 'Straight') context += `Phase: ${drivingAnalysis.phase}\n`;
@@ -285,18 +288,17 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
             shouldTrigger = true;
         }
 
-        // D. Location Change Trigger
-        if (trackLocation !== lastTrackLocationRef.current) {
-            // Only trigger if entering a significant location
-            // AND cooldown respected? 
-            // We update ref immediately to avoid chatter
-            lastTrackLocationRef.current = trackLocation;
-
-            if (trackLocation && timeSinceLastTrigger > 8000) { // 8s cooldown specific to location triggers? Or utilize global?
-                // Using global cooldown logic below, but we set flag here
+        // D. Location Change Trigger (Generic)
+        if (genericLocation && genericLocation !== lastTrackLocationRef.current) {
+            lastTrackLocationRef.current = genericLocation;
+            // Trigger when entering a new generic phase (e.g. Straight -> Turn)
+            // Use slightly shorter cooldown for location changes to ensure we catch the corner entry
+            if (timeSinceLastTrigger > 5000) {
                 shouldTrigger = true;
             }
         }
+
+
 
         // Global Cooldown (don't spam, even if triggers overlap)
         // Minimum 5 seconds between messages unless it's critical? Let's say 8s.
@@ -362,20 +364,11 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                     flags.tire_usage = "OVER_COMPRESSED";
                 }
 
-                // Rule D: Tu 9 Arrival (Legacy location rule)
-                if (trackLocation === "Turn 9" && currentFrame.brake < 5) {
-                    flags.urgent_correction = "LATE_BRAKE_T9";
-                    flags.error_type = "LATE_BRAKE_T9";
-                }
 
-                // Rule E: Turn 5 (Legacy location rule)
-                if (trackLocation === "Turn 5" && performanceStats?.speedDelta < -8 && Math.abs(currentFrame.gForceLat) < 0.8) {
-                    flags.opportunity = "UNDER_DRIVING_T5";
-                }
 
                 const payload = {
                     context: {
-                        location: trackLocation || "Track",
+                        location: genericLocation || "Track",
                         speed: Math.round(currentFrame.speed),
                         tire_status: drivingAnalysis.tireStatus, // Pass raw status too
                         grip_pct: drivingAnalysis.tireUsagePct     // Pass raw pct too
