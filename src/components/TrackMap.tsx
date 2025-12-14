@@ -5,9 +5,12 @@ interface TrackMapProps {
   currentIndex: number;
   ghostPosition?: [number, number, number] | null;
   carPosition?: [number, number, number] | null;
+  staticMapPositions?: Float32Array | null;
+  sectorMarkers?: any[]; // Keep as any[] for now to match error log implication, or refine type? The code uses {x, z, id}.
+  rotation?: number;
 }
 
-export const TrackMap: React.FC<TrackMapProps> = ({ positions, currentIndex, ghostPosition, carPosition }) => {
+export const TrackMap: React.FC<TrackMapProps> = ({ positions, currentIndex, ghostPosition, carPosition, staticMapPositions, sectorMarkers, rotation = 0 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Calculate bounds from positions (X and Z) - Include Static Map in bounds!
@@ -234,7 +237,7 @@ export const TrackMap: React.FC<TrackMapProps> = ({ positions, currentIndex, gho
       resizeObserver.disconnect();
     };
 
-  }, [bounds, positions, currentIndex, ghostPosition, carPosition]);
+  }, [bounds, positions, currentIndex, ghostPosition, carPosition, staticMapPositions, sectorMarkers, rotation]);
 
   return (
     <canvas 
