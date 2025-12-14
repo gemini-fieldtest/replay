@@ -51,7 +51,7 @@ const PathSegment: React.FC<PathSegmentProps> = ({ positions, startIndex, endInd
   const { points, vertexColors } = useMemo(() => {
     if (positions.length === 0 || startIndex >= endIndex) return { points: [], vertexColors: [] };
 
-    const pts: THREE.Vector3[] = [];
+    const pts: [number, number, number][] = [];
     const colors: [number, number, number][] = [];
     const baseColor = new THREE.Color(color);
 
@@ -62,7 +62,7 @@ const PathSegment: React.FC<PathSegmentProps> = ({ positions, startIndex, endInd
 
     for (let i = start; i < end; i++) {
       // Lift Y slightly to avoid z-fighting with base track
-      pts.push(new THREE.Vector3(positions[i*3], positions[i*3+1] + 0.5, positions[i*3+2]));
+      pts.push([positions[i*3], positions[i*3+1] + 0.5, positions[i*3+2]]);
 
       if (fade) {
         // Calculate opacity based on position in segment
