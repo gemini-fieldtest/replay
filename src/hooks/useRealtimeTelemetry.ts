@@ -572,10 +572,13 @@ export function useRealtimeTelemetry(
     let low = 0;
     let high = idealLap.frames.length - 1;
     let bestIdx = 0;
+    const idealLapStart = idealLap.frames[0].time;
 
     while (low <= high) {
       const mid = Math.floor((low + high) / 2);
-      if (idealLap.frames[mid].time < relativeTime) {
+      const midRelativeTime = idealLap.frames[mid].time - idealLapStart;
+
+      if (midRelativeTime < relativeTime) {
         bestIdx = mid;
         low = mid + 1;
       } else {

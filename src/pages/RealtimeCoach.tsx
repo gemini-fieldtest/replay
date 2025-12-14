@@ -570,7 +570,7 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                                       <div className="w-0 h-0 border-l-4 border-l-transparent border-t-4 border-t-gray-500 border-r-4 border-r-transparent transform -rotate-90 group-open:rotate-0 transition-transform" />
                                       View Analysis
                                   </summary>
-                                  <div className="mt-2 p-2 bg-black/20 rounded border border-white/5 text-xs text-gray-400 font-mono leading-relaxed [&>ul]:list-disc [&>ul]:pl-4 [&>ol]:list-decimal [&>ol]:pl-4 [&>h3]:font-bold [&>h3]:mt-2 [&>h3]:mb-1 [&>p]:mb-2 [&>strong]:text-gray-300">
+                                  <div className="mt-2 p-2 bg-black/20 rounded border border-white/5 text-xs text-gray-200 font-mono leading-relaxed [&>ul]:list-disc [&>ul]:pl-4 [&>ol]:list-decimal [&>ol]:pl-4 [&>h3]:font-bold [&>h3]:mt-2 [&>h3]:mb-1 [&>p]:mb-2 [&>strong]:text-white">
                                       <ReactMarkdown>{msg.analysis}</ReactMarkdown>
                                   </div>
                               </details>

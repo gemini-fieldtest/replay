@@ -161,111 +161,111 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
                 "Losing time, push harder!"
             ];
 
-            // Specific Feedback Logic (simplified for this example, assuming ghostFrame is available)
-            if (ghostFrame) {
-                const throttleDelta = ghostFrame.throttle - currentFrame!.throttle;
-                const brakeDelta = currentFrame!.brake - ghostFrame.brake;
-                const isCornering = Math.abs(currentFrame!.gForceLat) > 0.5;
-                const isCoasting = currentFrame!.throttle < 5 && currentFrame!.brake < 5;
-                const gearMismatch = currentFrame!.gear !== ghostFrame.gear;
-                const steeringDelta = Math.abs(currentFrame!.steering) - Math.abs(ghostFrame.steering);
-                const brakePressureDelta = ghostFrame.brakePressure - currentFrame!.brakePressure;
-                const rpmDelta = ghostFrame.rpm - currentFrame!.rpm;
+        // Specific Feedback Logic (simplified for this example, assuming ghostFrame is available)
+        if (ghostFrame) {
+            const throttleDelta = ghostFrame.throttle - currentFrame!.throttle;
+            const brakeDelta = currentFrame!.brake - ghostFrame.brake;
+            const isCornering = Math.abs(currentFrame!.gForceLat) > 0.5;
+            const isCoasting = currentFrame!.throttle < 5 && currentFrame!.brake < 5;
+            const gearMismatch = currentFrame!.gear !== ghostFrame.gear;
+            const steeringDelta = Math.abs(currentFrame!.steering) - Math.abs(ghostFrame.steering);
+            const brakePressureDelta = ghostFrame.brakePressure - currentFrame!.brakePressure;
+            const rpmDelta = ghostFrame.rpm - currentFrame!.rpm;
 
-                if (isCoasting && ghostFrame.throttle > 10) {
+            if (isCoasting && ghostFrame.throttle > 10) {
+                phrases = [
+                    "Don't coast! Get back on power.",
+                    "Too much hesitation between brake and throttle.",
+                    "You're coasting, keep the momentum up.",
+                    "Minimize the time off pedals.",
+                    "No coasting allowed! Power or brakes.",
+                    "You're floating. Commit to a pedal."
+                ];
+            } else if (gearMismatch && currentFrame!.gear > ghostFrame.gear) {
+                phrases = [
+                    `Downshift! Gear ${ghostFrame.gear} recommended.`,
+                    "Too high a gear for this corner.",
+                    "Engine bogging? Drop a gear.",
+                    "Use engine braking, downshift.",
+                    `Recommended gear: ${ghostFrame.gear}.`,
+                    "Revs are too low, shift down."
+                ];
+            } else if (steeringDelta > 15 && isCornering) {
+                phrases = [
+                    "You're scrubbing speed with too much steering.",
+                    "Unwind the wheel, you're understeering.",
+                    "Smoother steering inputs needed.",
+                    "Let the car run wide on exit.",
+                    "Fighting the wheel too much.",
+                    "Less steering angle, more rotation."
+                ];
+            } else if (brakePressureDelta > 10 && currentFrame!.brake > 0) {
+                phrases = [
+                    "Press the brake harder!",
+                    "More brake pressure required.",
+                    "Maximize your braking efficiency.",
+                    "Don't be afraid to stomp on the brakes.",
+                    "More initial bite on the brakes.",
+                    "Threshold braking! Push harder."
+                ];
+            } else if (rpmDelta > 1000 && currentFrame!.throttle > 90) {
+                phrases = [
+                    "Shift up! You're hitting the limiter.",
+                    "Late shift? Watch your RPMs.",
+                    "Shift earlier.",
+                    "Optimize your shift points.",
+                    "Don't bounce off the limiter.",
+                    "Shift now!"
+                ];
+            } else if (throttleDelta > 20) {
+                if (isCornering) {
                     phrases = [
-                        "Don't coast! Get back on power.",
-                        "Too much hesitation between brake and throttle.",
-                        "You're coasting, keep the momentum up.",
-                        "Minimize the time off pedals.",
-                        "No coasting allowed! Power or brakes.",
-                        "You're floating. Commit to a pedal."
+                        "Power out of the corner sooner.",
+                        "Unwind the wheel and get on gas.",
+                        "Late on throttle.",
+                        "Trust the rear grip on exit.",
+                        "Squeeze the throttle earlier.",
+                        "Don't wait, get on the power."
                     ];
-                } else if (gearMismatch && currentFrame!.gear > ghostFrame.gear) {
+                } else {
                     phrases = [
-                        `Downshift! Gear ${ghostFrame.gear} recommended.`,
-                        "Too high a gear for this corner.",
-                        "Engine bogging? Drop a gear.",
-                        "Use engine braking, downshift.",
-                        `Recommended gear: ${ghostFrame.gear}.`,
-                        "Revs are too low, shift down."
-                    ];
-                } else if (steeringDelta > 15 && isCornering) {
-                    phrases = [
-                        "You're scrubbing speed with too much steering.",
-                        "Unwind the wheel, you're understeering.",
-                        "Smoother steering inputs needed.",
-                        "Let the car run wide on exit.",
-                        "Fighting the wheel too much.",
-                        "Less steering angle, more rotation."
-                    ];
-                } else if (brakePressureDelta > 10 && currentFrame!.brake > 0) {
-                    phrases = [
-                        "Press the brake harder!",
-                        "More brake pressure required.",
-                        "Maximize your braking efficiency.",
-                        "Don't be afraid to stomp on the brakes.",
-                        "More initial bite on the brakes.",
-                        "Threshold braking! Push harder."
-                    ];
-                } else if (rpmDelta > 1000 && currentFrame!.throttle > 90) {
-                    phrases = [
-                        "Shift up! You're hitting the limiter.",
-                        "Late shift? Watch your RPMs.",
-                        "Shift earlier.",
-                        "Optimize your shift points.",
-                        "Don't bounce off the limiter.",
-                        "Shift now!"
-                    ];
-                } else if (throttleDelta > 20) {
-                    if (isCornering) {
-                        phrases = [
-                            "Power out of the corner sooner.",
-                            "Unwind the wheel and get on gas.",
-                            "Late on throttle.",
-                            "Trust the rear grip on exit.",
-                            "Squeeze the throttle earlier.",
-                            "Don't wait, get on the power."
-                        ];
-                    } else {
-                        phrases = [
-                            "Get on the gas earlier!",
-                            "Hesitating on throttle? Commit!",
-                            "Full throttle required!",
-                            "Flat out! Why are you lifting?",
-                            "Full send! No lifting."
-                        ];
-                    }
-                } else if (brakeDelta > 20) {
-                    if (isCornering) {
-                        phrases = [
-                            "Trail braking too much?",
-                            "Release the brake to let the car turn.",
-                            "Overslowing mid-corner.",
-                            "Off the brakes to rotate.",
-                            "Let it roll through the apex."
-                        ];
-                    } else {
-                        phrases = [
-                            "Braking too early?",
-                            "Trust the brakes, brake later.",
-                            "Overslowing on entry.",
-                            "Don't ride the brakes.",
-                            "Brake later and harder.",
-                            "Attack the braking zone."
-                        ];
-                    }
-                } else if (isCornering && Math.abs(perfStats.speedDelta) > 15) {
-                    phrases = [
-                        "Minimum corner speed is too low.",
-                        "Carry more speed to the apex.",
-                        "Trust the grip mid-corner.",
-                        "You're parking it on the apex.",
-                        "Roll more speed in.",
-                        "Don't overslow for the corner."
+                        "Get on the gas earlier!",
+                        "Hesitating on throttle? Commit!",
+                        "Full throttle required!",
+                        "Flat out! Why are you lifting?",
+                        "Full send! No lifting."
                     ];
                 }
+            } else if (brakeDelta > 20) {
+                if (isCornering) {
+                    phrases = [
+                        "Trail braking too much?",
+                        "Release the brake to let the car turn.",
+                        "Overslowing mid-corner.",
+                        "Off the brakes to rotate.",
+                        "Let it roll through the apex."
+                    ];
+                } else {
+                    phrases = [
+                        "Braking too early?",
+                        "Trust the brakes, brake later.",
+                        "Overslowing on entry.",
+                        "Don't ride the brakes.",
+                        "Brake later and harder.",
+                        "Attack the braking zone."
+                    ];
+                }
+            } else if (isCornering && Math.abs(perfStats.speedDelta) > 15) {
+                phrases = [
+                    "Minimum corner speed is too low.",
+                    "Carry more speed to the apex.",
+                    "Trust the grip mid-corner.",
+                    "You're parking it on the apex.",
+                    "Roll more speed in.",
+                    "Don't overslow for the corner."
+                ];
             }
+        }
             baseText = phrases[Math.floor(Math.random() * phrases.length)];
             msgType = 'info';
         }
@@ -373,8 +373,10 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
         };
 
         if (mode === 'code') {
-            generateAndAddMessage(heuristicMessage.text, heuristicMessage.type, 'code');
-            lastCallTime.current = now;
+            if (heuristicMessage.text) {
+                generateAndAddMessage(heuristicMessage.text, heuristicMessage.type, 'code');
+                lastCallTime.current = now;
+            }
         }
         else if (mode === 'nano' && nanoStatus.state === 'ready') {
             (async () => {

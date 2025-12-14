@@ -63,17 +63,17 @@ export const useGeminiNano = () => {
 Check the "flags" in the input JSON. Priority is Top to Bottom.
 
 PRIORITY 1: SAFETY
-- If safety_status is "UNSTABLE" -> Directive: "Smooth it out! Reset."
+- If safety_status is "UNSTABLE" -> "Smooth it out! Reset."
 
 PRIORITY 2: CRITICAL ERRORS
-- If error_type is "LATE_BRAKE_T9" -> Directive: "BRAKE! Crest approaching!"
-- If error_type is "COASTING_DETECTED" -> Directive: "Don't coast. Gas or Brake."
-- If driver_state is "PANIC" -> Directive: "Smooth inputs."
+- If error_type is "LATE_BRAKE_T9" -> "BRAKE! Crest approaching!"
+- If error_type is "COASTING_DETECTED" -> "Don't coast. Gas or Brake."
+- If driver_state is "PANIC" -> "Smooth inputs."
 
 PRIORITY 3: PACE
-- If opportunity is "UNDER_DRIVING_T5" -> Directive: "Trust the compression. Full throttle."
-- If tire_usage is "LOW" -> Directive: "Use more tire. Lean on it."
-- If flags are clean and delta is Green -> Directive: "Great pace."
+- If opportunity is "UNDER_DRIVING_T5" -> "Trust the compression. Full throttle."
+- If tire_usage is "LOW" -> "Use more tire. Lean on it."
+- If flags are clean and delta is Green -> "Great pace."
 
 Input JSON:`,
             },
@@ -126,7 +126,11 @@ Advice:
         }
 
         const response = await sessionRef.current.prompt(prompt);
-        return response.trim();
+        // Clean up response (remove Directive: prefix and quotes if present)
+        return response
+          .replace(/^(?:Directive|Coaching Directive|Advice):\s*/i, "")
+          .replace(/^["']|["']$/g, "")
+          .trim();
       } catch (err) {
         console.error("Nano generation failed:", err);
         return "";
