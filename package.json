@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/generate-manifest.js && vite",
+    "start": "vite preview",
     "build": "node scripts/generate-manifest.js && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
