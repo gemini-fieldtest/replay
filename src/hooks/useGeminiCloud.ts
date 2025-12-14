@@ -11,11 +11,7 @@ interface CloudStatus {
 export const useGeminiCloud = () => {
   const [apiKey, setAutoApiKey] = useState<string | null>(() => {
     // Prioritize Local Storage
-    return (
-      localStorage.getItem("gemini_api_key") ||
-      import.meta.env.VITE_GEMINI_API_KEY ||
-      null
-    );
+    return localStorage.getItem("gemini_api_key") || null;
   });
 
   const [status, setStatus] = useState<CloudStatus>({
