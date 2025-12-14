@@ -4,12 +4,10 @@ interface TrackMapProps {
   positions: Float32Array;
   currentIndex: number;
   ghostPosition?: [number, number, number] | null;
-  staticMapPositions?: Float32Array | null;
-  sectorMarkers?: { id: string; name: string; x: number; z: number }[];
-  rotation?: number; // Radians
+  carPosition?: [number, number, number] | null;
 }
 
-export const TrackMap: React.FC<TrackMapProps> = ({ positions, currentIndex, ghostPosition, staticMapPositions, sectorMarkers = [], rotation = 0 }) => {
+export const TrackMap: React.FC<TrackMapProps> = ({ positions, currentIndex, ghostPosition, carPosition }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Calculate bounds from positions (X and Z) - Include Static Map in bounds!
@@ -192,11 +190,21 @@ export const TrackMap: React.FC<TrackMapProps> = ({ positions, currentIndex, gho
       }
 
       // Draw Car Marker
-      const carIndex = currentIndex * 3;
-      if (positions.length > 0 && carIndex < positions.length) {
-        const cx = positions[carIndex];
-        const cz = positions[carIndex + 2];
-        
+      let cx: number | null = null;
+      let cz: number | null = null;
+
+      if (carPosition) {
+        cx = carPosition[0];
+        cz = carPosition[2];
+      } else {
+        const carIndex = currentIndex * 3;
+        if (carIndex < positions.length) {
+          cx = positions[carIndex];
+          cz = positions[carIndex + 2];
+        }
+      }
+
+      if (cx !== null && cz !== null) {
         const { x, y } = project(cx, cz);
         
         ctx.beginPath();
@@ -226,7 +234,7 @@ export const TrackMap: React.FC<TrackMapProps> = ({ positions, currentIndex, gho
       resizeObserver.disconnect();
     };
 
-  }, [bounds, positions, currentIndex, ghostPosition, staticMapPositions, sectorMarkers, rotation]);
+  }, [bounds, positions, currentIndex, ghostPosition, carPosition]);
 
   return (
     <canvas 

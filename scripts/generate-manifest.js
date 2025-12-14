@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const dataDir = path.join(__dirname, '../data');
+const dataDir = path.join(__dirname, '../public/data');
 const publicDir = path.join(__dirname, '../public');
 const manifestPath = path.join(publicDir, 'manifest.json');
 
@@ -27,7 +27,7 @@ try {
         size: stats.size
       };
     })
-    .sort((a, b) => b.lastModified - a.lastModified); // Sort by newest first
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
 
   fs.writeFileSync(manifestPath, JSON.stringify(files, null, 2));
   console.log(`Manifest generated with ${files.length} files at ${manifestPath}`);

@@ -1,5 +1,5 @@
 {
-  "name": "replay",
+  "name": "koru-circuit",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist",
+    "deploy:firebase": "npm run build && firebase deploy"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
@@ -23,6 +24,7 @@
     "papaparse": "^5.5.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^7.9.6",
     "tailwind-merge": "^3.4.0",
     "three": "^0.181.2"
