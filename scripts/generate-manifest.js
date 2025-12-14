@@ -23,11 +23,10 @@ try {
       return {
         name: file,
         url: `/data/${file}`,
-        lastModified: stats.mtime.getTime(),
         size: stats.size
       };
     })
-    .sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
 
   const content = JSON.stringify(files, null, 2);
   let hasChanged = true;

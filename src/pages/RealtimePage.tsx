@@ -445,25 +445,6 @@ export const RealtimePage = () => {
           </div>
         )}
 
-        {/* Driver View */}
-        {showDriverView && (
-          <div 
-            className="flex flex-col min-w-0 overflow-hidden"
-            style={{ 
-              width: isStacked ? '100%' : (activeViews === 1 ? '100%' : (activeViews === 2 && showPitView && !showCoachView ? `${100 - splitPosition}%` : `${100/activeViews}%`)),
-              flex: isStacked ? 'none' : ((activeViews === 2 && showPitView && !showCoachView) ? 'none' : '1'),
-              height: isStacked ? 'auto' : 'auto'
-            }}
-          >
-            <div className="flex-grow relative h-full flex flex-col">
-                <LiveVideoPlayer 
-                    streamUrl={videoUrl}
-                    onVideoSelect={(file) => setVideoUrl(URL.createObjectURL(file))}
-                />
-            </div>
-          </div>
-        )}
-
         {/* Coach View */}
         {showCoachView && (
              <div 
@@ -485,6 +466,35 @@ export const RealtimePage = () => {
                 />
               </div>
         )}
+        {!isStacked && showPitView && showDriverView && !showCoachView && (
+          <div
+            className="w-1 bg-gray-200 dark:bg-gray-800 hover:bg-blue-500 cursor-col-resize flex items-center justify-center transition-colors group z-10"
+            onMouseDown={startResizing}
+          >
+            <div className="h-8 w-1 bg-gray-400 dark:bg-gray-600 group-hover:bg-white rounded-full" />
+          </div>
+        )}
+
+        {/* Driver View */}
+        {showDriverView && (
+          <div 
+            className="flex flex-col min-w-0 overflow-hidden"
+            style={{ 
+              width: isStacked ? '100%' : (activeViews === 1 ? '100%' : (activeViews === 2 && showPitView && !showCoachView ? `${100 - splitPosition}%` : `${100/activeViews}%`)),
+              flex: isStacked ? 'none' : ((activeViews === 2 && showPitView && !showCoachView) ? 'none' : '1'),
+              height: isStacked ? 'auto' : 'auto'
+            }}
+          >
+            <div className="flex-grow relative h-full flex flex-col">
+                <LiveVideoPlayer 
+                    streamUrl={videoUrl}
+                    onVideoSelect={(file) => setVideoUrl(URL.createObjectURL(file))}
+                />
+            </div>
+          </div>
+        )}
+
+
       </main>
 
 
