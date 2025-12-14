@@ -24,6 +24,20 @@ interface TrackPoint {
 export const RealtimePage = () => {
   // Default to localhost telemetry server
   const [sourceUrl, setSourceUrl] = useState<string | null>('http://localhost:8000/events');
+  const [customUrl, setCustomUrl] = useState('');
+  
+  const simulationFiles = [
+    { label: 'Live (Localhost)', value: 'http://localhost:8000/events' },
+    { label: 'Thunderhill (08/01/2025)', value: '/data/0-thunderhill_08012025.csv' },
+    { label: 'AJ Buttonwillow (Nov 2025)', value: '/data/aj_bw_Nov2025.csv' },
+    { label: 'Buttonwillow (11/21/2025)', value: '/data/buttonwillow_11212025.csv' },
+    { label: 'Buttonwillow B (11/21/2025)', value: '/data/buttonwillow_11212025_b.csv' },
+    { label: 'Randy Buttonwillow (Nov 2025)', value: '/data/randy_bw_Nov2025.csv' },
+    { label: 'Circle Simulation', value: 'simulation' },
+    { label: 'Local File', value: 'local_file' },
+    { label: 'Custom URL', value: 'custom' },
+  ];
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [videoUrl, setVideoUrl] = useState<string>(''); // Default empty for now
   
   const { theme, toggleTheme } = useTheme();
@@ -307,16 +321,58 @@ export const RealtimePage = () => {
 
             <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded px-2 py-1 border border-gray-200 dark:border-gray-700">
                 <span className="text-gray-500 text-xs">SOURCE</span>
+                <select 
+                    value={
+                        simulationFiles.some(f => f.value === sourceUrl) ? sourceUrl! : 
+                        sourceUrl?.startsWith('blob:') ? 'local_file' : 'custom'
+                    } 
+                    onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === 'custom') {
+                            setSourceUrl(customUrl);
+                        } else if (val === 'local_file') {
+                            fileInputRef.current?.click();
+                        } else {
+                            setSourceUrl(val);
+                        }
+                    }}
+                    className="bg-transparent border-none text-xs text-gray-900 dark:text-white w-32 focus:outline-none"
+                    style={{ textOverflow: 'ellipsis' }}
+                >
+                    {simulationFiles.map(f => (
+                        <option key={f.value} value={f.value}>{f.label}</option>
+                    ))}
+                </select>
                 <input 
-                    type="text" 
-                    name="telemetryUrl"
-                    autoComplete="off"
-                    spellCheck="false"
-                    value={sourceUrl || ''} 
-                    onChange={(e) => setSourceUrl(e.target.value)}
-                    className="bg-transparent border-none text-xs text-gray-900 dark:text-white w-48 focus:outline-none"
-                    placeholder="Telemetry URL"
+                    type="file"
+                    ref={fileInputRef}
+                    accept=".csv"
+                    className="hidden"
+                    onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                            const url = URL.createObjectURL(file);
+                            setSourceUrl(url);
+                            // Cleanup URL when component unmounts or url changes? 
+                            // React state updates are fast, handling cleanup in useEffect might be complex with blob retention.
+                            // Browser cleans up on reload.
+                        }
+                        // Reset input so same file can be selected again
+                        e.target.value = '';
+                    }}
                 />
+                {(!simulationFiles.some(f => f.value === sourceUrl) && !sourceUrl?.startsWith('blob:')) && (
+                     <input 
+                        type="text" 
+                        value={customUrl}
+                        onChange={(e) => {
+                            setCustomUrl(e.target.value);
+                            setSourceUrl(e.target.value);
+                        }}
+                        className="bg-transparent border-l border-gray-300 dark:border-gray-600 pl-2 text-xs text-gray-900 dark:text-white w-32 focus:outline-none"
+                        placeholder="Custom URL"
+                    />
+                )}
             </div>
 
 
@@ -325,8 +381,8 @@ export const RealtimePage = () => {
 
             {error ? (
                 <div title={error.message} className="flex items-center gap-2 px-3 py-1 rounded bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-500">
-                     <div className="w-2 h-2 rounded-full bg-red-600 dark:bg-red-500 animate-pulse" />
-                    <span className="text-xs font-bold tracking-wider">OFFLINE</span>
+                     <div className="w-2 h-2 rounded-full bg-red-600 dark:bg-red-500" />
+                    <span className="text-xs font-bold tracking-wider line-through">LIVE</span>
                 </div>
             ) : loading && !data.length ? (
                 <div className="flex items-center gap-2 px-3 py-1 rounded bg-yellow-500/10 border border-yellow-500/20 text-yellow-600 dark:text-yellow-500">
@@ -334,8 +390,8 @@ export const RealtimePage = () => {
                     <span className="text-xs font-bold tracking-wider">CONNECTING</span>
                 </div>
             ) : (
-                <div className="flex items-center gap-2 px-3 py-1 rounded bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-500">
-                    <div className="w-2 h-2 rounded-full bg-red-600 dark:bg-red-500 animate-pulse" />
+                <div className="flex items-center gap-2 px-3 py-1 rounded bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-500">
+                    <div className="w-2 h-2 rounded-full bg-green-600 dark:bg-green-500 animate-pulse" />
                     <span className="text-xs font-bold tracking-wider">LIVE</span>
                 </div>
             )}
@@ -415,7 +471,8 @@ export const RealtimePage = () => {
                 style={{ 
                   width: isStacked ? '100%' : (activeViews === 1 ? '100%' : `${100/activeViews}%`),
                   flex: isStacked ? 'none' : '1',
-                  height: isStacked ? '600px' : 'auto'
+                  height: isStacked ? '600px' : 'auto',
+                  maxHeight: '600px'
                 }}
               >
                 <RealtimeCoach 
