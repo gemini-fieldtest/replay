@@ -1,10 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { type TelemetryFrame, parseTelemetry } from "../utils/telemetryParser";
-import {
-  detectLaps,
-  calculateIdealLap,
-  type LapData,
-} from "../utils/lapAnalysis";
+import { detectLaps, calculateIdealLap } from "../utils/lapAnalysis";
 
 export function useRealtimeTelemetry(
   sourceUrl: string | null,
