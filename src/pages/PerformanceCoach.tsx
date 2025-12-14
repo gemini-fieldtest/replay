@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 
 import { Activity, ThumbsUp, TrendingUp, MessageSquare, Brain, Zap, Settings, ShieldAlert, Volume2 } from 'lucide-react';
 import type { TelemetryFrame } from '../utils/telemetryParser';
@@ -20,6 +20,7 @@ interface PerformanceCoachProps {
   laps: LapData[];
   trackPoints?: TrackPoint[];
   trackDetails?: string;
+  gpsOnly?: boolean;
 }
 
 interface CoachMessage {
@@ -35,7 +36,7 @@ interface CoachMessage {
 
 type CoachMode = 'code' | 'nano' | 'flash' | 'pro';
 
-export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame, ghostFrame, currentIndex, laps, trackPoints = [], trackDetails = '' }) => {
+export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame, ghostFrame, currentIndex, laps, trackPoints = [], trackDetails = '', gpsOnly = false }) => {
   const [messages, setMessages] = useState<CoachMessage[]>([]);
   const [mode, setMode] = useState<CoachMode>('nano');
   const [showSettings, setShowSettings] = useState(false);
@@ -118,7 +119,7 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
   }, [currentFrame, ghostFrame, gpsOnly]);
 
   // Helper function to generate heuristic messages
-  const getCoachMessage = (perfStats: NonNullable<typeof performanceStats>): CoachMessage => {
+  const getCoachMessage = useCallback((perfStats: NonNullable<typeof performanceStats>): CoachMessage => {
     let baseText = "";
     let msgType: 'positive' | 'neutral' | 'info' = 'info';
     const now = Date.now();
@@ -277,7 +278,7 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
         timestamp: now,
         telemetryTime: currentFrame!.time,
     };
-  };
+  }, [currentFrame, ghostFrame]);
 
   // Message Generation Logic
   useEffect(() => {
@@ -406,10 +407,11 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
     }
 
   }, [
-      currentFrame?.time, 
+      currentFrame, 
       performanceStats, 
       drivingAnalysis,
-      mode, nanoStatus.state, cloudStatus.state, isAudioEnabled, speak, generateNano, generateCloud, signalQuality, trackLocation, historyLength, serializeRequests, cloudStatus.hasKey
+      mode, nanoStatus.state, cloudStatus.state, isAudioEnabled, speak, generateNano, generateCloud, signalQuality, trackLocation, historyLength, serializeRequests, cloudStatus.hasKey,
+      getCoachMessage, trackDetails
   ]);
 
   const toggleSettings = () => {

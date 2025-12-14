@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useRealtimeTelemetry } from '../hooks/useRealtimeTelemetry';
+import { type TelemetryFrame } from '../utils/telemetryParser';
 import { 
   Trophy, LayoutGrid, Rows,
   Gauge, Flag, Map, CarFront, Headset, Sparkles // Racing Icons
@@ -13,6 +14,12 @@ import { useTheme } from '../components/ThemeProvider';
 
 
 
+
+interface TrackPoint {
+  name: string;
+  lat: number;
+  long: number;
+}
 
 export const RealtimePage = () => {
   // Default to localhost telemetry server
@@ -40,7 +47,7 @@ export const RealtimePage = () => {
 
   const [showGhost] = useState(true);
   const [kmlTrack, setKmlTrack] = useState<GeoCoordinate[]>([]);
-  const [trackPoints, setTrackPoints] = useState<any[]>([]);
+  const [trackPoints, setTrackPoints] = useState<TrackPoint[]>([]);
   const [startLine, setStartLine] = useState<{ lat: number, lon: number } | undefined>(undefined);
 
   const { 
@@ -68,9 +75,9 @@ export const RealtimePage = () => {
       try {
         const response = await fetch('/tracks/thunderhill/points.json');
         if (response.ok) {
-            const points = await response.json();
+            const points: TrackPoint[] = await response.json();
             setTrackPoints(points);
-            const startPoint = points.find((p: any) => p.name === 'start');
+            const startPoint = points.find((p) => p.name === 'start');
             if (startPoint) {
                 setStartLine({ lat: startPoint.lat, lon: startPoint.long });
             }
@@ -117,21 +124,16 @@ export const RealtimePage = () => {
     const sourceData = (kmlTrack.length > 0) ? kmlTrack : data;
     if (!sourceData || sourceData.length === 0 || !projectionParams) return new Float32Array(0);
 
-    const { centerLat, centerLon, latScale: trackLatScale, lonScale: trackLonScale } = projectionParams;
+    const { centerLat, centerLon, centerAlt, latScale: trackLatScale, lonScale: trackLonScale } = projectionParams;
     
-    // Virtual Anchor Point on Track (Dynamic now!)
-    const trackPath = thunderhillData.configurations[0].trackPath;
-    const trackStart = trackPath[trackAnchorIndex] || trackPath[0];
-    
-    const trackStartLat = trackStart[0];
-    const trackStartLon = trackStart[1];
+
 
     const pos = new Float32Array(sourceData.length * 3);
     
     sourceData.forEach((f, i) => {
-      pos[i * 3] = (f.longitude - centerLon) * lonScale;
+      pos[i * 3] = (f.longitude - centerLon) * trackLonScale;
       pos[i * 3 + 1] = (f.altitude - centerAlt) * 5; // Y is up
-      pos[i * 3 + 2] = -(f.latitude - centerLat) * latScale; // Z is forward/back
+      pos[i * 3 + 2] = -(f.latitude - centerLat) * trackLatScale; // Z is forward/back
     });
     
     return pos;
@@ -360,7 +362,7 @@ export const RealtimePage = () => {
             style={{ 
               width: isStacked ? '100%' : (activeViews === 1 ? '100%' : (activeViews === 2 && showDriverView && !showCoachView ? `${splitPosition}%` : `${100/activeViews}%`)),
               flex: isStacked ? 'none' : ((activeViews === 2 && showDriverView && !showCoachView) ? 'none' : '1'),
-              height: isStacked ? 'auto' : 'auto'
+              height: isStacked ? '600px' : 'auto'
             }}
           >
             <RealtimePitView 
@@ -373,10 +375,6 @@ export const RealtimePage = () => {
               showGhost={showGhost}
               idealLap={idealLap}
               laps={laps}
-              gpsOnly={true}
-              staticMapPositions={staticMapPositions}
-              sectorMarkers={sectorMarkers}
-              rotation={mapRotation}
             />
           </div>
         )}
@@ -417,7 +415,7 @@ export const RealtimePage = () => {
                 style={{ 
                   width: isStacked ? '100%' : (activeViews === 1 ? '100%' : `${100/activeViews}%`),
                   flex: isStacked ? 'none' : '1',
-                  height: isStacked ? 'auto' : 'auto'
+                  height: isStacked ? '600px' : 'auto'
                 }}
               >
                 <RealtimeCoach 

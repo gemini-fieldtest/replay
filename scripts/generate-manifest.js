@@ -29,8 +29,22 @@ try {
     })
     .sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
 
-  fs.writeFileSync(manifestPath, JSON.stringify(files, null, 2));
-  console.log(`Manifest generated with ${files.length} files at ${manifestPath}`);
+  const content = JSON.stringify(files, null, 2);
+  let hasChanged = true;
+
+  if (fs.existsSync(manifestPath)) {
+    const currentContent = fs.readFileSync(manifestPath, 'utf-8');
+    if (currentContent === content) {
+      hasChanged = false;
+    }
+  }
+
+  if (hasChanged) {
+    fs.writeFileSync(manifestPath, content);
+    console.log(`Manifest generated with ${files.length} files at ${manifestPath}`);
+  } else {
+    console.log('Manifest is up to date.');
+  }
 } catch (err) {
   console.error('Error generating manifest:', err);
   process.exit(1);

@@ -261,20 +261,36 @@ export function useRealtimeTelemetry(
     return cleanup;
   }, [sourceUrl]); // Removed isLive from dependency to prevent reconnects on pause, handled via ref check
 
+  // Mock Simulation Data (Circular Track)
+  const simulationData = useRef<[number, number][]>([]);
+  useEffect(() => {
+    if (simulationData.current.length === 0) {
+      const centerLat = 37.7749;
+      const centerLon = -122.4194;
+      const radius = 0.005; // approx 500m
+      const points = 360;
+      for (let i = 0; i < points; i++) {
+        const angle = (i * Math.PI) / 180;
+        simulationData.current.push([
+          centerLat + radius * Math.cos(angle),
+          centerLon + radius * Math.sin(angle),
+        ]);
+      }
+    }
+  }, []);
+
   // Simulation Effect
   useEffect(() => {
     if (
       sourceUrl !== "simulation" ||
-      !simulationData ||
-      simulationData.length === 0
+      !simulationData.current ||
+      simulationData.current.length === 0
     )
       return;
 
     let animationFrameId: number;
-    let lastTime = Date.now();
     let index = 0;
     const speedKmh = 120; // Simulated speed
-    const speedMs = speedKmh / 3.6;
 
     // Reset state for simulation
     setLoading(false);
@@ -291,8 +307,6 @@ export function useRealtimeTelemetry(
       }
 
       const now = Date.now();
-      const dt = (now - lastTime) / 1000;
-      lastTime = now;
 
       // Simple simulation: advance index based on speed?
       // Or just iterate points? Let's just iterate points for smoothness if dense enough.
@@ -302,8 +316,8 @@ export function useRealtimeTelemetry(
       // If we just pick the next point every 100ms
 
       // Actually, let's just loop through points for now at 60Hz purely for visuals
-      if (simulationData.length > 0) {
-        const point = simulationData[index];
+      if (simulationData.current.length > 0) {
+        const point = simulationData.current[index];
         const lat = point[0];
         const lon = point[1];
 
@@ -337,7 +351,7 @@ export function useRealtimeTelemetry(
         setCurrentFrame(frame);
         setData((prev) => [...prev.slice(-300), frame]); // Keep last 300 points for trail
 
-        index = (index + 1) % simulationData.length;
+        index = (index + 1) % simulationData.current.length;
       }
 
       // Throttle to approx 30fps to not overwhelm
@@ -349,7 +363,7 @@ export function useRealtimeTelemetry(
     animate();
 
     return () => cancelAnimationFrame(animationFrameId);
-  }, [sourceUrl, simulationData]);
+  }, [sourceUrl]);
 
   // Analyze Laps when data changes
   // Note: For long sessions, running this on every frame might become expensive.

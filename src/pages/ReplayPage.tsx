@@ -5,6 +5,7 @@ import {
   Gauge, Flag, Map, CarFront, Headset, Ghost, FileText, Sparkles // Racing Icons
 } from 'lucide-react';
 import { useTelemetry } from '../hooks/useTelemetry';
+import { type TrackPoint } from '../hooks/useTrackLocation'; 
 import { ReplayPitView } from './ReplayPitView';
 import { ReplayDriverView } from './ReplayDriverView';
 import { PerformanceCoach } from './PerformanceCoach';
@@ -57,12 +58,12 @@ export function ReplayPage() {
   }, []);
 
   const [showGhost, setShowGhost] = useState(true);
-  const [trackPoints, setTrackPoints] = useState<any[]>([]);
+  const [trackPoints, setTrackPoints] = useState<TrackPoint[]>([]);
   const [trackDetails, setTrackDetails] = useState<string>('');
 
   // Extract Start Line from Track Points
   const startLine = useMemo(() => {
-      const startPoint = trackPoints.find((p: any) => p.name === 'start');
+      const startPoint = trackPoints.find((p) => p.name === 'start');
       if (startPoint) {
           return { lat: startPoint.lat, lon: startPoint.long };
       }
@@ -494,7 +495,7 @@ export function ReplayPage() {
               flex: layoutMode === 'stacked' 
                   ? 'none' 
                   : ((activeViews === 2 && showPitView && !showCoachView) ? 'none' : '1'),
-              height: layoutMode === 'stacked' ? 'auto' : 'auto'
+              height: layoutMode === 'stacked' ? '600px' : 'auto'
             }}
           >
             <div className="flex-grow relative h-full flex flex-col">
@@ -520,7 +521,7 @@ export function ReplayPage() {
                  style={{ 
                    width: layoutMode === 'stacked' ? '100%' : (activeViews === 1 ? '100%' : `${100/activeViews}%`),
                    flex: layoutMode === 'stacked' ? 'none' : '1',
-                    height: layoutMode === 'stacked' ? 'auto' : 'auto'
+                    height: layoutMode === 'stacked' ? '600px' : 'auto'
                  }}
               >
                 <PerformanceCoach 
