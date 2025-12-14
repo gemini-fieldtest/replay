@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { type TelemetryFrame, parseTelemetry } from "../utils/telemetryParser";
+import { type TelemetryFrame } from "../utils/telemetryParser";
 import {
-  detectLaps,
-  calculateIdealLap,
   type LapData,
+  calculateIdealLap, // We might still need this for type inference or if we run it locally
+  detectLaps, // fallback
 } from "../utils/lapAnalysis";
 
 export function useTelemetry(
@@ -27,7 +27,7 @@ export function useTelemetry(
   const lastTimeRef = useRef<number>(0);
   const playbackTimeRef = useRef<number>(0);
 
-  // 1. Load Data
+  // 1. Load Data (Worker)
   useEffect(() => {
     if (!source) {
       setLoading(false);
@@ -37,9 +37,12 @@ export function useTelemetry(
     setLoading(true);
     setError(null);
     setData([]);
-    // Don't reset laps here, wait for processing effect
+    setLaps([]); // Reset laps
+    setIdealLap(null); // Reset ideal lap
     setCurrentIndex(0);
     setIsPlaying(false);
+
+    let worker: Worker | null = null;
 
     const loadData = async () => {
       try {
@@ -57,9 +60,34 @@ export function useTelemetry(
           });
         }
 
-        const frames = await parseTelemetry(text);
-        setData(frames);
-        setLoading(false);
+        // Spawn Worker
+        worker = new Worker(new URL('../workers/telemetryWorker.ts', import.meta.url), { type: 'module' });
+
+        worker.onmessage = (e) => {
+            if (e.data.type === 'SUCCESS') {
+                const { data: frames, laps: detectedLaps, idealLap: ideal } = e.data.payload;
+                setData(frames);
+                setLaps(detectedLaps);
+                setIdealLap(ideal);
+                setLoading(false);
+                worker?.terminate();
+            } else if (e.data.type === 'ERROR') {
+                console.error("Worker error:", e.data.payload);
+                setError(new Error(e.data.payload));
+                setLoading(false);
+                worker?.terminate();
+            }
+        };
+
+        worker.onerror = (e) => {
+            console.error("Worker error (system):", e);
+            setError(new Error("Worker failed"));
+            setLoading(false);
+            worker?.terminate();
+        }
+
+        worker.postMessage({ type: 'PARSE_AND_ANALYZE', payload: { csvText: text, startLine } });
+
       } catch (err) {
         console.error(err);
         setError(err as Error);
@@ -68,27 +96,49 @@ export function useTelemetry(
     };
 
     loadData();
+
+    // Cleanup: Terminate worker if component unmounts or source changes
+    return () => {
+        if (worker) {
+            worker.terminate();
+        }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source]);
 
-  // 2. Process Laps (depends on Data AND StartLine)
+
+  // 2. Re-Analyze if StartLine changes (and we already have data)
+  // We disable the exhaustive-deps rule because we only want to run this when startLine changes,
+  // NOT when data changes (data change is handled by the first effect).
+  // However, `useEffect` dependencies must be exhaustive usually.
+
+  // A cleaner pattern is to check if data is present.
+  const isFirstRun = useRef(true);
+
+  // Reset isFirstRun when data changes (new file loaded)
   useEffect(() => {
-    if (data.length === 0) {
-      setLaps([]);
-      setIdealLap(null);
-      return;
-    }
+      isFirstRun.current = true;
+  }, [data]);
 
-    // console.log('Detecting laps with startLine:', startLine);
-    const detectedLaps = detectLaps(data, startLine);
-    setLaps(detectedLaps);
+  useEffect(() => {
+      if (isFirstRun.current) {
+          isFirstRun.current = false;
+          return;
+      }
+      if (data.length === 0) return;
 
-    if (detectedLaps.length > 0) {
-      const ideal = calculateIdealLap(detectedLaps);
-      setIdealLap(ideal);
-    } else {
-      setIdealLap(null);
-    }
-  }, [data, startLine]);
+      // If startLine changes, re-calculate
+      // console.log("Recalculating laps due to startLine change");
+      const detectedLaps = detectLaps(data, startLine);
+      setLaps(detectedLaps);
+      if (detectedLaps.length > 0) {
+        setIdealLap(calculateIdealLap(detectedLaps));
+      } else {
+        setIdealLap(null);
+      }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startLine]); // Only depend on startLine.
+
 
   // Ref-based loop to avoid closure staleness
   const stateRef = useRef({
@@ -246,30 +296,6 @@ export function useTelemetry(
     // Calculate relative time in current lap
     const relativeTime = currentFrame.time - currentLap.frames[0].time;
 
-    // Find corresponding frame in ideal lap
-    // Ideal lap frames start at time 0 relative to start of ideal lap
-    // We need to find frame with time <= relativeTime
-
-    // Binary search or simple find? Ideal lap is sorted by time.
-    // Simple find for now, optimization later if needed.
-    // Since we play forward, we could cache index?
-
-    // Let's assume idealLap.frames are sorted by time.
-    // Find index where frame.time is closest to relativeTime
-
-    // Optimization: use ratio of distance?
-    // Ideally we compare by DISTANCE, not time, to see who is ahead.
-    // But the ghost car should be at the same TIME offset to show "Ghost".
-    // i.e. "Where was the ideal lap at this same duration into the lap?"
-
-    // Yes, Ghost Car usually means "Replay of best lap synchronized by time".
-
-    // Find frame in idealLap with time ~ relativeTime
-    // idealLap.frames[i].time is relative to 0
-
-    // Simple linear search for now, assuming 60hz it's fast enough
-    // Or just use ratio if we want smooth interpolation
-
     // Binary search for the closest frame
     let low = 0;
     let high = idealLap.frames.length - 1;
@@ -285,7 +311,6 @@ export function useTelemetry(
       }
     }
 
-    // Interpolate? For now just return the closest previous frame
     return idealLap.frames[bestIdx];
   };
 

@@ -24,6 +24,9 @@ export interface TelemetryFrame {
   comboG: number;
   verticalVelocity: number;
   radiusOfTurn: number;
+  // Computed fields
+  trackHeading?: number; // Calculated from track geometry (radians)
+  trackSlope?: number;   // Calculated from track geometry (radians)
 }
 
 // Helper to parse coordinate string like "35°29.340126 N" to decimal degrees
