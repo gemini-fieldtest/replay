@@ -45956,124 +45956,314 @@
       ],
       "sectors": [
         {
-          "id": "1E",
-          "name": "Turn 1",
+          "name": "start",
           "coordinates": {
-            "latitude": 39.5407711,
-            "longitude": -122.3314885
-          }
+            "latitude": 39.53948,
+            "longitude": -122.33118
+          },
+          "verified": true,
+          "description": "Start/Finish Line",
+          "advice": "Check gauges, prepare for Turn 1 entry."
         },
         {
-          "id": "2E",
-          "name": "Turn 2",
+          "name": "end turn 5",
           "coordinates": {
-            "latitude": 39.5367365,
-            "longitude": -122.331074
-          }
+            "latitude": 39.54213952229299,
+            "longitude": -122.32977531847133
+          },
+          "verified": true,
+          "description": "Turn 5 Exit (Cyclone/Bypass)",
+          "advice": "Get back on gas as car settles. Don't stay turned too long, aim for Turn 6 entry."
         },
         {
-          "id": "3E",
-          "name": "Turn 3",
+          "name": "start turn 5",
           "coordinates": {
-            "latitude": 39.5363438,
-            "longitude": -122.3267321
-          }
+            "latitude": 39.5412089888535,
+            "longitude": -122.32981910828025
+          },
+          "verified": true,
+          "description": "Turn 5 (Cyclone)",
+          "advice": "Blind crest. If Cyclone: slight left then sharp right down the hill. If Bypass: lift, point right, land, gas."
         },
         {
-          "id": "4E",
-          "name": "Turn 4",
+          "name": "end turn 4",
           "coordinates": {
-            "latitude": 39.5382436,
-            "longitude": -122.3294297
-          }
+            "latitude": 39.540026664012736,
+            "longitude": -122.32872436305732
+          },
+          "verified": true,
+          "description": "Turn 4 Exit",
+          "advice": "Prepare for the uphill approach to Turn 5."
         },
         {
-          "id": "5E",
-          "name": "Turn 5 (Cyclone)",
+          "name": "end turn 2",
           "coordinates": {
-            "latitude": 39.539782,
-            "longitude": -122.3286744
-          }
+            "latitude": 39.537498007812495,
+            "longitude": -122.32738398437499
+          },
+          "verified": true,
+          "description": "Turn 2 Exit",
+          "advice": "Set up wide for Turn 3 entry."
         },
         {
-          "id": "6E",
-          "name": "Turn 6",
+          "name": "start turn 1",
           "coordinates": {
-            "latitude": 39.5410297,
-            "longitude": -122.3292535
-          }
+            "latitude": 39.537295625,
+            "longitude": -122.3311953125
+          },
+          "verified": true,
+          "description": "Turn 1",
+          "advice": "Fast, off-camber. Carry momentum, stay outside/mid track. Do not pinch the exit."
         },
         {
-          "id": "7E",
-          "name": "Turn 7",
+          "name": "end turn 6",
           "coordinates": {
-            "latitude": 39.5431942,
-            "longitude": -122.3285734
-          }
+            "latitude": 39.54377069267515,
+            "longitude": -122.32873531050954
+          },
+          "verified": true,
+          "description": "Turn 6 Exit",
+          "advice": "Critical exit speed for the straight/Turns 7-8 complex."
         },
         {
-          "id": "8E",
-          "name": "Turn 8",
+          "name": "start turn 4",
           "coordinates": {
-            "latitude": 39.5426755,
-            "longitude": -122.3362971
-          }
+            "latitude": 39.53934792197452,
+            "longitude": -122.32880099522292
+          },
+          "verified": true,
+          "description": "Turn 4",
+          "advice": "Apex left after Turn 3. Short chute before the hill."
         },
         {
-          "id": "9E",
-          "name": "Turn 9",
+          "name": "start turn 7",
           "coordinates": {
-            "latitude": 39.5381629,
-            "longitude": -122.3352533
-          }
+            "latitude": 39.54467933121019,
+            "longitude": -122.32997237261146
+          },
+          "verified": true,
+          "description": "Turn 7",
+          "advice": "High speed kink. Maintain momentum. Often taken flat or with a slight lift."
         },
         {
-          "id": "10E",
-          "name": "Turn 10",
+          "name": "start turn 3",
           "coordinates": {
-            "latitude": 39.5380077,
-            "longitude": -122.3335922
-          }
+            "latitude": 39.53786,
+            "longitude": -122.32895
+          },
+          "verified": true,
+          "description": "Turn 3",
+          "advice": "Off-camber, tricky. Late apex or middle line. Don't turn in too early."
         },
         {
-          "id": "11E",
-          "name": "Turn 11",
+          "name": "end turn 3",
           "coordinates": {
-            "latitude": 39.5439896,
-            "longitude": -122.3326423
-          }
+            "latitude": 39.53917276273885,
+            "longitude": -122.32910752388534
+          },
+          "verified": true,
+          "description": "Turn 3 Exit",
+          "advice": "Look ahead to Turn 4."
         },
         {
-          "id": "12E",
-          "name": "Turn 12",
+          "name": "start turn 8",
           "coordinates": {
-            "latitude": 39.5362306,
-            "longitude": -122.3268173
-          }
+            "latitude": 39.545029649681524,
+            "longitude": -122.33286249999999
+          },
+          "verified": true,
+          "description": "Turn 8",
+          "advice": "High speed. Light brake or lift, then turn in. Unwind to right on exit."
         },
         {
-          "id": "13E",
-          "name": "Turn 13",
+          "name": "end turn 10",
           "coordinates": {
-            "latitude": 39.5383401,
-            "longitude": -122.3294764
-          }
+            "latitude": 39.538012332802545,
+            "longitude": -122.33499725318471
+          },
+          "verified": true,
+          "description": "Turn 10 Exit",
+          "advice": "Accelerate towards Turn 11."
         },
         {
-          "id": "14E",
-          "name": "Turn 14",
+          "name": "start turn 12",
           "coordinates": {
-            "latitude": 39.5397017,
-            "longitude": -122.3286926
-          }
+            "latitude": 39.538515915605096,
+            "longitude": -122.3334208200637
+          },
+          "verified": true,
+          "description": "Turn 12",
+          "advice": "Part of the complex leading to the back straight. Maintain flow."
         },
         {
-          "id": "15E",
-          "name": "Turn 15",
+          "name": "start turn 15",
           "coordinates": {
-            "latitude": 39.5410227,
-            "longitude": -122.3292492
-          }
+            "latitude": 39.543648125,
+            "longitude": -122.3315046875
+          },
+          "verified": true,
+          "description": "Turn 15",
+          "advice": "Final turn. Drive over paint/curb on right, cut in late, run wide to main straight."
+        },
+        {
+          "name": "start turn 9",
+          "coordinates": {
+            "latitude": 39.5428511066879,
+            "longitude": -122.33614673566879
+          },
+          "verified": true,
+          "description": "Turn 9",
+          "advice": "Uphill, tight left. Blind crest exit. Stay left to avoid dirt drop. Downshift."
+        },
+        {
+          "name": "start turn 14",
+          "coordinates": {
+            "latitude": 39.54355174363057,
+            "longitude": -122.3328296576433
+          },
+          "verified": true,
+          "description": "Turn 14",
+          "advice": "Right hander onto front straight. Round it off, late apex to carry max speed."
+        },
+        {
+          "name": "start turn 2",
+          "coordinates": {
+            "latitude": 39.5358007421875,
+            "longitude": -122.32794257812499
+          },
+          "verified": true,
+          "description": "Turn 2",
+          "advice": "Long 180 degree carousel. Patient throttle. Late apex helps Turn 3 set up."
+        },
+        {
+          "name": "end turn 11",
+          "coordinates": {
+            "latitude": 39.5381437022293,
+            "longitude": -122.33340987261145
+          },
+          "verified": true,
+          "description": "Turn 11 Exit",
+          "advice": "Unwind immediately to prevent spin."
+        },
+        {
+          "name": "end turn 1",
+          "coordinates": {
+            "latitude": 39.5364603125,
+            "longitude": -122.33064875
+          },
+          "verified": true,
+          "description": "Turn 1 Exit",
+          "advice": "Prepare for Turn 2 entry."
+        },
+        {
+          "name": "start turn 11",
+          "coordinates": {
+            "latitude": 39.53792475318471,
+            "longitude": -122.33378208598725
+          },
+          "verified": true,
+          "description": "Turn 11",
+          "advice": "Sharp, slow left. Patience on entry, smooth exit."
+        },
+        {
+          "name": "end turn 15",
+          "coordinates": {
+            "latitude": 39.543168582802544,
+            "longitude": -122.33119848726115
+          },
+          "verified": true,
+          "description": "Turn 15 Exit",
+          "advice": "Full throttle onto Main Straight."
+        },
+        {
+          "name": "end turn 14",
+          "coordinates": {
+            "latitude": 39.54404437898089,
+            "longitude": -122.33213996815286
+          },
+          "verified": true,
+          "description": "Turn 14 Exit",
+          "advice": "Carry speed."
+        },
+        {
+          "name": "end turn 8",
+          "coordinates": {
+            "latitude": 39.54475596337579,
+            "longitude": -122.33372734872611
+          },
+          "verified": true,
+          "description": "Turn 8 Exit",
+          "advice": "Set up for Turn 9 hill."
+        },
+        {
+          "name": "end turn 7",
+          "coordinates": {
+            "latitude": 39.54500775477707,
+            "longitude": -122.33108901273884
+          },
+          "verified": true,
+          "description": "Turn 7 Exit",
+          "advice": "Flow into Turn 8."
+        },
+        {
+          "name": "end turn 9",
+          "coordinates": {
+            "latitude": 39.542303734076434,
+            "longitude": -122.33617957802547
+          },
+          "verified": true,
+          "description": "Turn 9 Exit",
+          "advice": "Watch for blind crest."
+        },
+        {
+          "name": "start turn 10",
+          "coordinates": {
+            "latitude": 39.538351703821654,
+            "longitude": -122.3354023089172
+          },
+          "verified": true,
+          "description": "Turn 10",
+          "advice": "Brake and downshift. Aim for mid-apex."
+        },
+        {
+          "name": "end turn 12",
+          "coordinates": {
+            "latitude": 39.53895381369426,
+            "longitude": -122.33317997611465
+          },
+          "verified": true,
+          "description": "Turn 12 Exit",
+          "advice": "Continue flow."
+        },
+        {
+          "name": "start turn 13",
+          "coordinates": {
+            "latitude": 39.53934792197452,
+            "longitude": -122.33286249999999
+          },
+          "verified": true,
+          "description": "Turn 13",
+          "advice": "Leading onto back straight."
+        },
+        {
+          "name": "end turn 13",
+          "coordinates": {
+            "latitude": 39.539763925159235,
+            "longitude": -122.3327530254777
+          },
+          "verified": true,
+          "description": "Turn 13 Exit",
+          "advice": "Open taps for the straight."
+        },
+        {
+          "name": "start turn 6",
+          "coordinates": {
+            "latitude": 39.542840159235666,
+            "longitude": -122.32873531050954
+          },
+          "verified": true,
+          "description": "Turn 6",
+          "advice": "Crucial left-hander. Sets up straight speed."
         }
       ]
     }

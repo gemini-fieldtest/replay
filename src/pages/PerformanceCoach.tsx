@@ -64,7 +64,8 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
         laps,
         currentFrame,
         idealLap,
-        isEnabled: strategy === 'predictive'
+        isEnabled: strategy === 'predictive',
+        trackPoints
     });
 
     // TTS Hook
@@ -492,9 +493,11 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
             else if (mode === 'nano' && nanoStatus.state === 'ready') {
                 (async () => {
                     const genStartTime = performance.now();
+                    const sanitizedLocation = trackLocation ? trackLocation.replace(/Turn\s+\d+.*|Turn\s+\d+/i, "Turn") : "Track";
+
                     const nanoInput = isPredictiveTrigger
-                        ? `Predictive Warning: ${messageText}.\n Context: ${contextString}`
-                        : `Trigger: ${triggerReason}.\n${contextString}`;
+                        ? `Predictive Warning: ${messageText}.\n Context: ${contextString.replace(trackLocation || '', sanitizedLocation)}`
+                        : `Trigger: ${triggerReason}.\n${contextString.replace(trackLocation || '', sanitizedLocation)}`;
 
                     const nanoText = await generateNano(nanoInput);
                     const genDuration = performance.now() - genStartTime;

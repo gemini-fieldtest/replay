@@ -111,7 +111,7 @@ export function MapEditorPage() {
         const finalScale = Math.min(scaleX, scaleY) * scale;
 
         const long = (x - 50 - offset.x) / finalScale + bounds.minLong;
-        const lat = bounds.minLat + (height - y + offset.y - 50) / finalScale; // Approximate due to Y inversion logic check needed
+        // const lat = bounds.minLat + (height - y + offset.y - 50) / finalScale; // Approximate due to Y inversion logic check needed
         // Re-verify Y logic: y = H - (latTerm + 50) + offY  => y - offY - H = -(latTerm + 50) => H - y + offY = latTerm + 50 => latTerm = H - y + offY - 50
         // Wait, my y formula above was: y = height - ((...) + 50) + offset.y
         // So: y - offset.y = height - (latTerm + 50)

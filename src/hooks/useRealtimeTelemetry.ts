@@ -249,16 +249,6 @@ export function useRealtimeTelemetry(
       }
     };
 
-    // Explicit Session Reset
-    const resetSession = () => {
-      setData([]);
-      bufferRef.current = [];
-      // Optional: Keep current frame or clear it? Clearing it might flash UI. 
-      // Let's keep current frame but clear history.
-      // Actually, if we reset, we probably want to restart the "lap" detection.
-      // Laps are derived from data, so clearing data clears laps.
-      console.log("Session Reset");
-    };
 
     // Start connection
     failedAttemptsRef.current = 0; // Reset on source change

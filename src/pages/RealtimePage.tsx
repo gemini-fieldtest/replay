@@ -14,6 +14,7 @@ import { useTheme } from '../components/ThemeProvider';
 import { downloadSessionJSON } from '../utils/telemetryExport';
 import { Save, RefreshCw, Disc, Play } from 'lucide-react';
 import { type CoachMessage } from './RealtimeCoach';
+import thunderhillEast from '../data/tracks/thunderhill_east.json';
 
 
 
@@ -89,7 +90,7 @@ export const RealtimePage = () => {
   const [showGhost] = useState(true);
   const [kmlTrack, setKmlTrack] = useState<GeoCoordinate[]>([]);
   const [trackPoints, setTrackPoints] = useState<TrackPoint[]>([]);
-  const [trackSegments, setTrackSegments] = useState<TrackSegment[]>([]);
+  const [trackSegments] = useState<TrackSegment[]>([]);
   const [startLine, setStartLine] = useState<{ lat: number, lon: number } | undefined>(undefined);
 
   // Ref to track coach messages for export without re-rendering parent
@@ -118,27 +119,26 @@ export const RealtimePage = () => {
         setKmlTrack(coords);
       }
 
-      // Load Points for Start/Finish
+      // Load Points from imported JSON
       try {
-        const response = await fetch('/tracks/thunderhill/points.json');
-        if (response.ok) {
-          const json = await response.json();
-          let points: TrackPoint[] = [];
-          if (Array.isArray(json)) {
-            points = json;
-          } else {
-            points = json.points || [];
-            if (json.segments) setTrackSegments(json.segments);
-          }
+        const sectors = thunderhillEast.configurations[0].sectors;
+        const mappedPoints: TrackPoint[] = sectors.map((s: any) => ({
+          name: s.name,
+          lat: s.coordinates.latitude,
+          long: s.coordinates.longitude,
+          description: s.description,
+          advice: s.advice
+        }));
 
-          setTrackPoints(points);
-          const startPoint = points.find((p) => p.name === 'start');
-          if (startPoint) {
-            setStartLine({ lat: startPoint.lat, lon: startPoint.long });
-          }
+        setTrackPoints(mappedPoints);
+        const startPoint = mappedPoints.find((p) => p.name.toLowerCase().includes('start')); // Flexible matching
+        if (startPoint) {
+          setStartLine({ lat: startPoint.lat, lon: startPoint.long });
         }
+
+        // Also map segments if available in future, for now simplified
       } catch (e) {
-        console.error("Failed to load points.json", e);
+        console.error("Failed to load map data", e);
       }
     };
     fetchTrackData();

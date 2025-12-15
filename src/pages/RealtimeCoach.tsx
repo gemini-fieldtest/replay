@@ -343,7 +343,7 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
 
         // Generic Location Logic (Use "Turn" instead of "Turn 9")
         // Check for undefined trackLocation to avoid issues
-        const genericLocation = trackLocation ? trackLocation.replace(/Turn \d+/, "Turn") : null;
+        const genericLocation = trackLocation ? trackLocation.replace(/Turn\s+\d+.*|Turn\s+\d+/i, "Turn") : null;
         if (genericLocation) context += `Location: ${genericLocation}\n`;
 
         // Advanced Context

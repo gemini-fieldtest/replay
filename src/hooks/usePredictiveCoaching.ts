@@ -13,7 +13,7 @@ export interface MistakeZone {
     advice: string;
     lapIndex: number; // Which lap this mistake is from (most recent?)
     locationName?: string; // e.g., "Turn 1"
-    startFrameIndex?: number;
+    specificAdvice?: string; // New field for track-specific advice
 }
 
 interface UsePredictiveCoachingProps {
@@ -154,7 +154,13 @@ export const usePredictiveCoaching = ({ laps, currentFrame, idealLap, isEnabled,
                 if (!isNaN(parseInt(name))) {
                     name = `Turn ${name}`;
                 }
-                return { ...zone, locationName: name };
+
+                // --- NEW LOGIC START ---
+                // If the user is losing speed at a known point, use the specific advice!
+                let specificAdvice = bestPoint.advice; // Directly use advice from TrackPoint
+
+                return { ...zone, locationName: name, specificAdvice };
+                // --- NEW LOGIC END ---
             }
 
             return zone;
@@ -270,6 +276,12 @@ function calcDistSq(f1: { latitude: number, longitude: number }, f2: { latitude:
 
 function getAdviceText(zone: MistakeZone): string {
     const prefix = zone.locationName ? `At ${zone.locationName}: ` : "";
+
+    // --- NEW LOGIC ---
+    if (zone.specificAdvice) {
+        return `${prefix}${zone.specificAdvice}`;
+    }
+    // --- END NEW LOGIC ---
 
     if (zone.type === 'speed_loss') {
         return `${prefix}Focus on carrying more speed.`;
