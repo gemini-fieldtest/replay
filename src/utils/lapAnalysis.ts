@@ -1,151 +1,161 @@
 import { type TelemetryFrame } from './telemetryParser';
 
 export interface LapData {
-  lapIndex: number;
-  frames: TelemetryFrame[];
-  totalDistance: number;
-  lapTime: number;
-  sectors?: number[]; // Indices of sector boundaries
-  isComplete: boolean;
+    lapIndex: number;
+    frames: TelemetryFrame[];
+    totalDistance: number;
+    lapTime: number;
+    sectors?: number[]; // Indices of sector boundaries
+    isComplete: boolean;
+}
+
+export interface DriverScore {
+    total: number;
+    consistency: number; // 0-20
+    cornering: number;   // 0-20
+    braking: number;     // 0-20
+    control: number;     // 0-20
+    aggression: number;  // 0-20
+    details: string;     // Summary string for the LLM
 }
 
 // Distance between two lat/lon points in meters (Haversine formula)
 function getDistanceFromLatLonInM(lat1: number, lon1: number, lat2: number, lon2: number) {
-  const R = 6371e3; // Radius of the earth in km
-  const dLat = deg2rad(lat2 - lat1);
-  const dLon = deg2rad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+    const R = 6371e3; // Radius of the earth in km
+    const dLat = deg2rad(lat2 - lat1);
+    const dLon = deg2rad(lon2 - lon1);
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
 }
 
 function deg2rad(deg: number) {
-  return deg * (Math.PI / 180);
+    return deg * (Math.PI / 180);
 }
 
 export function detectLaps(frames: TelemetryFrame[], startLine?: { lat: number, lon: number }): LapData[] {
-  if (frames.length < 100) return [];
+    if (frames.length < 100) return [];
 
-  // Helper to detect laps for a given start position
-  const findLapsForPos = (startPos: { lat: number, lon: number }) => {
-    const detectedLaps: LapData[] = [];
-    let currentLap: TelemetryFrame[] = [];
-    let lastDist = Infinity;
-    let lapStartTime = frames[0].time;
-    let onLap = false;
-    
-    // Thresholds
-    const START_FINISH_PROXIMITY = 20; // meters
-    const MIN_LAP_TIME = 30; // seconds
+    // Helper to detect laps for a given start position
+    const findLapsForPos = (startPos: { lat: number, lon: number }) => {
+        const detectedLaps: LapData[] = [];
+        let currentLap: TelemetryFrame[] = [];
+        let lastDist = Infinity;
+        let lapStartTime = frames[0].time;
+        let onLap = false;
 
-    for (let i = 0; i < frames.length; i++) {
-      const frame = frames[i];
-      const dist = getDistanceFromLatLonInM(frame.latitude, frame.longitude, startPos.lat, startPos.lon);
+        // Thresholds
+        const START_FINISH_PROXIMITY = 20; // meters
+        const MIN_LAP_TIME = 30; // seconds
 
-      // Check for start/finish crossing
-      // We look for a local minimum in distance that is within the proximity threshold
-      if (dist < START_FINISH_PROXIMITY) {
-        // We are close to the start line.
-        // To avoid multiple triggers for the same crossing, we wait until distance starts increasing
-        // and we are far enough in time/distance from the last crossing.
-        
-        if (dist > lastDist && lastDist < START_FINISH_PROXIMITY) {
-             // Local minimum passed in the previous frame
-             // const crossIndex = i - 1;
-             const timeSinceLast = frame.time - lapStartTime;
+        for (let i = 0; i < frames.length; i++) {
+            const frame = frames[i];
+            const dist = getDistanceFromLatLonInM(frame.latitude, frame.longitude, startPos.lat, startPos.lon);
 
-             if (timeSinceLast > MIN_LAP_TIME || !onLap) {
-                 if (onLap) {
-                     // Complete the current lap
-                     // Calculate distance
-                     let lapDist = 0;
-                     for(let k=0; k<currentLap.length-1; k++) {
-                         lapDist += getDistanceFromLatLonInM(
-                             currentLap[k].latitude, currentLap[k].longitude,
-                             currentLap[k+1].latitude, currentLap[k+1].longitude
-                         );
-                     }
+            // Check for start/finish crossing
+            // We look for a local minimum in distance that is within the proximity threshold
+            if (dist < START_FINISH_PROXIMITY) {
+                // We are close to the start line.
+                // To avoid multiple triggers for the same crossing, we wait until distance starts increasing
+                // and we are far enough in time/distance from the last crossing.
 
-                     detectedLaps.push({
-                         lapIndex: detectedLaps.length + 1,
-                         lapTime: timeSinceLast,
-                         frames: [...currentLap],
-                         totalDistance: lapDist,
-                         isComplete: true
-                     });
-                 }
-                 
-                 // Start new lap
-                 onLap = true;
-                 currentLap = [];
-                 lapStartTime = frames[i-1].time;
-             }
+                if (dist > lastDist && lastDist < START_FINISH_PROXIMITY) {
+                    // Local minimum passed in the previous frame
+                    // const crossIndex = i - 1;
+                    const timeSinceLast = frame.time - lapStartTime;
+
+                    if (timeSinceLast > MIN_LAP_TIME || !onLap) {
+                        if (onLap) {
+                            // Complete the current lap
+                            // Calculate distance
+                            let lapDist = 0;
+                            for (let k = 0; k < currentLap.length - 1; k++) {
+                                lapDist += getDistanceFromLatLonInM(
+                                    currentLap[k].latitude, currentLap[k].longitude,
+                                    currentLap[k + 1].latitude, currentLap[k + 1].longitude
+                                );
+                            }
+
+                            detectedLaps.push({
+                                lapIndex: detectedLaps.length + 1,
+                                lapTime: timeSinceLast,
+                                frames: [...currentLap],
+                                totalDistance: lapDist,
+                                isComplete: true
+                            });
+                        }
+
+                        // Start new lap
+                        onLap = true;
+                        currentLap = [];
+                        lapStartTime = frames[i - 1].time;
+                    }
+                }
+            }
+
+            if (onLap) {
+                currentLap.push(frame);
+            }
+
+            lastDist = dist;
         }
-      }
-      
-      if (onLap) {
-          currentLap.push(frame);
-      }
-      
-      lastDist = dist;
+
+        // Handle final partial lap
+        if (onLap && currentLap.length > 0) {
+            let lapDist = 0;
+            for (let k = 0; k < currentLap.length - 1; k++) {
+                lapDist += getDistanceFromLatLonInM(
+                    currentLap[k].latitude, currentLap[k].longitude,
+                    currentLap[k + 1].latitude, currentLap[k + 1].longitude
+                );
+            }
+            detectedLaps.push({
+                lapIndex: detectedLaps.length + 1,
+                lapTime: currentLap[currentLap.length - 1].time - lapStartTime,
+                frames: [...currentLap],
+                totalDistance: lapDist,
+                isComplete: false
+            });
+        }
+
+        return detectedLaps;
+    };
+
+    // If fixed start line is provided, use it directly
+    if (startLine) {
+        return findLapsForPos(startLine);
     }
 
-    // Handle final partial lap
-    if (onLap && currentLap.length > 0) {
-        let lapDist = 0;
-        for(let k=0; k<currentLap.length-1; k++) {
-            lapDist += getDistanceFromLatLonInM(
-                currentLap[k].latitude, currentLap[k].longitude,
-                currentLap[k+1].latitude, currentLap[k+1].longitude
-            );
+    // Otherwise, fallback to Heuristic Search
+    // Heuristic: Try a few candidate start positions from the beginning of the data
+    // to handle cases where the recording starts in the pits or off-track.
+    // We'll check the first 3 minutes of data (approx 10000 frames at 60Hz)
+    // or 20% of the data, whichever is smaller, stepping every 5 seconds (300 frames).
+    const searchLimit = Math.min(frames.length, 10000); // ~3 mins
+    const step = 300; // ~5 seconds
+
+    let bestLaps: LapData[] = [];
+
+    // Try candidates
+    for (let i = 0; i < searchLimit; i += step) {
+        const candidatePos = { lat: frames[i].latitude, lon: frames[i].longitude };
+        const laps = findLapsForPos(candidatePos);
+
+        // We prefer more COMPLETE laps
+        const completeLaps = laps.filter(l => l.isComplete).length;
+        const bestCompleteLaps = bestLaps.filter(l => l.isComplete).length;
+
+        if (completeLaps > bestCompleteLaps) {
+            bestLaps = laps;
+        } else if (completeLaps === bestCompleteLaps && laps.length > bestLaps.length) {
+            bestLaps = laps;
         }
-        detectedLaps.push({
-            lapIndex: detectedLaps.length + 1,
-            lapTime: currentLap[currentLap.length-1].time - lapStartTime,
-            frames: [...currentLap],
-            totalDistance: lapDist,
-            isComplete: false
-        });
     }
 
-    return detectedLaps;
-  };
-
-  // If fixed start line is provided, use it directly
-  if (startLine) {
-      return findLapsForPos(startLine);
-  }
-
-  // Otherwise, fallback to Heuristic Search
-  // Heuristic: Try a few candidate start positions from the beginning of the data
-  // to handle cases where the recording starts in the pits or off-track.
-  // We'll check the first 3 minutes of data (approx 10000 frames at 60Hz)
-  // or 20% of the data, whichever is smaller, stepping every 5 seconds (300 frames).
-  const searchLimit = Math.min(frames.length, 10000); // ~3 mins
-  const step = 300; // ~5 seconds
-  
-  let bestLaps: LapData[] = [];
-
-  // Try candidates
-  for (let i = 0; i < searchLimit; i += step) {
-      const candidatePos = { lat: frames[i].latitude, lon: frames[i].longitude };
-      const laps = findLapsForPos(candidatePos);
-      
-      // We prefer more COMPLETE laps
-      const completeLaps = laps.filter(l => l.isComplete).length;
-      const bestCompleteLaps = bestLaps.filter(l => l.isComplete).length;
-
-      if (completeLaps > bestCompleteLaps) {
-          bestLaps = laps;
-      } else if (completeLaps === bestCompleteLaps && laps.length > bestLaps.length) {
-          bestLaps = laps;
-      }
-  }
-
-  return bestLaps;
+    return bestLaps;
 }
 
 
@@ -155,14 +165,14 @@ export function resampleLap(lap: LapData, stepMeters: number = 5): LapData {
 
     const newFrames: TelemetryFrame[] = [];
     const totalDist = lap.totalDistance;
-    
+
     // Create distance map for original frames
     const distMap: number[] = [0];
     let accumDist = 0;
     for (let i = 0; i < lap.frames.length - 1; i++) {
         const d = getDistanceFromLatLonInM(
             lap.frames[i].latitude, lap.frames[i].longitude,
-            lap.frames[i+1].latitude, lap.frames[i+1].longitude
+            lap.frames[i + 1].latitude, lap.frames[i + 1].longitude
         );
         accumDist += d;
         distMap.push(accumDist);
@@ -178,7 +188,7 @@ export function resampleLap(lap: LapData, stepMeters: number = 5): LapData {
 
         const i1 = idx - 1;
         const i2 = idx;
-        
+
         const d1 = distMap[i1];
         const d2 = distMap[i2];
         const ratio = (d - d1) / (d2 - d1 || 1); // Avoid div by zero
@@ -238,7 +248,7 @@ export function calculateIdealLap(laps: LapData[], microSectorSize: number = 50)
     // We should truncate to the shortest lap length to ensure alignment, 
     // or stretch/squash. For simplicity, let's truncate to min length.
     const minLen = Math.min(...resampledLaps.map(l => l.frames.length));
-    
+
     // 3. Split into micro-sectors
     // microSectorSize is in meters. Since step is 5m, indices per sector = size / 5
     const indicesPerSector = Math.floor(microSectorSize / step);
@@ -259,9 +269,9 @@ export function calculateIdealLap(laps: LapData[], microSectorSize: number = 50)
             const lap = resampledLaps[l];
             // Calculate time taken for this sector
             const tStart = lap.frames[startIdx].time;
-            const tEnd = lap.frames[Math.min(endIdx, lap.frames.length-1)].time;
+            const tEnd = lap.frames[Math.min(endIdx, lap.frames.length - 1)].time;
             const dt = tEnd - tStart;
-            
+
             if (dt < bestSectorTime) {
                 bestSectorTime = dt;
                 bestLapIdx = l;
@@ -273,9 +283,9 @@ export function calculateIdealLap(laps: LapData[], microSectorSize: number = 50)
         // so they flow continuously from the previous sector.
         const bestLap = resampledLaps[bestLapIdx];
         const sectorFrames = bestLap.frames.slice(startIdx, Math.min(endIdx, bestLap.frames.length));
-        
+
         const sectorStartTime = sectorFrames[0].time;
-        
+
         for (const frame of sectorFrames) {
             const relativeTime = frame.time - sectorStartTime;
             idealFrames.push({
@@ -283,7 +293,7 @@ export function calculateIdealLap(laps: LapData[], microSectorSize: number = 50)
                 time: currentIdealTime + relativeTime
             });
         }
-        
+
         currentIdealTime += bestSectorTime;
     }
 
@@ -293,5 +303,121 @@ export function calculateIdealLap(laps: LapData[], microSectorSize: number = 50)
         totalDistance: idealFrames.length * step,
         lapTime: currentIdealTime,
         isComplete: true
+    };
+}
+
+export function calculateDriverScore(laps: LapData[]): DriverScore {
+    const validLaps = laps.filter(l => l.isComplete && l.lapTime > 0);
+    if (validLaps.length === 0) {
+        return { total: 0, consistency: 0, cornering: 0, braking: 0, control: 0, aggression: 0, details: "No valid laps for scoring." };
+    }
+
+    // 1. Consistency (0-20)
+    // Based on Std Dev of lap times, relative to average lap time
+    const avgLap = validLaps.reduce((sum, l) => sum + l.lapTime, 0) / validLaps.length;
+    const stdDev = Math.sqrt(validLaps.reduce((sum, l) => sum + Math.pow(l.lapTime - avgLap, 2), 0) / validLaps.length);
+    // Score: < 0.5s = 20, > 3.0s = 0. Linear interpolation? 
+    // Let's use exponential decay for consistency.
+    // Score = 20 * e^(-stdDev) ?
+    // If stdDev is 0.5, e^-0.5 = 0.6 -> 12 points. Too harsh.
+    // Let's try simple linear map: 0s -> 20pts, 2s -> 10pts, 4s -> 0pts
+    let consistency = Math.max(0, 20 - (stdDev * 5));
+    // Bonus for consistent number of laps? No.
+
+    // 2. Cornering (0-20)
+    // Based on Peak Lateral G and Average Lateral G in corners
+    // We process all frames from best lap
+    const bestLap = validLaps.reduce((best, lap) => best.lapTime < lap.lapTime ? best : lap, validLaps[0]);
+
+    let corneringSum = 0;
+    let cornerCount = 0;
+    let peakLatG = 0;
+
+    // 3. Braking (0-20)
+    // Avg longitudinal G when braking (brake trace > 0)
+    let brakingSum = 0;
+    let brakeCount = 0;
+
+    // 4. Control (0-20)
+    // Penalize Coasting (time with no brake and no throttle)
+    let coastingFrames = 0;
+    let totalFrames = 0;
+
+    // 5. Aggression (0-20)
+    // Total G load (sqrt(lat^2 + long^2)) avg
+    let aggressionSum = 0;
+
+    bestLap.frames.forEach(f => {
+        const absLat = Math.abs(f.gForceLat);
+        const absLong = Math.abs(f.gForceLong);
+        const totalG = Math.sqrt(absLat * absLat + absLong * absLong);
+
+        // Cornering: only count if lat G > 0.5 (actual corner)
+        if (absLat > 0.5) {
+            corneringSum += absLat;
+            cornerCount++;
+            if (absLat > peakLatG) peakLatG = absLat;
+        }
+
+        // Braking: only count if brake > 5%
+        if (f.brake > 5) {
+            brakingSum += Math.abs(f.gForceLong); // Assuming Long is typically negative for brake? Or just use magnitude
+            brakeCount++;
+        }
+
+        // Coasting: Throttle < 5% and Brake < 5% and Speed > 10
+        if (f.throttle < 5 && f.brake < 5 && f.speed > 10) {
+            coastingFrames++;
+        }
+
+        aggressionSum += totalG;
+        totalFrames++;
+    });
+
+    const avgCornerLat = cornerCount > 0 ? (corneringSum / cornerCount) : 0;
+    // F1/Pro car: 4G+ is max. 2G avg in corners is great.
+    // Road car: 1G is max. 
+    // Let's map 2.5G avg -> 20 pts.
+    let cornering = Math.min(20, (avgCornerLat / 2.5) * 20);
+
+    const avgBrakeG = brakeCount > 0 ? (brakingSum / brakeCount) : 0;
+    // F1: 5G. GT3: 2G. Road: 1G.
+    // Map 2.0 avg -> 20 pts
+    let braking = Math.min(20, (avgBrakeG / 2.0) * 20);
+
+    const coastingPct = totalFrames > 0 ? (coastingFrames / totalFrames) : 0;
+    // 0% coasting = 20 pts. 20% coasting = 0 pts.
+    let control = Math.max(0, 20 - (coastingPct * 100));
+
+    const avgG = totalFrames > 0 ? (aggressionSum / totalFrames) : 0;
+    // Map 1.5G avg -> 20 pts
+    let aggression = Math.min(20, (avgG / 1.5) * 20);
+
+    // Rounding
+    consistency = Math.round(consistency);
+    cornering = Math.round(cornering);
+    braking = Math.round(braking);
+    control = Math.round(control);
+    aggression = Math.round(aggression);
+
+    const total = consistency + cornering + braking + control + aggression;
+
+    const details = `
+Driver Score Breakdown (Total: ${total}/100):
+- Consistency: ${consistency}/20 (StdDev: ${stdDev.toFixed(2)}s)
+- Cornering: ${cornering}/20 (Avg LatG in corners: ${avgCornerLat.toFixed(2)}g, Peak: ${peakLatG.toFixed(2)}g)
+- Braking: ${braking}/20 (Avg BrakeG: ${avgBrakeG.toFixed(2)}g)
+- Control: ${control}/20 (Coasting: ${(coastingPct * 100).toFixed(1)}%)
+- Aggression: ${aggression}/20 (Avg Total G: ${avgG.toFixed(2)}g)
+    `.trim();
+
+    return {
+        total,
+        consistency,
+        cornering,
+        braking,
+        control,
+        aggression,
+        details
     };
 }
