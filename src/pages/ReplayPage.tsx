@@ -60,6 +60,26 @@ export function ReplayPage() {
   const [trackPoints, setTrackPoints] = useState<TrackPoint[]>([]);
   const [trackDetails, setTrackDetails] = useState<string>('');
 
+  // Video State (Lifted for Report Generation)
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoSrc, setVideoSrc] = useState<string | null>(null);
+  const [videoOffset, setVideoOffset] = useState<number>(() => {
+    const saved = localStorage.getItem('driver_video_offset');
+    return saved ? parseFloat(saved) : 0;
+  });
+
+  const handleVideoOffsetChange = (offset: number) => {
+    setVideoOffset(offset);
+    localStorage.setItem('driver_video_offset', offset.toString());
+  };
+
+  const handleVideoUpload = (file: File) => {
+    setVideoFile(file);
+    const url = URL.createObjectURL(file);
+    setVideoSrc(url);
+  };
+
+
   // Extract Start Line from Track Points
   const startLine = useMemo(() => {
     const startPoint = trackPoints.find((p) => p.name === 'start');
@@ -497,7 +517,11 @@ export function ReplayPage() {
               idealLap={idealLap}
               trackPoints={trackPoints}
               trackDetails={trackDetails}
+              // Video Props for Report
+              videoFile={videoFile}
+              videoOffset={videoOffset}
             />
+
           </div>
         )}
         {showPitView && showDriverView && !showCoachView && layoutMode === 'grid' && (
@@ -534,7 +558,13 @@ export function ReplayPage() {
                 setShowGhost={setShowGhost}
                 startLinePos={startLinePos}
                 isPlaying={isPlaying}
+                // Video Props
+                videoSrc={videoSrc}
+                videoOffset={videoOffset}
+                setVideoOffset={handleVideoOffsetChange}
+                onVideoUpload={handleVideoUpload}
               />
+
             </div>
           </div>
         )}

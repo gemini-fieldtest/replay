@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 
-import { Activity, ThumbsUp, TrendingUp, MessageSquare, Brain, Zap, Settings, ShieldAlert, Volume2 } from 'lucide-react';
+import { Activity, ThumbsUp, TrendingUp, MessageSquare, Brain, Zap, Settings, ShieldAlert, Volume2, FileText, Loader2 } from 'lucide-react';
 import type { TelemetryFrame } from '../utils/telemetryParser';
 import type { LapData } from '../utils/lapAnalysis';
 import { useGeminiNano } from '../hooks/useGeminiNano';
@@ -11,6 +11,7 @@ import { useTrackLocation, type TrackPoint } from '../hooks/useTrackLocation';
 import { useDrivingAnalysis } from '../hooks/useDrivingAnalysis';
 import { parseCoachResponse } from '../utils/aiResponseParser';
 import ReactMarkdown from 'react-markdown';
+import { generateCoachReport } from '../services/reportGenerationService';
 
 interface PerformanceCoachProps {
     currentFrame: TelemetryFrame | null;
@@ -21,6 +22,8 @@ interface PerformanceCoachProps {
     trackPoints?: TrackPoint[];
     trackDetails?: string;
     gpsOnly?: boolean;
+    videoFile?: File | null;
+    videoOffset?: number;
 }
 
 interface CoachMessage {
@@ -36,13 +39,13 @@ interface CoachMessage {
 
 type CoachMode = 'code' | 'nano' | 'flash' | 'pro';
 
-export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame, ghostFrame, currentIndex, laps, trackPoints = [], trackDetails = '', gpsOnly = false }) => {
+export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame, ghostFrame, currentIndex, laps, trackPoints = [], trackDetails = '', gpsOnly = false, videoFile, videoOffset = 0 }) => {
     const [messages, setMessages] = useState<CoachMessage[]>([]);
     const [mode, setMode] = useState<CoachMode>('nano');
     const [showSettings, setShowSettings] = useState(false);
     const lastMessageTimeRef = useRef<number>(0);
     const { status: nanoStatus, generateFeedback: generateNano } = useGeminiNano();
-    const { status: cloudStatus, generateFeedback: generateCloud, setApiKey } = useGeminiCloud();
+    const { status: cloudStatus, generateFeedback: generateCloud, setApiKey, generateAudio } = useGeminiCloud();
     const signalQuality = useSignalQuality(currentFrame);
     const trackLocation = useTrackLocation(currentFrame, trackPoints);
     const drivingAnalysis = useDrivingAnalysis(currentFrame);
@@ -60,6 +63,61 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
     // New Settings State
     const [serializeRequests, setSerializeRequests] = useState(true);
     const [historyLength, setHistoryLength] = useState(100);
+
+    // Report Gen State
+    const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+    const [generationStatus, setGenerationStatus] = useState("");
+
+
+
+    // const { generateAudio } = useGeminiCloud(); // Removed: destructured at top level
+
+    // We need to overwrite the previous handleGenerateReport to use the scoped generateAudio
+    const handleGenerateReportScoped = async () => {
+        setIsGeneratingReport(true);
+        setGenerationStatus("Initializing...");
+        try {
+            // Load Track Map
+            let trackMapBase64: string | null = null;
+            try {
+                const response = await fetch('/track_map.png');
+                if (response.ok) {
+                    const blob = await response.blob();
+                    trackMapBase64 = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result as string);
+                        reader.readAsDataURL(blob);
+                    });
+                }
+            } catch (e) {
+                console.warn("Could not load track map image", e);
+            }
+
+            await generateCoachReport({
+                laps,
+                currentFrame,
+                trackDetails,
+                videoFile,
+                videoOffset,
+                trackPoints: trackPoints?.map(p => ({ latitude: p.lat, longitude: p.long })),
+                trackMapImage: trackMapBase64,
+                generateFeedback: (m, c, i) => generateCloud(m as any, c, i),
+                generateAudio: generateAudio,
+                onStatusUpdate: setGenerationStatus
+            });
+        } catch (e) {
+            console.error(e);
+            setGenerationStatus("Failed: " + (e as Error).message);
+            setTimeout(() => setIsGeneratingReport(false), 2000);
+        } finally {
+            // Don't close immediately on success so user sees "Complete"
+            if (generationStatus !== "Complete!") {
+                // setIsGeneratingReport(false); 
+            } else {
+                setTimeout(() => setIsGeneratingReport(false), 2000);
+            }
+        }
+    };
 
     // Reset messages when restarting (index 0)
     useEffect(() => {
@@ -601,6 +659,16 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                             </button>
                         </div>
                     </div>
+
+                    <button
+                        onClick={handleGenerateReportScoped}
+                        disabled={isGeneratingReport}
+                        className={`p-1.5 rounded-lg transition-all flex items-center gap-2 ${isGeneratingReport ? 'bg-purple-100 text-purple-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                        title="Generate Coach Report"
+                    >
+                        {isGeneratingReport ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+                        {isGeneratingReport && <span className="text-[10px] font-bold hidden sm:inline">{generationStatus}</span>}
+                    </button>
 
                     <button
                         onClick={toggleSettings}

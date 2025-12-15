@@ -1,4 +1,6 @@
 import { useState, useCallback } from "react";
+import { GoogleGenAI, Modality } from '@google/genai';
+import { convertToWav } from '../utils/audioUtils';
 
 export type CloudModel = "flash" | "pro";
 
@@ -33,11 +35,12 @@ export const useGeminiCloud = () => {
   }, []);
 
   const generateFeedback = useCallback(
-    async (model: CloudModel, contextString: string) => {
+    async (model: CloudModel, contextString: string, images?: string[]) => {
       if (!apiKey) {
         setStatus({ state: "error", hasKey: false, error: "API Key missing" });
         return "";
       }
+
 
       setStatus((prev) => ({ ...prev, state: "loading", error: undefined }));
 
@@ -126,22 +129,39 @@ ${contextString}
 ${model === "pro" ? promptPro : promptFlash}
  `;
 
+        // Construct Parts
+        const parts: any[] = [{ text: prompt }];
+
+        if (images) {
+          images.forEach(b64 => {
+            parts.push({
+              inlineData: {
+                mimeType: "image/jpeg",
+                data: b64
+              }
+            });
+          });
+        }
+
         const requestBody: any = {
           contents: [
             {
-              parts: [{ text: prompt }],
+              parts: parts,
             },
           ],
         };
 
+
         if (model === "pro") {
-          // Gemini 1.5 Pro config (or 1.0 Pro if using that)
-          // No systemInstruction field for 1.0 Pro text-only usually, but for 1.5 it is fine.
-          // Let's stick to simple prompt injection in contents for now to be safe across versions, unless using 1.5 specific API
-        } else {
-          // Flash config
-          // requestBody.systemInstruction = { ... } if needing separate system prompt
+          // Gemini 3 Pro Preview with Thinking High
+          (requestBody as any).generationConfig = {
+            thinkingConfig: {
+              thinkingLevel: "high"
+            }
+          };
         }
+
+
 
         const response = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
@@ -177,9 +197,70 @@ ${model === "pro" ? promptPro : promptFlash}
     [apiKey]
   );
 
+  // New: Audio Generation Helper
+  const generateAudio = useCallback(async (text: string, voiceName: string = "Zephyr"): Promise<Blob | null> => {
+    return new Promise<Blob | null>(async (resolve) => {
+      try {
+        const client = new GoogleGenAI({
+          apiKey: apiKey || '',
+          httpOptions: { apiVersion: 'v1alpha' }
+        });
+        const model = 'models/gemini-2.5-pro-preview-tts';
+
+        const config = {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName
+              }
+            }
+          }
+        };
+
+        const response = await client.models.generateContentStream({
+          model,
+          config,
+          contents: [{
+            role: 'user',
+            parts: [{ text: `Task: Read the following text aloud verbatim. Do not add any other words. Text: "${text}"` }]
+          }]
+        });
+
+        const audioParts: string[] = [];
+        let audioMimeType = '';
+
+        for await (const chunk of response) {
+          if (chunk.candidates?.[0]?.content?.parts?.[0]?.inlineData) {
+            const inlineData = chunk.candidates[0].content.parts[0].inlineData;
+            audioParts.push(inlineData.data || '');
+            if (!audioMimeType && inlineData.mimeType) {
+              audioMimeType = inlineData.mimeType;
+            }
+          }
+        }
+
+        if (audioParts.length > 0) {
+          const wavBuffer = convertToWav(audioParts, audioMimeType || 'audio/pcm; rate=24000');
+          resolve(new Blob([wavBuffer], { type: 'audio/wav' }));
+        } else {
+          resolve(null);
+        }
+
+      } catch (e) {
+        console.error("Gemini Pro Audio Gen Failed:", e);
+        resolve(null);
+      }
+    });
+
+  }, [apiKey]);
+
   return {
     status,
     generateFeedback,
+    generateAudio, // Exported but currently no-op
     setApiKey,
+    apiKey // Export apiKey to be used by service
   };
 };
+
