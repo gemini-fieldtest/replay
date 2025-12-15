@@ -205,7 +205,17 @@ export const RealtimeCoach = ({ currentFrame, ghostFrame, currentIndex, laps, id
                     if (isCornering) {
                         phrases = ["Power out of the corner sooner.", "Unwind the wheel and get on gas.", "Late on throttle.", "Trust the rear grip on exit.", "Squeeze the throttle earlier.", "Don't wait, get on the power."];
                     } else {
-                        phrases = ["Get on the gas earlier!", "Hesitating on throttle? Commit!", "Full throttle required!", "Flat out! Why are you lifting?", "Full send! No lifting."];
+                        phrases = [
+                            "Get on the gas earlier!",
+                            "Hesitating on throttle? Commit!",
+                            "Full throttle required!",
+                            "Flat out! Why are you lifting?",
+                            "Full send! No lifting.",
+                            "Don't be a wuss",
+                            "Don't be a wuss",
+                            "Don't be a wuss",
+                            "Don't be a wuss"
+                        ];
                     }
                 } else if (brakeDelta > 20) {
                     if (isCornering) {
