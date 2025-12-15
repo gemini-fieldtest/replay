@@ -13,6 +13,7 @@ import { parseCoachResponse } from '../utils/aiResponseParser';
 import ReactMarkdown from 'react-markdown';
 import { generateCoachReport } from '../services/reportGenerationService';
 import { usePredictiveCoaching } from '../hooks/usePredictiveCoaching';
+import { useSession } from '../contexts/SessionContext'; // Import Session Context
 
 interface PerformanceCoachProps {
     currentFrame: TelemetryFrame | null;
@@ -54,6 +55,9 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
     const trackLocation = useTrackLocation(currentFrame, trackPoints);
     const drivingAnalysis = useDrivingAnalysis(currentFrame);
     const [settingsKey, setSettingsKey] = useState('');
+
+    // Session Management
+    const { addRecommendation, startNewSession, saveSession, isRecording } = useSession();
 
     // Predictive Coach Hook
     const { getAdvice: getPredictiveAdvice } = usePredictiveCoaching({
@@ -429,6 +433,9 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
                 if (isAudioEnabled) {
                     speak(directive); // Speak only the directive
                 }
+
+                // Add to Session Context
+                addRecommendation(newMessage);
             };
 
             // PREDICTIVE STRATEGY LOGIC
@@ -638,6 +645,8 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                                     SAVE KEY
                                 </button>
                             </div>
+
+
                         </div>
                     </div>
                 </div>
@@ -742,12 +751,47 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                     <button
                         onClick={handleGenerateReportScoped}
                         disabled={isGeneratingReport}
-                        className={`p-1.5 rounded-lg transition-all flex items-center gap-2 ${isGeneratingReport ? 'bg-purple-100 text-purple-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                        className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-2 uppercase text-[10px] font-bold ${isGeneratingReport ? 'bg-purple-100 text-purple-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                         title="Generate Coach Report"
                     >
-                        {isGeneratingReport ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
-                        {isGeneratingReport && <span className="text-[10px] font-bold hidden sm:inline">{generationStatus}</span>}
+                        {isGeneratingReport ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+                        <span>{isGeneratingReport ? generationStatus : "Report"}</span>
                     </button>
+
+                    <div className="h-4 w-px bg-gray-200 dark:bg-gray-700 mx-1" />
+
+                    {/* Recording Status Indicator */}
+                    <div
+                        className={`px-2 py-1.5 rounded-lg flex items-center gap-1.5 font-bold text-[10px] select-none ${isRecording
+                            ? 'bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400'
+                            : 'text-gray-400'
+                            }`}
+                        title={isRecording ? "Session Recording Active" : "Session Recording Stopped"}
+                    >
+                        <div className={`w-2 h-2 rounded-full ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-gray-400'}`} />
+                        <span>{isRecording ? "REC" : "OFF"}</span>
+                    </div>
+
+                    {/* Dynamic Action Button: Record -> Save */}
+                    {isRecording ? (
+                        <button
+                            onClick={saveSession}
+                            className="p-1.5 rounded-lg text-green-600 dark:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+                            title="Save & Stop Session"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                        </button>
+                    ) : (
+                        <button
+                            onClick={() => {
+                                startNewSession();
+                            }}
+                            className="p-1.5 rounded-lg text-blue-600 dark:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                            title="Start New Session"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                        </button>
+                    )}
 
                     <button
                         onClick={toggleSettings}

@@ -5,12 +5,15 @@ import './index.css'
 import App from './App.tsx'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider } from "./components/ThemeProvider";
+import { SessionProvider } from './contexts/SessionContext';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-        <App />
+        <SessionProvider>
+          <App />
+        </SessionProvider>
       </ThemeProvider>
     </BrowserRouter>
   </StrictMode>,
