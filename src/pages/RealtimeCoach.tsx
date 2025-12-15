@@ -509,7 +509,7 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                     <div className="flex items-center gap-2 border-l border-gray-200 dark:border-gray-700 pl-4">
                         <Brain size={16} className="text-purple-400" />
                         <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
-                            {(['code', 'nano'] as CoachMode[]).map((m) => (
+                            {(['code', 'nano', 'flash', 'pro'] as CoachMode[]).map((m) => (
                                 <button
                                     key={m}
                                     onClick={() => setMode(m)}
