@@ -137,13 +137,16 @@ Based on the following race report and driver score, verify the key facts and ge
 Host: "Chip" (Energetic, American, asking questions).
 Expert: "Stig" (British, dry wit, deep technical knowledge, the Coach).
 
-The script should be about 5 minutes long (approx 750 words).
-Ensure they discuss the Driver Score (Total and specific weak/strong areas).
+The script MUST be long and detailed, approximately 5 minutes spoken length (target 750 words).
+It should contain at least 15-20 dialogue turns between the speakers.
+Ensure they discuss the Driver Score (Total and specific weak/strong areas) in depth.
 
-Format the output as JSON:
+Format the output as a valid JSON Array of objects. Do not wrap in markdown code blocks.
+Example Structure:
 [
-  { "speaker": "Chip", "text": "..." },
-  { "speaker": "Stig", "text": "..." }
+  { "speaker": "Chip", "text": "Welcome back..." },
+  { "speaker": "Stig", "text": "Thanks..." },
+  ... (continue for at least 15 turns)
 ]
 Only return the JSON.
 

@@ -124,14 +124,9 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
         } catch (e) {
             console.error(e);
             setGenerationStatus("Failed: " + (e as Error).message);
-            setTimeout(() => setIsGeneratingReport(false), 2000);
         } finally {
-            // Don't close immediately on success so user sees "Complete"
-            if (generationStatus !== "Complete!") {
-                // setIsGeneratingReport(false); 
-            } else {
-                setTimeout(() => setIsGeneratingReport(false), 2000);
-            }
+            // Always close after a delay to show the final status (Complete or Failed)
+            setTimeout(() => setIsGeneratingReport(false), 2000);
         }
     };
 
