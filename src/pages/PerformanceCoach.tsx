@@ -475,7 +475,8 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
             contextString += `Status: ${performanceStats.isNewBest ? 'NEW BEST DETECTED' : performanceStats.isFaster ? 'GAINING TIME' : performanceStats.isGoodLine ? 'MATCHING PACE' : 'LOSING TIME'}\n`;
 
             // Use the determined messageText as base for AI or output directly if code
-            if (mode === 'code') {
+            // Predictive messages are pre-formulated and specific, so we bypass LLM summarization to ensure accuracy.
+            if (mode === 'code' || isPredictiveTrigger) {
                 // Direct generation
                 const newMessage: CoachMessage = {
                     id: now,
