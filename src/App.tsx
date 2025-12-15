@@ -1,15 +1,18 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
 
-import { RealtimePage } from './pages/RealtimePage';
-import { ReplayPage } from './pages/ReplayPage';
+const RealtimePage = lazy(() => import('./pages/RealtimePage').then(module => ({ default: module.RealtimePage })));
+const ReplayPage = lazy(() => import('./pages/ReplayPage').then(module => ({ default: module.ReplayPage })));
 
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<RealtimePage />} />
-      <Route path="/replay" element={<ReplayPage />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
+      <Routes>
+        <Route path="/" element={<RealtimePage />} />
+        <Route path="/replay" element={<ReplayPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   );
 }
 

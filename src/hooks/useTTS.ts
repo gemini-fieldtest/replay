@@ -8,22 +8,6 @@ interface TTSOptions {
   apiKey?: string;
 }
 
-interface WavConversionOptions {
-  numChannels: number;
-  sampleRate: number;
-  bitsPerSample: number;
-}
-
-interface TTSOptions {
-  apiKey?: string;
-}
-
-interface WavConversionOptions {
-  numChannels: number;
-  sampleRate: number;
-  bitsPerSample: number;
-}
-
 export const useTTS = (options: TTSOptions = {}) => {
   const [isEnabled, setIsEnabled] = useState(false);
   const [provider, setProvider] = useState<TTSProvider>('browser');
@@ -69,13 +53,6 @@ export const useTTS = (options: TTSOptions = {}) => {
       console.warn('[useTTS] Already fetching audio, ignoring request:', text);
       return;
     }
-
-    // Only cancel if we are NOT fetching (i.e. we are playing).
-    // If we are playing, the user might want to override with a new blocked request...
-    // But the requirement is "only send 1 request ... until we get response back".
-    // So if we are playing, fetching is false, so we CAN start fetching.
-    // And when we start fetching, we should probably stop the current playback?
-    // Standard TTS behavior is to stop previous.
 
     // Cancel any current speech
     window.speechSynthesis.cancel();
@@ -164,10 +141,6 @@ export const useTTS = (options: TTSOptions = {}) => {
   Just read the text.`
             }]
           },
-          contextWindowCompression: {
-            triggerTokens: '25600',
-            slidingWindow: { targetTokens: '12800' },
-          },
         };
 
         const audioParts: string[] = [];
@@ -181,9 +154,6 @@ export const useTTS = (options: TTSOptions = {}) => {
               console.log('[useTTS] Gemini Session Opened');
             },
             onmessage: (message: LiveServerMessage) => {
-              // ... same logic usually, maybe omit logs for brevity in this full replacement if I can, but I'll keeping it safe
-              // Actually I can't rely on existing code if I replace deeply.
-              // I will try to match what was there.
               console.log('[useTTS] Received message', message);
               if (message.serverContent?.modelTurn?.parts) {
                 const part = message.serverContent?.modelTurn?.parts?.[0];
@@ -306,17 +276,6 @@ export const useTTS = (options: TTSOptions = {}) => {
           clearTimeout(timeoutId);
 
           if (audioParts.length > 0) {
-            // Pro snippet used Buffer.from(base64) and concat.
-            // convertToWav does logic for multiple chunks.
-            // Note: Pro chunks are likely PCM without header? 
-            // Snippet said "convertToWav" inside loop IF header needed?
-            // Wait, the snippet had a convertToWav that created a header for EACH chunk.
-            // If the stream returns full valid audio files in pieces, concatting them might not work if they have headers.
-            // But usually Google TTS stream returns PCM chunks.
-            // If inlineData.mimeType is 'audio/pcm; rate=24000', then it's PCM.
-            // convertToWav handles adding ONE header to the TOTAL PCM.
-            // So accumulating all parts into audioParts and calling convertToWav at the end should be correct.
-
             const wavBuffer = convertToWav(audioParts, audioMimeType || 'audio/pcm; rate=24000');
             isFetchingRef.current = false;
             playAudioBuffer(wavBuffer, audioContextRef, () => setIsSpeaking(false));
@@ -331,13 +290,6 @@ export const useTTS = (options: TTSOptions = {}) => {
           setIsSpeaking(false);
         }
       }
-
-      // Note: we can't clear timeout here easily because onmessage is where we end.
-      // But we can store it in a ref or just let it race (if we finish early, we manually check in message?).
-      // Actually, simple way: attach timeout clearing to the session closing logic or success.
-      // Let's rely on isFetchingRef. If onmessage finishes, it sets isFetchingRef = false. 
-      // Then the timeout callback sees it's false and does nothing. 
-      // Perfect.
     } catch (error) {
       console.error("TTS Error:", error);
       setIsSpeaking(false);
@@ -405,7 +357,3 @@ async function playAudioBuffer(bytes: Uint8Array, audioContextRef: React.Mutable
     audioContext.close();
   }
 }
-
-
-
-
