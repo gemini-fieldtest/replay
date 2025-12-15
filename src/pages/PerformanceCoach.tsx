@@ -12,6 +12,7 @@ import { useDrivingAnalysis } from '../hooks/useDrivingAnalysis';
 import { parseCoachResponse } from '../utils/aiResponseParser';
 import ReactMarkdown from 'react-markdown';
 import { generateCoachReport } from '../services/reportGenerationService';
+import { usePredictiveCoaching } from '../hooks/usePredictiveCoaching';
 
 interface PerformanceCoachProps {
     currentFrame: TelemetryFrame | null;
@@ -31,17 +32,20 @@ interface CoachMessage {
     text: string;
     type: 'positive' | 'neutral' | 'info';
     timestamp: number;
-    mode?: 'code' | 'nano' | 'flash' | 'pro';
+    mode?: CoachMode;
     telemetryTime: number;
     generationTime?: number;
     analysis?: string;
+    isPredictive?: boolean;
 }
 
 type CoachMode = 'code' | 'nano' | 'flash' | 'pro';
+type CoachingStrategy = 'reactive' | 'predictive';
 
-export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame, ghostFrame, currentIndex, laps, trackPoints = [], trackDetails = '', gpsOnly = false, videoFile, videoOffset = 0 }) => {
+export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame, ghostFrame, currentIndex, laps, idealLap, trackPoints = [], trackDetails = '', gpsOnly = false, videoFile, videoOffset = 0 }) => {
     const [messages, setMessages] = useState<CoachMessage[]>([]);
     const [mode, setMode] = useState<CoachMode>('nano');
+    const [strategy, setStrategy] = useState<CoachingStrategy>('reactive');
     const [showSettings, setShowSettings] = useState(false);
     const lastMessageTimeRef = useRef<number>(0);
     const { status: nanoStatus, generateFeedback: generateNano } = useGeminiNano();
@@ -50,6 +54,14 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
     const trackLocation = useTrackLocation(currentFrame, trackPoints);
     const drivingAnalysis = useDrivingAnalysis(currentFrame);
     const [settingsKey, setSettingsKey] = useState('');
+
+    // Predictive Coach Hook
+    const { getAdvice: getPredictiveAdvice } = usePredictiveCoaching({
+        laps,
+        currentFrame,
+        idealLap,
+        isEnabled: strategy === 'predictive'
+    });
 
     // TTS Hook
     const {
@@ -218,112 +230,6 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
                     "Lost some speed there, try to carry more momentum.",
                     "Losing time, push harder!"
                 ];
-
-                // Specific Feedback Logic (simplified for this example, assuming ghostFrame is available)
-                if (ghostFrame) {
-                    const throttleDelta = ghostFrame.throttle - currentFrame!.throttle;
-                    const brakeDelta = currentFrame!.brake - ghostFrame.brake;
-                    const isCornering = Math.abs(currentFrame!.gForceLat) > 0.5;
-                    const isCoasting = currentFrame!.throttle < 5 && currentFrame!.brake < 5;
-                    const gearMismatch = currentFrame!.gear !== ghostFrame.gear;
-                    const steeringDelta = Math.abs(currentFrame!.steering) - Math.abs(ghostFrame.steering);
-                    const brakePressureDelta = ghostFrame.brakePressure - currentFrame!.brakePressure;
-                    const rpmDelta = ghostFrame.rpm - currentFrame!.rpm;
-
-                    if (isCoasting && ghostFrame.throttle > 10) {
-                        phrases = [
-                            "Don't coast! Get back on power.",
-                            "Too much hesitation between brake and throttle.",
-                            "You're coasting, keep the momentum up.",
-                            "Minimize the time off pedals.",
-                            "No coasting allowed! Power or brakes.",
-                            "You're floating. Commit to a pedal."
-                        ];
-                    } else if (gearMismatch && currentFrame!.gear > ghostFrame.gear) {
-                        phrases = [
-                            `Downshift! Gear ${ghostFrame.gear} recommended.`,
-                            "Too high a gear for this corner.",
-                            "Engine bogging? Drop a gear.",
-                            "Use engine braking, downshift.",
-                            `Recommended gear: ${ghostFrame.gear}.`,
-                            "Revs are too low, shift down."
-                        ];
-                    } else if (steeringDelta > 15 && isCornering) {
-                        phrases = [
-                            "You're scrubbing speed with too much steering.",
-                            "Unwind the wheel, you're understeering.",
-                            "Smoother steering inputs needed.",
-                            "Let the car run wide on exit.",
-                            "Fighting the wheel too much.",
-                            "Less steering angle, more rotation."
-                        ];
-                    } else if (brakePressureDelta > 10 && currentFrame!.brake > 0) {
-                        phrases = [
-                            "Press the brake harder!",
-                            "More brake pressure required.",
-                            "Maximize your braking efficiency.",
-                            "Don't be afraid to stomp on the brakes.",
-                            "More initial bite on the brakes.",
-                            "Threshold braking! Push harder."
-                        ];
-                    } else if (rpmDelta > 1000 && currentFrame!.throttle > 90) {
-                        phrases = [
-                            "Shift up! You're hitting the limiter.",
-                            "Late shift? Watch your RPMs.",
-                            "Shift earlier.",
-                            "Optimize your shift points.",
-                            "Don't bounce off the limiter.",
-                            "Shift now!"
-                        ];
-                    } else if (throttleDelta > 20) {
-                        if (isCornering) {
-                            phrases = [
-                                "Power out of the corner sooner.",
-                                "Unwind the wheel and get on gas.",
-                                "Late on throttle.",
-                                "Trust the rear grip on exit.",
-                                "Squeeze the throttle earlier.",
-                                "Don't wait, get on the power."
-                            ];
-                        } else {
-                            phrases = [
-                                "Get on the gas earlier!",
-                                "Hesitating on throttle? Commit!",
-                                "Full throttle required!",
-                                "Flat out! Why are you lifting?",
-                                "Full send! No lifting."
-                            ];
-                        }
-                    } else if (brakeDelta > 20) {
-                        if (isCornering) {
-                            phrases = [
-                                "Trail braking too much?",
-                                "Release the brake to let the car turn.",
-                                "Overslowing mid-corner.",
-                                "Off the brakes to rotate.",
-                                "Let it roll through the apex."
-                            ];
-                        } else {
-                            phrases = [
-                                "Braking too early?",
-                                "Trust the brakes, brake later.",
-                                "Overslowing on entry.",
-                                "Don't ride the brakes.",
-                                "Brake later and harder.",
-                                "Attack the braking zone."
-                            ];
-                        }
-                    } else if (isCornering && Math.abs(perfStats.speedDelta) > 15) {
-                        phrases = [
-                            "Minimum corner speed is too low.",
-                            "Carry more speed to the apex.",
-                            "Trust the grip mid-corner.",
-                            "You're parking it on the apex.",
-                            "Roll more speed in.",
-                            "Don't overslow for the corner."
-                        ];
-                    }
-                }
                 baseText = phrases[Math.floor(Math.random() * phrases.length)];
                 msgType = 'info';
             }
@@ -382,7 +288,65 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
         const COOLDOWN = 8000;
 
         if (shouldTrigger && timeSinceLastCall > COOLDOWN) {
-            const heuristicMessage = getCoachMessage(performanceStats);
+
+            const generateAndAddMessage = async (text: string, msgType: 'positive' | 'neutral' | 'info', messageMode: CoachMode, genDuration?: number, explicitAnalysis?: string) => {
+                const { directive, analysis } = parseCoachResponse(text);
+
+                // Add visual tag for predictive
+                const finalDirective = isPredictiveTrigger ? `[PREDICTIVE] ${directive}` : directive;
+
+                const newMessage: CoachMessage = {
+                    id: now,
+                    text: finalDirective,
+                    type: msgType,
+                    timestamp: now,
+                    mode: messageMode,
+                    telemetryTime: currentFrame.time,
+                    generationTime: genDuration,
+                    analysis: explicitAnalysis || analysis || undefined,
+                    isPredictive: isPredictiveTrigger && messageMode !== 'code' // Only flag if not code? Or always?
+                };
+                // If code mode has [PREDICTIVE] text prefix, we might duplicate label if we also set isPredictive.
+                // Let's rely on isPredictive property for UI label, and keep text clean?
+                // Actually my 'code' logic below modifies text. 
+                // Let's make generateAndAddMessage clean:
+
+                newMessage.text = directive; // Reset to clean directive
+                if (isPredictiveTrigger) newMessage.isPredictive = true;
+
+                setMessages(prev => [newMessage, ...prev.slice(0, historyLength - 1)]);
+                lastMessageTimeRef.current = now;
+                if (isAudioEnabled) {
+                    speak(directive); // Speak only the directive
+                }
+            };
+
+            // PREDICTIVE STRATEGY LOGIC
+            let messageText: string | null = null;
+            let messageType: 'positive' | 'neutral' | 'info' = 'info';
+            let isPredictiveTrigger = false;
+
+            if (strategy === 'predictive') {
+                const predictiveMsg = getPredictiveAdvice();
+                if (predictiveMsg) {
+                    messageText = predictiveMsg.text;
+                    messageType = predictiveMsg.type;
+                    isPredictiveTrigger = true;
+                    triggerReason = "Predictive Alert: Approaching Mistake Zone";
+                }
+            }
+
+            if (strategy === 'predictive' && !messageText) {
+                return;
+            }
+
+            if (!messageText) {
+                const heuristicMessage = getCoachMessage(performanceStats);
+                messageText = heuristicMessage.text;
+                messageType = heuristicMessage.type;
+            }
+
+            if (!messageText) return; // Nothing to say
 
             // Context for AI models
             let contextString = `
@@ -391,75 +355,56 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
 `;
             if (signalQuality.isGearActive && currentFrame.gear !== 255) contextString += `Gear: ${currentFrame.gear}\n`;
             if (signalQuality.isGForceActive) contextString += `Lat G: ${currentFrame.gForceLat.toFixed(2)}\n`;
-            const throttleVal = currentFrame.throttle < 2 ? 0 : currentFrame.throttle;
-            const brakeVal = currentFrame.brake < 2 ? 0 : currentFrame.brake;
-            if (signalQuality.isThrottleActive) contextString += `Throttle: ${throttleVal.toFixed(0)}%\n`;
-            if (signalQuality.isBrakeActive) contextString += `Brake: ${brakeVal.toFixed(0)}%\n`;
 
             if (trackLocation) contextString += `Location: ${trackLocation}\n`;
-
-            if (drivingAnalysis.phase && drivingAnalysis.phase !== 'Straight') contextString += `Phase: ${drivingAnalysis.phase}\n`;
-            contextString += `Grip Usage: ${drivingAnalysis.gripUsage}G\n`;
-            if (drivingAnalysis.smoothnessScore < 70) contextString += `Smoothness: ${drivingAnalysis.smoothnessScore} (Rough)\n`;
-            if (drivingAnalysis.gradient) contextString += `Gradient: ${drivingAnalysis.gradient}%\n`;
-            if (drivingAnalysis.rpmBand === 'Over-rev') contextString += `RPM: ${currentFrame.rpm} (Over-revving!)\n`;
-
             if (trackDetails) contextString += `Track Info: ${trackDetails}\n`;
 
             contextString += `Status: ${performanceStats.isNewBest ? 'NEW BEST DETECTED' : performanceStats.isFaster ? 'GAINING TIME' : performanceStats.isGoodLine ? 'MATCHING PACE' : 'LOSING TIME'}\n`;
-            contextString += `Directives: Use Catalyst vocabulary. If status is 'NEW BEST', say "New Best". Otherwise, give specific instruction like "Brake later".\n`;
 
-
-            const generateAndAddMessage = async (text: string, msgType: 'positive' | 'neutral' | 'info', messageMode: CoachMode, genDuration?: number, explicitAnalysis?: string) => {
-                const { directive, analysis } = parseCoachResponse(text);
-
+            // Use the determined messageText as base for AI or output directly if code
+            if (mode === 'code') {
+                // Direct generation
                 const newMessage: CoachMessage = {
                     id: now,
-                    text: directive,
-                    type: msgType,
+                    text: messageText,
+                    type: messageType,
                     timestamp: now,
-                    mode: messageMode,
+                    mode: 'code',
                     telemetryTime: currentFrame.time,
-                    generationTime: genDuration,
-                    analysis: explicitAnalysis || analysis || undefined
+                    isPredictive: isPredictiveTrigger
                 };
                 setMessages(prev => [newMessage, ...prev.slice(0, historyLength - 1)]);
-                lastMessageTimeRef.current = now;
-                if (isAudioEnabled) {
-                    speak(directive); // Speak only the directive
-                }
-            };
-
-            if (mode === 'code') {
-                if (heuristicMessage.text) {
-                    generateAndAddMessage(heuristicMessage.text, heuristicMessage.type, 'code');
-                    lastCallTime.current = now;
-                }
+                if (isAudioEnabled) speak(newMessage.text);
+                lastCallTime.current = now;
             }
             else if (mode === 'nano' && nanoStatus.state === 'ready') {
                 (async () => {
                     const genStartTime = performance.now();
-                    // Pass only context, no heuristic hint
-                    const nanoInput = `Trigger: ${triggerReason}.\n${contextString}`;
+                    const nanoInput = isPredictiveTrigger
+                        ? `Predictive Warning: ${messageText}.\n Context: ${contextString}`
+                        : `Trigger: ${triggerReason}.\n${contextString}`;
+
                     const nanoText = await generateNano(nanoInput);
                     const genDuration = performance.now() - genStartTime;
                     if (nanoText) {
-                        generateAndAddMessage(nanoText, heuristicMessage.type, 'nano', genDuration, nanoInput);
+                        generateAndAddMessage(nanoText, messageType, 'nano', genDuration, nanoInput);
                     }
                 })();
                 lastCallTime.current = now;
             }
             else if ((mode === 'flash' || mode === 'pro') && cloudStatus.hasKey) {
-                if (serializeRequests && cloudStatus.state === 'loading') {
-                    return; // Prevent overlapping requests
-                }
+                if (serializeRequests && cloudStatus.state === 'loading') return;
+
                 (async () => {
                     const genStartTime = performance.now();
-                    // Swapped arguments: model, context, (optional hint removed)
-                    const cloudText = await generateCloud(mode, contextString);
+                    const prompt = isPredictiveTrigger
+                        ? `This is a PREDICTIVE warning about an upcoming mistake. \nContext: ${messageText}\nData:\n${contextString}`
+                        : contextString;
+
+                    const cloudText = await generateCloud(mode, prompt);
                     const genDuration = performance.now() - genStartTime;
                     if (cloudText) {
-                        generateAndAddMessage(cloudText, heuristicMessage.type, mode, genDuration);
+                        generateAndAddMessage(cloudText, messageType, mode, genDuration);
                     }
                 })();
                 lastCallTime.current = now;
@@ -595,8 +540,32 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                 </div>
 
                 <div className="flex items-center gap-4">
-                    {/* Intelligence Group */}
                     <div className="flex items-center gap-2">
+                        <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5 border border-gray-200 dark:border-gray-700">
+                            <button
+                                onClick={() => setStrategy('reactive')}
+                                className={`px-3 py-1 rounded-md text-[10px] uppercase font-bold transition-all ${strategy === 'reactive'
+                                    ? 'bg-blue-600 text-white shadow-sm'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                                    }`}
+                            >
+                                Reactive
+                            </button>
+                            <button
+                                onClick={() => setStrategy('predictive')}
+                                className={`px-3 py-1 rounded-md text-[10px] uppercase font-bold transition-all flex items-center gap-1 ${strategy === 'predictive'
+                                    ? 'bg-teal-600 text-white shadow-sm'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                                    }`}
+                            >
+                                <TrendingUp size={10} />
+                                Predictive
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Intelligence Group */}
+                    <div className="flex items-center gap-2 border-l border-gray-200 dark:border-gray-700 pl-4">
                         <Brain size={16} className="text-purple-400" />
                         <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
                             {(['code', 'nano', 'flash', 'pro'] as CoachMode[]).map((m) => (
@@ -773,6 +742,13 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                                                     <Settings size={10} /> Pro
                                                 </span>
                                                 {msg.generationTime && <span className="text-gray-500 text-[10px] ml-1">Gen: {msg.generationTime.toFixed(0)}ms</span>}
+                                            </>
+                                        )}
+                                        {msg.isPredictive && (
+                                            <>
+                                                <span className="inline-flex items-center gap-1 text-teal-600 dark:text-teal-400 border-l border-gray-300 dark:border-gray-700 pl-2" title="Predictive Analysis">
+                                                    <TrendingUp size={10} /> Predictive
+                                                </span>
                                             </>
                                         )}
                                     </span>
