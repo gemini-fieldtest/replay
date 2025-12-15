@@ -29,6 +29,9 @@ export const usePredictiveCoaching = ({ laps, currentFrame, idealLap, isEnabled,
 
     // 1. Analyze Past Laps to identify Mistake Zones
     const mistakeZones = useMemo(() => {
+        // [DEBUG] Pipeline Start
+        // console.log("PredictiveCoaching: Recalculating Zones", { enabled: isEnabled, laps: laps.length, ideal: !!idealLap });
+
         if (!isEnabled || laps.length < 1 || !idealLap) return [];
 
         const zones: MistakeZone[] = [];
@@ -41,8 +44,19 @@ export const usePredictiveCoaching = ({ laps, currentFrame, idealLap, isEnabled,
         // If 'laps' contains ONLY completed laps, then laps[last] is the previous lap.
         // If 'laps' includes current incomplete lap, we need to filter.
 
-        const referenceLap = laps.filter(l => l.isComplete).pop();
-        if (!referenceLap) return [];
+        // Filter laps to only include those completed BEFORE the current frame
+        // This handles Replay mode where 'laps' contains the full session history.
+        const validHistoryLaps = currentFrame
+            ? laps.filter(l => l.isComplete && l.frames[l.frames.length - 1].time < currentFrame.time)
+            : laps.filter(l => l.isComplete);
+
+        const referenceLap = validHistoryLaps.pop();
+        if (!referenceLap) {
+            console.log("PredictiveCoaching: No valid reference lap found before current time.");
+            return [];
+        }
+
+        console.log("PredictiveCoaching: Using Reference Lap", { index: referenceLap.lapIndex, time: referenceLap.lapTime });
 
         // Compare Reference Lap to Ideal Lap
         // We assume both are somewhat aligned or we align them by distance
@@ -105,12 +119,7 @@ export const usePredictiveCoaching = ({ laps, currentFrame, idealLap, isEnabled,
                     // Filter: Only significant zones (> 20 meters long?)
                     if ((currentMistake.endDist! - currentMistake.startDist!) > 20) {
                         const zone = currentMistake as MistakeZone;
-                        // Find frame index for start of mistake (approximate logic since we iterated)
-                        // We started recording when `recordingMistake` became true.
-                        // We need to track the index where it started. 
-                        // Let's modify the recording loop to capture `startIndex`.
-                        // But since we can't easily jump back, let's use the stored distance to search or just enhance the loop.
-                        // Actually, adding `startIndex` to MistakeZone is better.
+                        console.log("PredictiveCoaching: Mistake Zone Found", zone);
                         zones.push(zone);
                     }
                     currentMistake = null;
@@ -157,6 +166,8 @@ export const usePredictiveCoaching = ({ laps, currentFrame, idealLap, isEnabled,
 
                 // --- NEW LOGIC START ---
                 // If the user is losing speed at a known point, use the specific advice!
+                console.log("PredictiveCoaching: Mapped Zone to Point", { zoneStart: zone.startDist, point: name, advice: bestPoint.advice });
+
                 let specificAdvice = bestPoint.advice; // Directly use advice from TrackPoint
 
                 return { ...zone, locationName: name, specificAdvice };
@@ -230,6 +241,8 @@ export const usePredictiveCoaching = ({ laps, currentFrame, idealLap, isEnabled,
         // We look for a zone that STARTS near targetDist
         // Tolerance: +/- 20m
 
+        // console.log("PredictiveCoaching: Checking for upcoming mistakes", { currentDist, targetDist, speed });
+
         const upcomingMistake = mistakeZones.find(z => {
             return (z.startDist >= targetDist - 30 && z.startDist <= targetDist + 30);
         });
@@ -238,10 +251,17 @@ export const usePredictiveCoaching = ({ laps, currentFrame, idealLap, isEnabled,
             // Check cooldown
             if (upcomingMistake.startDist !== lastTriggeredZone) {
                 setLastTriggeredZone(upcomingMistake.startDist);
+                console.log("PredictiveCoaching: Triggering Advice", {
+                    dist: upcomingMistake.startDist,
+                    speedDelta: upcomingMistake.avgSpeedDelta,
+                    advice: getAdviceText(upcomingMistake)
+                });
                 return {
                     text: `Heads up: You lost ${Math.abs(upcomingMistake.avgSpeedDelta).toFixed(0)} km/h here last lap. ${getAdviceText(upcomingMistake)}`,
                     type: 'info' as const
                 };
+            } else {
+                console.log("PredictiveCoaching: Zone skipped (cooldown)", upcomingMistake.startDist);
             }
         } else {
             // Reset trigger if we are far past it? 
