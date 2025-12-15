@@ -15,7 +15,7 @@ export function useRealtimeTelemetry(
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const [isLive, setIsLive] = useState(true);
+  const [isLive, setIsLive] = useState(false); // Default to paused/ready
 
   // Internal buffer of the full session history (for static map/track bounds)
   const bufferRef = useRef<TelemetryFrame[]>([]);
@@ -62,8 +62,7 @@ export function useRealtimeTelemetry(
       }
 
       console.log(
-        `Connecting to SSE: ${sourceUrl} (Attempt ${
-          failedAttemptsRef.current + 1
+        `Connecting to SSE: ${sourceUrl} (Attempt ${failedAttemptsRef.current + 1
         })`
       );
 
@@ -250,6 +249,17 @@ export function useRealtimeTelemetry(
       }
     };
 
+    // Explicit Session Reset
+    const resetSession = () => {
+      setData([]);
+      bufferRef.current = [];
+      // Optional: Keep current frame or clear it? Clearing it might flash UI. 
+      // Let's keep current frame but clear history.
+      // Actually, if we reset, we probably want to restart the "lap" detection.
+      // Laps are derived from data, so clearing data clears laps.
+      console.log("Session Reset");
+    };
+
     // Start connection
     failedAttemptsRef.current = 0; // Reset on source change
     if (
@@ -263,6 +273,13 @@ export function useRealtimeTelemetry(
 
     return cleanup;
   }, [sourceUrl]); // Removed isLive from dependency to prevent reconnects on pause, handled via ref check
+
+  // Explicit Session Reset
+  const resetSession = () => {
+    setData([]);
+    bufferRef.current = [];
+    console.log("Session Reset");
+  };
 
   // CSV Playback State
   const csvDataRef = useRef<TelemetryFrame[]>([]);
@@ -596,6 +613,8 @@ export function useRealtimeTelemetry(
     getGhostFrame,
     isPlaying: isLive,
     togglePlay: () => setIsLive(!isLive),
+    setIsPlaying: setIsLive, // Expose setter for explicit control
     fullTrackBuffer: data, // Expose full buffer if needed
+    resetSession
   };
 }

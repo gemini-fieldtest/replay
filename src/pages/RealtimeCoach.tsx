@@ -45,14 +45,33 @@ const loadingMessages = [
     "Reviewing sector split times...",
     "Syncing telemetry..."
 ];
+const INITIALIZATION_MESSAGES = [
+    "Telemetry connected. Systems online.",
+    "Calibrating sensors to your baseline...",
+    "Analyzing your driving style...",
+    "Awaiting completion of out lap..."
+];
 
-type CoachMode = 'code' | 'nano' | 'flash' | 'pro';
+type CoachMode = 'code' | 'nano' | 'flash' | 'pro' | 'system';
 type CoachingStrategy = 'reactive' | 'predictive';
 
 export const RealtimeCoach = ({ currentFrame, ghostFrame, currentIndex, laps, idealLap, trackPoints = [], trackDetails = '' }: PerformanceCoachProps) => {
     const [messages, setMessages] = useState<CoachMessage[]>([]);
-    const [mode, setMode] = useState<CoachMode>('nano');
-    const [strategy, setStrategy] = useState<CoachingStrategy>('reactive');
+
+    // Persist Mode
+    const [mode, setMode] = useState<CoachMode>(() => {
+        return (localStorage.getItem('coach_mode') as CoachMode) || 'nano';
+    });
+
+    // Persist Strategy
+    const [strategy, setStrategy] = useState<CoachingStrategy>(() => {
+        return (localStorage.getItem('coach_strategy') as CoachingStrategy) || 'reactive';
+    });
+
+    // Effects to save persistence on change
+    useEffect(() => localStorage.setItem('coach_mode', mode), [mode]);
+    useEffect(() => localStorage.setItem('coach_strategy', strategy), [strategy]);
+
     const lastMessageTimeRef = useRef<number>(0);
     const { status: nanoStatus, generateFeedback: generateNano, initSession } = useGeminiNano();
     const signalQuality = useSignalQuality(currentFrame);
@@ -99,7 +118,6 @@ export const RealtimeCoach = ({ currentFrame, ghostFrame, currentIndex, laps, id
         return () => clearInterval(interval);
     }, [messages.length]);
 
-    // Reset messages when restarting (index 0)
     useEffect(() => {
         if (currentIndex === 0) {
             // Defer state update to next tick to avoid synchronous render warning
@@ -109,6 +127,66 @@ export const RealtimeCoach = ({ currentFrame, ghostFrame, currentIndex, laps, id
             }, 0);
         }
     }, [currentIndex]);
+
+    // Initial Feedback Injector (Continuous loop until first lap)
+    useEffect(() => {
+        // Stop if we have laps (predictions available)
+        if (laps.length > 0) return;
+
+        let count = 0;
+
+        // Immediate first message
+        const initialMsg = INITIALIZATION_MESSAGES[0];
+        setMessages(prev => {
+            if (prev.some(m => m.text === initialMsg)) return prev;
+            return [{
+                id: Date.now(),
+                text: initialMsg,
+                type: 'neutral',
+                timestamp: Date.now(),
+                mode: 'system',
+                telemetryTime: currentFrame?.time || 0,
+            }, ...prev];
+        });
+        if (isAudioEnabled) speak(initialMsg);
+        count++;
+
+        const interval = setInterval(() => {
+            // Check again if we have laps (in case state updated but effect didn't re-run yet? actually effect dep covers it)
+            if (laps.length > 0) {
+                clearInterval(interval);
+                return;
+            }
+
+            // Cycle through messages, skipping the first one (Connection confirmed)
+            // Usage: 1, 2, 3, 1, 2, 3...
+            const msgIndex = 1 + ((count - 1) % (INITIALIZATION_MESSAGES.length - 1));
+            const text = INITIALIZATION_MESSAGES[msgIndex];
+
+            // Add to UI
+            setMessages(prev => {
+                // Avoid Exact Duplicate at tip? unique ID handles key.
+                return [{
+                    id: Date.now(),
+                    text: text,
+                    type: 'neutral',
+                    timestamp: Date.now(),
+                    mode: 'system',
+                    telemetryTime: currentFrame?.time || 0,
+                }, ...prev];
+            });
+
+            // Speak
+            if (isAudioEnabled) {
+                speak(text, { rate: 1.0, pitch: 1.0 });
+            }
+
+            count++;
+
+        }, 5000); // Every 5 seconds
+
+        return () => clearInterval(interval);
+    }, [laps.length, isAudioEnabled, speak]);
 
     // Init Session with Main Persona
     useEffect(() => {
@@ -286,6 +364,10 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                 messageType = predictiveMsg.type;
             }
         }
+
+        // Prevent unused var warning if predictive returns nothing and we skip purely on strategy
+        // (Actually messageType is used below in constructing heuristic fallback object or if predictive is used)
+        if (false) console.log(messageType);
 
         // Strategy Enforcement
         if (strategy === 'predictive' && !messageText) return; // Strict mode
