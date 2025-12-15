@@ -1,5 +1,6 @@
 import type { TelemetryFrame } from '../utils/telemetryParser';
 import type { LapData } from '../utils/lapAnalysis';
+import { calculateDriverScore } from '../utils/lapAnalysis';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import type { CloudModel } from '../hooks/useGeminiCloud';
@@ -40,11 +41,15 @@ export const generateCoachReport = async ({
     const avgLap = validLaps.reduce((sum, l) => sum + l.lapTime, 0) / totalLaps;
     const consistency = Math.sqrt(validLaps.reduce((sum, l) => sum + Math.pow(l.lapTime - avgLap, 2), 0) / totalLaps).toFixed(3);
 
+    const driverScore = calculateDriverScore(validLaps);
+
     const contextStats = `
 Total Valid Laps: ${totalLaps}
 Best Lap: ${bestLap ? bestLap.lapTime.toFixed(3) : 'N/A'}
 Consistency (Std Dev): ${consistency}s
 Track: ${trackDetails.slice(0, 100)}...
+
+${driverScore.details}
     `;
 
     // Process Track Points for Context
@@ -97,6 +102,9 @@ Structure:
 ## Executive Summary
 [High level view of pace and consistency]
 
+## Driver Score
+[Present the breakdown provided in the context]
+
 ## Key Areas for Improvement
 [Bulleted list based on data]
 
@@ -125,20 +133,28 @@ Min Speed (Apex): ${Math.min(...(bestLap?.frames.map(f => f.speed) || [0])).toFi
     // 4. Podcast Script Generation
     onStatusUpdate("Drafting Podcast Script...");
     const scriptPrompt = `
-Based on the following race report, verify the key facts and generate a 2-person podcast script.
+Based on the following race report and driver score, verify the key facts and generate a 2-person podcast script.
 Host: "Chip" (Energetic, American, asking questions).
 Expert: "Stig" (British, dry wit, deep technical knowledge, the Coach).
 
-The script should be about 5 minutes long (approx 750 words).
-Format the output as JSON:
+The script MUST be long and detailed, approximately 5 minutes spoken length (target 750 words).
+It should contain at least 15-20 dialogue turns between the speakers.
+Ensure they discuss the Driver Score (Total and specific weak/strong areas) in depth.
+
+Format the output as a valid JSON Array of objects. Do not wrap in markdown code blocks.
+Example Structure:
 [
-  { "speaker": "Chip", "text": "..." },
-  { "speaker": "Stig", "text": "..." }
+  { "speaker": "Chip", "text": "Welcome back..." },
+  { "speaker": "Stig", "text": "Thanks..." },
+  ... (continue for at least 15 turns)
 ]
 Only return the JSON.
 
 REPORT:
 ${reportMarkdown}
+
+DRIVER SCORE DETAILS:
+${driverScore.details}
     `;
 
     let scriptJson: any[] = [];

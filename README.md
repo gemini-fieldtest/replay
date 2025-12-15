@@ -45,6 +45,23 @@ A high-performance telemetry visualization tool for racing data. Built with Reac
   - **Real-time Feedback**: AI-powered coach provides live advice on throttle, brake, steering, and gear selection.
   - **Advanced Analysis**: Detects coasting, understeer, and brake aggression issues.
   - **Streaming Chat**: Interactive chat interface with diverse, personality-driven feedback.
+  
+### Coaching Strategies
+
+The Performance Coach now supports two distinct strategies:
+
+1.  **Reactive (Default)**:
+    - Provides specific feedback *during* or *immediately after* a driving event.
+    - Triggers include: Significant deviation from the ideal lap speed, terrain changes (uphill/downhill), and achieving "New Best" sector times.
+    - Best for continuous performace monitoring.
+
+2.  **Predictive**:
+    - Analyzes your *previous completed laps* to identify "Mistake Zones" where you consistently lost time compared to your Ideal Lap.
+    - Proactively alerts you *before* you reach specifically identified problem areas (e.g., "Heads up: You lost 15 km/h here last lap").
+    - Stays silent when no historical mistakes are detected, allowing you to focus.
+    - **Logic**: Uses a lookahead buffer (proportional to current speed) to scan for approaching Mistake Zones.
+
+**Note**: Both strategies leverage the selected AI Model (Nano, Flash, Pro) to generate the final spoken advice in the persona of a Chief Engineer.
 
 - **Dynamic File Loading**:
   - Automatically lists CSV files from the `data/` directory.

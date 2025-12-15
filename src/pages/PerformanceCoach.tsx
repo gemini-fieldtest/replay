@@ -12,6 +12,8 @@ import { useDrivingAnalysis } from '../hooks/useDrivingAnalysis';
 import { parseCoachResponse } from '../utils/aiResponseParser';
 import ReactMarkdown from 'react-markdown';
 import { generateCoachReport } from '../services/reportGenerationService';
+import { usePredictiveCoaching } from '../hooks/usePredictiveCoaching';
+import { useSession } from '../contexts/SessionContext'; // Import Session Context
 
 interface PerformanceCoachProps {
     currentFrame: TelemetryFrame | null;
@@ -31,17 +33,20 @@ interface CoachMessage {
     text: string;
     type: 'positive' | 'neutral' | 'info';
     timestamp: number;
-    mode?: 'code' | 'nano' | 'flash' | 'pro';
+    mode?: CoachMode;
     telemetryTime: number;
     generationTime?: number;
     analysis?: string;
+    isPredictive?: boolean;
 }
 
 type CoachMode = 'code' | 'nano' | 'flash' | 'pro';
+type CoachingStrategy = 'reactive' | 'predictive';
 
-export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame, ghostFrame, currentIndex, laps, trackPoints = [], trackDetails = '', gpsOnly = false, videoFile, videoOffset = 0 }) => {
+export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame, ghostFrame, currentIndex, laps, idealLap, trackPoints = [], trackDetails = '', gpsOnly = false, videoFile, videoOffset = 0 }) => {
     const [messages, setMessages] = useState<CoachMessage[]>([]);
     const [mode, setMode] = useState<CoachMode>('nano');
+    const [strategy, setStrategy] = useState<CoachingStrategy>('reactive');
     const [showSettings, setShowSettings] = useState(false);
     const lastMessageTimeRef = useRef<number>(0);
     const { status: nanoStatus, generateFeedback: generateNano } = useGeminiNano();
@@ -50,6 +55,17 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
     const trackLocation = useTrackLocation(currentFrame, trackPoints);
     const drivingAnalysis = useDrivingAnalysis(currentFrame);
     const [settingsKey, setSettingsKey] = useState('');
+
+    // Session Management
+    const { addRecommendation, startNewSession, saveSession, isRecording } = useSession();
+
+    // Predictive Coach Hook
+    const { getAdvice: getPredictiveAdvice } = usePredictiveCoaching({
+        laps,
+        currentFrame,
+        idealLap,
+        isEnabled: strategy === 'predictive'
+    });
 
     // TTS Hook
     const {
@@ -108,14 +124,9 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
         } catch (e) {
             console.error(e);
             setGenerationStatus("Failed: " + (e as Error).message);
-            setTimeout(() => setIsGeneratingReport(false), 2000);
         } finally {
-            // Don't close immediately on success so user sees "Complete"
-            if (generationStatus !== "Complete!") {
-                // setIsGeneratingReport(false); 
-            } else {
-                setTimeout(() => setIsGeneratingReport(false), 2000);
-            }
+            // Always close after a delay to show the final status (Complete or Failed)
+            setTimeout(() => setIsGeneratingReport(false), 2000);
         }
     };
 
@@ -219,7 +230,7 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
                     "Losing time, push harder!"
                 ];
 
-                // Specific Feedback Logic (simplified for this example, assuming ghostFrame is available)
+                // Specific Feedback Logic
                 if (ghostFrame) {
                     const throttleDelta = ghostFrame.throttle - currentFrame!.throttle;
                     const brakeDelta = currentFrame!.brake - ghostFrame.brake;
@@ -291,7 +302,11 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
                                 "Hesitating on throttle? Commit!",
                                 "Full throttle required!",
                                 "Flat out! Why are you lifting?",
-                                "Full send! No lifting."
+                                "Full send! No lifting.",
+                                "Don't be a wuss",
+                                "Don't be a wuss",
+                                "Don't be a wuss",
+                                "Don't be a wuss"
                             ];
                         }
                     } else if (brakeDelta > 20) {
@@ -382,7 +397,68 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
         const COOLDOWN = 8000;
 
         if (shouldTrigger && timeSinceLastCall > COOLDOWN) {
-            const heuristicMessage = getCoachMessage(performanceStats);
+
+            const generateAndAddMessage = async (text: string, msgType: 'positive' | 'neutral' | 'info', messageMode: CoachMode, genDuration?: number, explicitAnalysis?: string) => {
+                const { directive, analysis } = parseCoachResponse(text);
+
+                // Add visual tag for predictive
+                const finalDirective = isPredictiveTrigger ? `[PREDICTIVE] ${directive}` : directive;
+
+                const newMessage: CoachMessage = {
+                    id: now,
+                    text: finalDirective,
+                    type: msgType,
+                    timestamp: now,
+                    mode: messageMode,
+                    telemetryTime: currentFrame.time,
+                    generationTime: genDuration,
+                    analysis: explicitAnalysis || analysis || undefined,
+                    isPredictive: isPredictiveTrigger && messageMode !== 'code' // Only flag if not code? Or always?
+                };
+                // If code mode has [PREDICTIVE] text prefix, we might duplicate label if we also set isPredictive.
+                // Let's rely on isPredictive property for UI label, and keep text clean?
+                // Actually my 'code' logic below modifies text. 
+                // Let's make generateAndAddMessage clean:
+
+                newMessage.text = directive; // Reset to clean directive
+                if (isPredictiveTrigger) newMessage.isPredictive = true;
+
+                setMessages(prev => [newMessage, ...prev.slice(0, historyLength - 1)]);
+                lastMessageTimeRef.current = now;
+                if (isAudioEnabled) {
+                    speak(directive); // Speak only the directive
+                }
+
+                // Add to Session Context
+                addRecommendation(newMessage);
+            };
+
+            // PREDICTIVE STRATEGY LOGIC
+            let messageText: string | null = null;
+            let messageType: 'positive' | 'neutral' | 'info' = 'info';
+            let isPredictiveTrigger = false;
+
+            if (strategy === 'predictive') {
+                const predictiveMsg = getPredictiveAdvice();
+                if (predictiveMsg) {
+                    messageText = predictiveMsg.text;
+                    messageType = predictiveMsg.type;
+                    isPredictiveTrigger = true;
+                    triggerReason = "Predictive Alert: Approaching Mistake Zone";
+                }
+            }
+
+            if (strategy === 'predictive' && !messageText) {
+                return;
+            }
+
+            if (!messageText) {
+                const heuristicMessage = getCoachMessage(performanceStats);
+                messageText = heuristicMessage.text;
+                messageType = heuristicMessage.type;
+            }
+
+            if (!messageText) return; // Nothing to say
 
             // Context for AI models
             let contextString = `
@@ -391,75 +467,56 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
 `;
             if (signalQuality.isGearActive && currentFrame.gear !== 255) contextString += `Gear: ${currentFrame.gear}\n`;
             if (signalQuality.isGForceActive) contextString += `Lat G: ${currentFrame.gForceLat.toFixed(2)}\n`;
-            const throttleVal = currentFrame.throttle < 2 ? 0 : currentFrame.throttle;
-            const brakeVal = currentFrame.brake < 2 ? 0 : currentFrame.brake;
-            if (signalQuality.isThrottleActive) contextString += `Throttle: ${throttleVal.toFixed(0)}%\n`;
-            if (signalQuality.isBrakeActive) contextString += `Brake: ${brakeVal.toFixed(0)}%\n`;
 
             if (trackLocation) contextString += `Location: ${trackLocation}\n`;
-
-            if (drivingAnalysis.phase && drivingAnalysis.phase !== 'Straight') contextString += `Phase: ${drivingAnalysis.phase}\n`;
-            contextString += `Grip Usage: ${drivingAnalysis.gripUsage}G\n`;
-            if (drivingAnalysis.smoothnessScore < 70) contextString += `Smoothness: ${drivingAnalysis.smoothnessScore} (Rough)\n`;
-            if (drivingAnalysis.gradient) contextString += `Gradient: ${drivingAnalysis.gradient}%\n`;
-            if (drivingAnalysis.rpmBand === 'Over-rev') contextString += `RPM: ${currentFrame.rpm} (Over-revving!)\n`;
-
             if (trackDetails) contextString += `Track Info: ${trackDetails}\n`;
 
             contextString += `Status: ${performanceStats.isNewBest ? 'NEW BEST DETECTED' : performanceStats.isFaster ? 'GAINING TIME' : performanceStats.isGoodLine ? 'MATCHING PACE' : 'LOSING TIME'}\n`;
-            contextString += `Directives: Use Catalyst vocabulary. If status is 'NEW BEST', say "New Best". Otherwise, give specific instruction like "Brake later".\n`;
 
-
-            const generateAndAddMessage = async (text: string, msgType: 'positive' | 'neutral' | 'info', messageMode: CoachMode, genDuration?: number, explicitAnalysis?: string) => {
-                const { directive, analysis } = parseCoachResponse(text);
-
+            // Use the determined messageText as base for AI or output directly if code
+            if (mode === 'code') {
+                // Direct generation
                 const newMessage: CoachMessage = {
                     id: now,
-                    text: directive,
-                    type: msgType,
+                    text: messageText,
+                    type: messageType,
                     timestamp: now,
-                    mode: messageMode,
+                    mode: 'code',
                     telemetryTime: currentFrame.time,
-                    generationTime: genDuration,
-                    analysis: explicitAnalysis || analysis || undefined
+                    isPredictive: isPredictiveTrigger
                 };
                 setMessages(prev => [newMessage, ...prev.slice(0, historyLength - 1)]);
-                lastMessageTimeRef.current = now;
-                if (isAudioEnabled) {
-                    speak(directive); // Speak only the directive
-                }
-            };
-
-            if (mode === 'code') {
-                if (heuristicMessage.text) {
-                    generateAndAddMessage(heuristicMessage.text, heuristicMessage.type, 'code');
-                    lastCallTime.current = now;
-                }
+                if (isAudioEnabled) speak(newMessage.text);
+                lastCallTime.current = now;
             }
             else if (mode === 'nano' && nanoStatus.state === 'ready') {
                 (async () => {
                     const genStartTime = performance.now();
-                    // Pass only context, no heuristic hint
-                    const nanoInput = `Trigger: ${triggerReason}.\n${contextString}`;
+                    const nanoInput = isPredictiveTrigger
+                        ? `Predictive Warning: ${messageText}.\n Context: ${contextString}`
+                        : `Trigger: ${triggerReason}.\n${contextString}`;
+
                     const nanoText = await generateNano(nanoInput);
                     const genDuration = performance.now() - genStartTime;
                     if (nanoText) {
-                        generateAndAddMessage(nanoText, heuristicMessage.type, 'nano', genDuration, nanoInput);
+                        generateAndAddMessage(nanoText, messageType, 'nano', genDuration, nanoInput);
                     }
                 })();
                 lastCallTime.current = now;
             }
             else if ((mode === 'flash' || mode === 'pro') && cloudStatus.hasKey) {
-                if (serializeRequests && cloudStatus.state === 'loading') {
-                    return; // Prevent overlapping requests
-                }
+                if (serializeRequests && cloudStatus.state === 'loading') return;
+
                 (async () => {
                     const genStartTime = performance.now();
-                    // Swapped arguments: model, context, (optional hint removed)
-                    const cloudText = await generateCloud(mode, contextString);
+                    const prompt = isPredictiveTrigger
+                        ? `This is a PREDICTIVE warning about an upcoming mistake. \nContext: ${messageText}\nData:\n${contextString}`
+                        : contextString;
+
+                    const cloudText = await generateCloud(mode, prompt);
                     const genDuration = performance.now() - genStartTime;
                     if (cloudText) {
-                        generateAndAddMessage(cloudText, heuristicMessage.type, mode, genDuration);
+                        generateAndAddMessage(cloudText, messageType, mode, genDuration);
                     }
                 })();
                 lastCallTime.current = now;
@@ -583,6 +640,8 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                                     SAVE KEY
                                 </button>
                             </div>
+
+
                         </div>
                     </div>
                 </div>
@@ -595,8 +654,32 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                 </div>
 
                 <div className="flex items-center gap-4">
-                    {/* Intelligence Group */}
                     <div className="flex items-center gap-2">
+                        <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5 border border-gray-200 dark:border-gray-700">
+                            <button
+                                onClick={() => setStrategy('reactive')}
+                                className={`px-3 py-1 rounded-md text-[10px] uppercase font-bold transition-all ${strategy === 'reactive'
+                                    ? 'bg-blue-600 text-white shadow-sm'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                                    }`}
+                            >
+                                Reactive
+                            </button>
+                            <button
+                                onClick={() => setStrategy('predictive')}
+                                className={`px-3 py-1 rounded-md text-[10px] uppercase font-bold transition-all flex items-center gap-1 ${strategy === 'predictive'
+                                    ? 'bg-teal-600 text-white shadow-sm'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                                    }`}
+                            >
+                                <TrendingUp size={10} />
+                                Predictive
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Intelligence Group */}
+                    <div className="flex items-center gap-2 border-l border-gray-200 dark:border-gray-700 pl-4">
                         <Brain size={16} className="text-purple-400" />
                         <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
                             {(['code', 'nano', 'flash', 'pro'] as CoachMode[]).map((m) => (
@@ -663,12 +746,47 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                     <button
                         onClick={handleGenerateReportScoped}
                         disabled={isGeneratingReport}
-                        className={`p-1.5 rounded-lg transition-all flex items-center gap-2 ${isGeneratingReport ? 'bg-purple-100 text-purple-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                        className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-2 uppercase text-[10px] font-bold ${isGeneratingReport ? 'bg-purple-100 text-purple-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                         title="Generate Coach Report"
                     >
-                        {isGeneratingReport ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
-                        {isGeneratingReport && <span className="text-[10px] font-bold hidden sm:inline">{generationStatus}</span>}
+                        {isGeneratingReport ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+                        <span>{isGeneratingReport ? generationStatus : "Report"}</span>
                     </button>
+
+                    <div className="h-4 w-px bg-gray-200 dark:bg-gray-700 mx-1" />
+
+                    {/* Recording Status Indicator */}
+                    <div
+                        className={`px-2 py-1.5 rounded-lg flex items-center gap-1.5 font-bold text-[10px] select-none ${isRecording
+                            ? 'bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400'
+                            : 'text-gray-400'
+                            }`}
+                        title={isRecording ? "Session Recording Active" : "Session Recording Stopped"}
+                    >
+                        <div className={`w-2 h-2 rounded-full ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-gray-400'}`} />
+                        <span>{isRecording ? "REC" : "OFF"}</span>
+                    </div>
+
+                    {/* Dynamic Action Button: Record -> Save */}
+                    {isRecording ? (
+                        <button
+                            onClick={saveSession}
+                            className="p-1.5 rounded-lg text-green-600 dark:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+                            title="Save & Stop Session"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                        </button>
+                    ) : (
+                        <button
+                            onClick={() => {
+                                startNewSession();
+                            }}
+                            className="p-1.5 rounded-lg text-blue-600 dark:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                            title="Start New Session"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                        </button>
+                    )}
 
                     <button
                         onClick={toggleSettings}
@@ -773,6 +891,13 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                                                     <Settings size={10} /> Pro
                                                 </span>
                                                 {msg.generationTime && <span className="text-gray-500 text-[10px] ml-1">Gen: {msg.generationTime.toFixed(0)}ms</span>}
+                                            </>
+                                        )}
+                                        {msg.isPredictive && (
+                                            <>
+                                                <span className="inline-flex items-center gap-1 text-teal-600 dark:text-teal-400 border-l border-gray-300 dark:border-gray-700 pl-2" title="Predictive Analysis">
+                                                    <TrendingUp size={10} /> Predictive
+                                                </span>
                                             </>
                                         )}
                                     </span>

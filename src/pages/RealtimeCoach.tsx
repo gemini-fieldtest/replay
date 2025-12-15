@@ -10,6 +10,7 @@ import { useTrackLocation, type TrackPoint } from '../hooks/useTrackLocation';
 import { useDrivingAnalysis } from '../hooks/useDrivingAnalysis';
 import ReactMarkdown from 'react-markdown';
 import { MAIN_COACH_SYSTEM_PROMPT, DECISION_MATRIX_RULES } from '../utils/coachingKnowledge';
+import { usePredictiveCoaching } from '../hooks/usePredictiveCoaching';
 
 interface PerformanceCoachProps {
     currentFrame: TelemetryFrame | null;
@@ -30,6 +31,7 @@ interface CoachMessage {
     telemetryTime: number;
     generationTime?: number;
     analysis?: string;
+    isPredictive?: boolean;
 }
 
 
@@ -45,15 +47,26 @@ const loadingMessages = [
 ];
 
 type CoachMode = 'code' | 'nano' | 'flash' | 'pro';
+type CoachingStrategy = 'reactive' | 'predictive';
 
-export const RealtimeCoach = ({ currentFrame, ghostFrame, currentIndex, trackPoints = [], trackDetails = '' }: PerformanceCoachProps) => {
+export const RealtimeCoach = ({ currentFrame, ghostFrame, currentIndex, laps, idealLap, trackPoints = [], trackDetails = '' }: PerformanceCoachProps) => {
     const [messages, setMessages] = useState<CoachMessage[]>([]);
     const [mode, setMode] = useState<CoachMode>('nano');
+    const [strategy, setStrategy] = useState<CoachingStrategy>('reactive');
     const lastMessageTimeRef = useRef<number>(0);
     const { status: nanoStatus, generateFeedback: generateNano, initSession } = useGeminiNano();
     const signalQuality = useSignalQuality(currentFrame);
     const trackLocation = useTrackLocation(currentFrame, trackPoints);
     const drivingAnalysis = useDrivingAnalysis(currentFrame);
+
+    // Predictive Coach Hook
+    const { getAdvice: getPredictiveAdvice } = usePredictiveCoaching({
+        laps,
+        currentFrame,
+        idealLap,
+        isEnabled: strategy === 'predictive'
+    });
+
     // TTS Hook
     const {
         isEnabled: isAudioEnabled,
@@ -192,7 +205,17 @@ export const RealtimeCoach = ({ currentFrame, ghostFrame, currentIndex, trackPoi
                     if (isCornering) {
                         phrases = ["Power out of the corner sooner.", "Unwind the wheel and get on gas.", "Late on throttle.", "Trust the rear grip on exit.", "Squeeze the throttle earlier.", "Don't wait, get on the power."];
                     } else {
-                        phrases = ["Get on the gas earlier!", "Hesitating on throttle? Commit!", "Full throttle required!", "Flat out! Why are you lifting?", "Full send! No lifting."];
+                        phrases = [
+                            "Get on the gas earlier!",
+                            "Hesitating on throttle? Commit!",
+                            "Full throttle required!",
+                            "Flat out! Why are you lifting?",
+                            "Full send! No lifting.",
+                            "Don't be a wuss",
+                            "Don't be a wuss",
+                            "Don't be a wuss",
+                            "Don't be a wuss"
+                        ];
                     }
                 } else if (brakeDelta > 20) {
                     if (isCornering) {
@@ -252,9 +275,31 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
         context += `\n${DECISION_MATRIX_RULES}\n`;
         context += `Directives: Analyze utilizing the Chief Engineer philosophy.\n`;
 
+        // --- PREDICTIVE STRATEGY LOGIC ---
+        let messageText: string | null = null;
+        let messageType: 'positive' | 'neutral' | 'info' = 'info';
+
+        if (strategy === 'predictive') {
+            const predictiveMsg = getPredictiveAdvice();
+            if (predictiveMsg) {
+                messageText = predictiveMsg.text;
+                messageType = predictiveMsg.type;
+            }
+        }
+
+        // Strategy Enforcement
+        if (strategy === 'predictive' && !messageText) return; // Strict mode
+
+        if (!messageText) {
+            // ... Your existing heuristic fallback or getCoachMessage logic ...
+            // Since RealtimeCoach uses custom inline logic mostly:
+            const heuristic = getCoachMessage(performanceStats, drivingAnalysis, currentFrame, ghostFrame);
+            messageText = heuristic.text;
+            messageType = heuristic.type;
+        }
+
         // --- TRIGGER LOGIC ---
         const timeSinceLastTrigger = now - lastTriggerTimeRef.current;
-
         let shouldTrigger = false;
 
         // A. Pace Deviation Trigger
@@ -445,11 +490,36 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                 </div>
 
                 <div className="flex items-center gap-4">
-                    {/* Intelligence Group */}
+                    {/* Strategy Group */}
                     <div className="flex items-center gap-2">
+                        <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5 border border-gray-200 dark:border-gray-700">
+                            <button
+                                onClick={() => setStrategy('reactive')}
+                                className={`px-3 py-1 rounded-md text-[10px] uppercase font-bold transition-all ${strategy === 'reactive'
+                                    ? 'bg-blue-600 text-white shadow-sm'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                                    }`}
+                            >
+                                Reactive
+                            </button>
+                            <button
+                                onClick={() => setStrategy('predictive')}
+                                className={`px-3 py-1 rounded-md text-[10px] uppercase font-bold transition-all flex items-center gap-1 ${strategy === 'predictive'
+                                    ? 'bg-teal-600 text-white shadow-sm'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                                    }`}
+                            >
+                                <TrendingUp size={10} />
+                                Predictive
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Intelligence Group */}
+                    <div className="flex items-center gap-2 border-l border-gray-200 dark:border-gray-700 pl-4">
                         <Brain size={16} className="text-purple-400" />
                         <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
-                            {(['code', 'nano'] as CoachMode[]).map((m) => (
+                            {(['code', 'nano', 'flash', 'pro'] as CoachMode[]).map((m) => (
                                 <button
                                     key={m}
                                     onClick={() => setMode(m)}
@@ -592,6 +662,13 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                                                     <Brain size={10} /> Nano
                                                 </span>
                                                 {msg.generationTime && <span className="text-gray-500 text-[10px] ml-1">Gen: {msg.generationTime.toFixed(0)}ms</span>}
+                                            </>
+                                        )}
+                                        {msg.isPredictive && (
+                                            <>
+                                                <span className="inline-flex items-center gap-1 text-teal-400 border-l border-gray-700 pl-2" title="Predictive">
+                                                    <TrendingUp size={10} /> Predictive
+                                                </span>
                                             </>
                                         )}
 
