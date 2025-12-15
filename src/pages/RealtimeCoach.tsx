@@ -488,6 +488,26 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
                             >
                                 NATIVE
                             </button>
+                            <button
+                                onClick={() => { setIsAudioEnabled(true); setAudioProvider('gemini-flash'); }}
+                                className={`px-3 py-1 rounded-md text-[10px] uppercase font-bold transition-all ${isAudioEnabled && audioProvider === 'gemini-flash'
+                                    ? 'bg-purple-600 text-white shadow-lg'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                                    }`}
+                                title="Gemini 2.5 Flash Audio"
+                            >
+                                FLASH
+                            </button>
+                            <button
+                                onClick={() => { setIsAudioEnabled(true); setAudioProvider('gemini-pro'); }}
+                                className={`px-3 py-1 rounded-md text-[10px] uppercase font-bold transition-all ${isAudioEnabled && audioProvider === 'gemini-pro'
+                                    ? 'bg-purple-600 text-white shadow-lg'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                                    }`}
+                                title="Gemini 1.5 Pro Audio"
+                            >
+                                PRO
+                            </button>
 
                         </div>
                     </div>

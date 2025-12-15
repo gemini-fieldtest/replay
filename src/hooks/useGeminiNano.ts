@@ -56,6 +56,8 @@ export const useGeminiNano = () => {
 
         // 3. Create Session
         const session = await window.LanguageModel!.create({
+          // @ts-ignore - 'outputLanguage' might not be in the outdated type definition but is required by latest Chrome Canary
+          outputLanguage: 'en',
           initialPrompts: [
             {
               role: "system",
@@ -152,6 +154,8 @@ Advice:
 
       const modelFactory = window.LanguageModel || (window as any).ai.languageModel;
       const session = await modelFactory.create({
+        // @ts-ignore
+        outputLanguage: 'en',
         initialPrompts: [{
           role: "system",
           content: systemPrompt || "You are a Race Spotter. Be concise."
