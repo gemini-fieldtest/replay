@@ -11,6 +11,7 @@ import { useDrivingAnalysis } from '../hooks/useDrivingAnalysis';
 import ReactMarkdown from 'react-markdown';
 import { MAIN_COACH_SYSTEM_PROMPT, DECISION_MATRIX_RULES } from '../utils/coachingKnowledge';
 import { usePredictiveCoaching } from '../hooks/usePredictiveCoaching';
+import { getNearbyMapContext } from '../utils/mapContext';
 
 interface PerformanceCoachProps {
     currentFrame: TelemetryFrame | null;
@@ -353,6 +354,9 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
         if (drivingAnalysis.rpmBand === 'Over-rev') context += `RPM: ${currentFrame.rpm} (Over-revving!)\n`;
 
         if (trackDetails) context += `Track Info: ${trackDetails}\n`;
+
+        const nearbyMapArg = getNearbyMapContext(currentFrame.latitude, currentFrame.longitude, trackPoints);
+        if (nearbyMapArg) context += `${nearbyMapArg}\n`;
 
         context += `Status: ${performanceStats.isNewBest ? 'NEW BEST DETECTED' : performanceStats.isFaster ? 'GAINING TIME' : performanceStats.isGoodLine ? 'MATCHING PACE' : 'LOSING TIME'}\n`;
 
