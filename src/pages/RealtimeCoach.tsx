@@ -83,7 +83,8 @@ export const RealtimeCoach = ({ currentFrame, ghostFrame, currentIndex, laps, id
         laps,
         currentFrame,
         idealLap,
-        isEnabled: strategy === 'predictive'
+        isEnabled: strategy === 'predictive',
+        trackPoints // Pass track points for corner identification
     });
 
     // TTS Hook

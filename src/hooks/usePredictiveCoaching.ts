@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import type { LapData } from '../utils/lapAnalysis';
 import type { TelemetryFrame } from '../utils/telemetryParser';
 
+import type { TrackPoint } from './useTrackLocation';
+
 export interface MistakeZone {
     startDist: number;
     endDist: number;
@@ -10,6 +12,8 @@ export interface MistakeZone {
     severity: number; // 0-1
     advice: string;
     lapIndex: number; // Which lap this mistake is from (most recent?)
+    locationName?: string; // e.g., "Turn 1"
+    startFrameIndex?: number;
 }
 
 interface UsePredictiveCoachingProps {
@@ -17,9 +21,10 @@ interface UsePredictiveCoachingProps {
     currentFrame: TelemetryFrame | null;
     idealLap: LapData | null;
     isEnabled: boolean;
+    trackPoints?: TrackPoint[];
 }
 
-export const usePredictiveCoaching = ({ laps, currentFrame, idealLap, isEnabled }: UsePredictiveCoachingProps) => {
+export const usePredictiveCoaching = ({ laps, currentFrame, idealLap, isEnabled, trackPoints = [] }: UsePredictiveCoachingProps) => {
     const [lastTriggeredZone, setLastTriggeredZone] = useState<number>(-1); // ID/StartDist of last triggered zone
 
     // 1. Analyze Past Laps to identify Mistake Zones
@@ -99,15 +104,63 @@ export const usePredictiveCoaching = ({ laps, currentFrame, idealLap, isEnabled 
 
                     // Filter: Only significant zones (> 20 meters long?)
                     if ((currentMistake.endDist! - currentMistake.startDist!) > 20) {
-                        zones.push(currentMistake as MistakeZone);
+                        const zone = currentMistake as MistakeZone;
+                        // Find frame index for start of mistake (approximate logic since we iterated)
+                        // We started recording when `recordingMistake` became true.
+                        // We need to track the index where it started. 
+                        // Let's modify the recording loop to capture `startIndex`.
+                        // But since we can't easily jump back, let's use the stored distance to search or just enhance the loop.
+                        // Actually, adding `startIndex` to MistakeZone is better.
+                        zones.push(zone);
                     }
                     currentMistake = null;
                 }
             }
         }
 
-        return zones;
-    }, [laps, idealLap, isEnabled]);
+        // Post-process zones to map to Track Points
+        return zones.map(zone => {
+            if (!trackPoints || trackPoints.length === 0) return zone;
+
+            // We need to find the lat/lon of the zone start.
+            // StartDist is known.
+            // Find frame in Reference Lap at StartDist.
+            let d = 0;
+            let startFrame = referenceLap.frames[0];
+
+            for (let i = 0; i < referenceLap.frames.length - 1; i++) {
+                d += calcDistance(referenceLap.frames[i], referenceLap.frames[i + 1]);
+                if (d >= zone.startDist) {
+                    startFrame = referenceLap.frames[i];
+                    break;
+                }
+            }
+
+            // Find nearest Track Point
+            let bestPoint: TrackPoint | null = null;
+            let minDist = Infinity;
+
+            for (const p of trackPoints) {
+                const dist = calcDistance(startFrame, { latitude: p.lat, longitude: p.long });
+                if (dist < minDist) {
+                    minDist = dist;
+                    bestPoint = p;
+                }
+            }
+
+            if (bestPoint && minDist < 150) { // Within 150m of a turn point
+                // Format name
+                let name = bestPoint.name;
+                if (!isNaN(parseInt(name))) {
+                    name = `Turn ${name}`;
+                }
+                return { ...zone, locationName: name };
+            }
+
+            return zone;
+        });
+
+    }, [laps, idealLap, isEnabled, trackPoints]);
 
     // 2. Realtime Check
     const getAdvice = () => {
@@ -161,7 +214,8 @@ export const usePredictiveCoaching = ({ laps, currentFrame, idealLap, isEnabled 
 
         const currentDist = matchedDist;
         const speed = Math.max(currentFrame.speed, 50); // Min 50km/h for CALC
-        const lookaheadSeconds = 4;
+        // Increase lookahead to account for AI generation latency (1-4s) + user reaction time (3-4s)
+        const lookaheadSeconds = 8;
         const lookaheadMeters = (speed / 3.6) * lookaheadSeconds;
 
         const targetDist = currentDist + lookaheadMeters;
@@ -215,8 +269,10 @@ function calcDistSq(f1: { latitude: number, longitude: number }, f2: { latitude:
 }
 
 function getAdviceText(zone: MistakeZone): string {
+    const prefix = zone.locationName ? `At ${zone.locationName}: ` : "";
+
     if (zone.type === 'speed_loss') {
-        return "Focus on carrying more speed.";
+        return `${prefix}Focus on carrying more speed.`;
     }
-    return "Check your line.";
+    return `${prefix}Check your line.`;
 }
