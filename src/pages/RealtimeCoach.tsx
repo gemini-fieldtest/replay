@@ -20,9 +20,10 @@ interface PerformanceCoachProps {
     laps: LapData[];
     trackPoints?: TrackPoint[];
     trackDetails?: string;
+    onMessagesUpdate?: (messages: CoachMessage[]) => void;
 }
 
-interface CoachMessage {
+export interface CoachMessage {
     id: number;
     text: string;
     type: 'positive' | 'neutral' | 'info';
@@ -55,8 +56,13 @@ const INITIALIZATION_MESSAGES = [
 type CoachMode = 'code' | 'nano' | 'flash' | 'pro' | 'system';
 type CoachingStrategy = 'reactive' | 'predictive';
 
-export const RealtimeCoach = ({ currentFrame, ghostFrame, currentIndex, laps, idealLap, trackPoints = [], trackDetails = '' }: PerformanceCoachProps) => {
+export const RealtimeCoach = ({ currentFrame, ghostFrame, currentIndex, laps, idealLap, trackPoints = [], trackDetails = '', onMessagesUpdate }: PerformanceCoachProps) => {
     const [messages, setMessages] = useState<CoachMessage[]>([]);
+
+    // Expose messages to parent
+    useEffect(() => {
+        onMessagesUpdate?.(messages);
+    }, [messages, onMessagesUpdate]);
 
     // Persist Mode
     const [mode, setMode] = useState<CoachMode>(() => {

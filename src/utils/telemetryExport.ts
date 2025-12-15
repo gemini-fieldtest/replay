@@ -82,3 +82,51 @@ export function downloadSessionCSV(data: TelemetryFrame[], filename: string = "s
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 }
+
+export const downloadSessionJSON = (
+    data: TelemetryFrame[],
+    messages: any[],
+    metadata: {
+        track?: string,
+        source?: string,
+        date?: string
+    },
+    filename: string
+) => {
+    const sessionData = {
+        version: "1.0",
+        sessionId: new Date().toISOString().replace(/[:.]/g, '-'),
+        date: metadata.date || new Date().toISOString(),
+        track: metadata.track || "unknown",
+        source: metadata.source || "live",
+        totalFrames: data.length,
+        duration: data.length > 0 ? (data[data.length - 1].time - data[0].time) : 0,
+        telemetry: data,
+        events: messages.map(m => ({
+            id: m.id,
+            timestamp: m.timestamp,
+            telemetryTime: m.telemetryTime,
+            type: "coach_message",
+            data: {
+                text: m.text,
+                model: m.mode,
+                analysis: m.analysis, // raw analysis string if available
+                type: m.type // positive/neutral/info
+            }
+        }))
+    };
+
+    const jsonString = JSON.stringify(sessionData, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const link = document.createElement('a');
+    if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
+};

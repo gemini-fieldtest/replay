@@ -13,15 +13,26 @@ interface ReplayTrackMapProps {
     offsetY: number;
     rotation: number;
   };
+  segments?: any[];
+  trackPoints?: any[];
+  projectionParams?: {
+    centerLat: number;
+    centerLon: number;
+    latScale: number;
+    lonScale: number;
+  } | null;
 }
 
-export const ReplayTrackMap: React.FC<ReplayTrackMapProps> = ({ 
-  positions, 
-  currentIndex, 
-  ghostPosition, 
+export const ReplayTrackMap: React.FC<ReplayTrackMapProps> = ({
+  positions,
+  currentIndex,
+  ghostPosition,
   carPosition,
   backgroundImage,
-  calibration = { scale: 1, offsetX: 0, offsetY: 0, rotation: 0 } 
+  calibration = { scale: 1, offsetX: 0, offsetY: 0, rotation: 0 },
+  segments = [],
+  trackPoints = [],
+  projectionParams = null
 }) => {
   const { theme } = useTheme();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -36,7 +47,7 @@ export const ReplayTrackMap: React.FC<ReplayTrackMapProps> = ({
     for (let i = 0; i < positions.length; i += 3) {
       const x = positions[i];
       const z = positions[i + 2];
-      
+
       if (x < minX) minX = x;
       if (x > maxX) maxX = x;
       if (z < minZ) minZ = z;
@@ -57,7 +68,7 @@ export const ReplayTrackMap: React.FC<ReplayTrackMapProps> = ({
       // Handle high DPI displays
       const dpr = window.devicePixelRatio || 1;
       const rect = canvas.getBoundingClientRect();
-      
+
       if (rect.width === 0 || rect.height === 0) return;
 
       // Set actual size in memory
@@ -69,18 +80,18 @@ export const ReplayTrackMap: React.FC<ReplayTrackMapProps> = ({
 
       const width = rect.width;
       const height = rect.height;
-      
+
       ctx.clearRect(0, 0, width, height);
 
       // Padding - minimal padding to maximize SVG usage
-      const padding = 20; 
+      const padding = 20;
       const drawWidth = width - padding * 2;
       const drawHeight = height - padding * 2;
 
       // Calculate scale
       const rangeX = bounds.maxX - bounds.minX;
       const rangeZ = bounds.maxZ - bounds.minZ;
-      
+
       if (rangeX === 0 || rangeZ === 0) return;
 
       // We want to fit the track into the box
@@ -97,7 +108,7 @@ export const ReplayTrackMap: React.FC<ReplayTrackMapProps> = ({
         // 1. Initial Projection to fit canvas
         let x = (xLocal - bounds.minX) * scale + offsetX;
         let y = (zLocal - bounds.minZ) * scale + offsetY;
-        
+
         // 2. Apply Calibration
         // Transform around center
         const cx = width / 2;
@@ -113,57 +124,57 @@ export const ReplayTrackMap: React.FC<ReplayTrackMapProps> = ({
 
         // Rotate
         if (calibration.rotation !== 0) {
-            const rad = calibration.rotation * Math.PI / 180;
-            const cos = Math.cos(rad);
-            const sin = Math.sin(rad);
-            const rdx = dx * cos - dy * sin;
-            const rdy = dx * sin + dy * cos;
-            dx = rdx;
-            dy = rdy;
+          const rad = calibration.rotation * Math.PI / 180;
+          const cos = Math.cos(rad);
+          const sin = Math.sin(rad);
+          const rdx = dx * cos - dy * sin;
+          const rdy = dx * sin + dy * cos;
+          dx = rdx;
+          dy = rdy;
         }
 
         // Translate back + Offset
         x = cx + dx + calibration.offsetX;
         y = cy + dy + calibration.offsetY;
-        
+
         return { x, y };
       };
 
       // Draw Track
       if (!backgroundImage) {
-          ctx.beginPath();
-          ctx.strokeStyle = '#3b82f6'; // blue-500
-          ctx.lineWidth = 3;
-          ctx.lineCap = 'round';
-          ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.strokeStyle = '#3b82f6'; // blue-500
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
 
-          const start = project(positions[0], positions[2]);
-          ctx.moveTo(start.x, start.y);
+        const start = project(positions[0], positions[2]);
+        ctx.moveTo(start.x, start.y);
 
-          for (let i = 3; i < positions.length; i += 3) {
-            const { x, y } = project(positions[i], positions[i + 2]);
-            ctx.lineTo(x, y);
-          }
-          ctx.stroke();
+        for (let i = 3; i < positions.length; i += 3) {
+          const { x, y } = project(positions[i], positions[i + 2]);
+          ctx.lineTo(x, y);
+        }
+        ctx.stroke();
       } else {
-          // Debug alignment line - very faint
-          ctx.beginPath();
-          ctx.strokeStyle = theme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.5)';
-          ctx.lineWidth = 1;
-          
-          const start = project(positions[0], positions[2]);
-          ctx.moveTo(start.x, start.y);
+        // Debug alignment line - very faint
+        ctx.beginPath();
+        ctx.strokeStyle = theme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.5)';
+        ctx.lineWidth = 1;
 
-          for (let i = 3; i < positions.length; i += 3) {
-            const { x, y } = project(positions[i], positions[i + 2]);
-            ctx.lineTo(x, y);
-          }
-          ctx.stroke();
+        const start = project(positions[0], positions[2]);
+        ctx.moveTo(start.x, start.y);
+
+        for (let i = 3; i < positions.length; i += 3) {
+          const { x, y } = project(positions[i], positions[i + 2]);
+          ctx.lineTo(x, y);
+        }
+        ctx.stroke();
       }
 
       // Start/Finish Line
       const startPos = project(positions[0], positions[2]);
-      
+
       ctx.beginPath();
       ctx.fillStyle = theme === 'dark' ? '#ffffff' : '#111827';
       ctx.arc(startPos.x, startPos.y, 4, 0, Math.PI * 2);
@@ -179,12 +190,12 @@ export const ReplayTrackMap: React.FC<ReplayTrackMapProps> = ({
       // Draw Ghost Marker
       if (ghostPosition) {
         const { x, y } = project(ghostPosition[0], ghostPosition[2]);
-        
+
         ctx.beginPath();
         ctx.fillStyle = theme === 'dark' ? '#fbbf24' : '#d97706'; // amber-400 (Gold) or amber-600
         ctx.arc(x, y, 6, 0, Math.PI * 2);
         ctx.fill();
-        
+
         ctx.beginPath();
         ctx.strokeStyle = theme === 'dark' ? '#ffffff' : '#000000';
         ctx.lineWidth = 2;
@@ -209,17 +220,47 @@ export const ReplayTrackMap: React.FC<ReplayTrackMapProps> = ({
 
       if (cx !== null && cz !== null) {
         const { x, y } = project(cx, cz);
-        
+
         ctx.beginPath();
         ctx.fillStyle = '#ef4444'; // red-500
         ctx.arc(x, y, 8, 0, Math.PI * 2);
         ctx.fill();
-        
+
         ctx.beginPath();
         ctx.strokeStyle = theme === 'dark' ? '#ffffff' : '#000000';
         ctx.lineWidth = 2;
         ctx.arc(x, y, 8, 0, Math.PI * 2);
         ctx.stroke();
+      }
+      // Draw Segments
+      if (segments.length > 0 && trackPoints.length > 0 && projectionParams) {
+        const { centerLat, centerLon, latScale, lonScale } = projectionParams;
+
+        segments.forEach(seg => {
+          const startP = trackPoints.find((p: any) => p.name === seg.startPoint);
+          const endP = trackPoints.find((p: any) => p.name === seg.endPoint);
+
+          if (startP && endP) {
+            // Project Lat/Lon to Local X/Z
+            const startX = (startP.long - centerLon) * lonScale;
+            const startZ = -(startP.lat - centerLat) * latScale;
+
+            const endX = (endP.long - centerLon) * lonScale;
+            const endZ = -(endP.lat - centerLat) * latScale;
+
+            // Project to canvas
+            const s = project(startX, startZ);
+            const e = project(endX, endZ);
+
+            // Use existing ctx
+            ctx.beginPath();
+            ctx.strokeStyle = seg.type === 'straight' ? 'rgba(16, 185, 129, 0.6)' : 'rgba(245, 158, 11, 0.6)'; // Green/Amber
+            ctx.lineWidth = 6;
+            ctx.moveTo(s.x, s.y);
+            ctx.lineTo(e.x, e.y);
+            ctx.stroke();
+          }
+        });
       }
     };
 
@@ -236,24 +277,24 @@ export const ReplayTrackMap: React.FC<ReplayTrackMapProps> = ({
     return () => {
       resizeObserver.disconnect();
     };
-    
-  }, [bounds, positions, currentIndex, ghostPosition, carPosition, backgroundImage, calibration, theme]);
+
+  }, [bounds, positions, currentIndex, ghostPosition, carPosition, backgroundImage, calibration, theme, segments, trackPoints, projectionParams]);
 
 
   return (
     <div ref={containerRef} className="relative w-full h-full min-w-0 min-h-0 bg-gray-50 dark:bg-transparent rounded-lg">
-        {backgroundImage && (
-            <img 
-                src={backgroundImage} 
-                alt="Track Map" 
-                className="absolute inset-0 w-full h-full object-contain p-5"
-                style={{ filter: theme === 'dark' ? 'brightness(0) invert(1)' : 'none' }}
-            />
-        )}
-        <canvas 
-          ref={canvasRef} 
-          className="absolute inset-0 w-full h-full block"
+      {backgroundImage && (
+        <img
+          src={backgroundImage}
+          alt="Track Map"
+          className="absolute inset-0 w-full h-full object-contain p-5"
+          style={{ filter: theme === 'dark' ? 'brightness(0) invert(1)' : 'none' }}
         />
+      )}
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 w-full h-full block"
+      />
     </div>
   );
 };

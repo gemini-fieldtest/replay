@@ -11,8 +11,9 @@ import { RealtimePitView } from './RealtimePitView';
 import { RealtimeCoach } from './RealtimeCoach';
 import { loadKML, type GeoCoordinate } from '../utils/kmlLoader';
 import { useTheme } from '../components/ThemeProvider';
-import { downloadSessionCSV } from '../utils/telemetryExport';
+import { downloadSessionJSON } from '../utils/telemetryExport';
 import { Save, RefreshCw, Disc, Play } from 'lucide-react';
+import { type CoachMessage } from './RealtimeCoach';
 
 
 
@@ -21,6 +22,13 @@ interface TrackPoint {
   name: string;
   lat: number;
   long: number;
+}
+
+interface TrackSegment {
+  id: string;
+  startPoint: string;
+  endPoint: string;
+  type: 'straight' | 'corner';
 }
 
 export const RealtimePage = () => {
@@ -81,7 +89,11 @@ export const RealtimePage = () => {
   const [showGhost] = useState(true);
   const [kmlTrack, setKmlTrack] = useState<GeoCoordinate[]>([]);
   const [trackPoints, setTrackPoints] = useState<TrackPoint[]>([]);
+  const [trackSegments, setTrackSegments] = useState<TrackSegment[]>([]);
   const [startLine, setStartLine] = useState<{ lat: number, lon: number } | undefined>(undefined);
+
+  // Ref to track coach messages for export without re-rendering parent
+  const coachMessagesRef = useRef<CoachMessage[]>([]);
 
   const {
     data,
@@ -110,7 +122,15 @@ export const RealtimePage = () => {
       try {
         const response = await fetch('/tracks/thunderhill/points.json');
         if (response.ok) {
-          const points: TrackPoint[] = await response.json();
+          const json = await response.json();
+          let points: TrackPoint[] = [];
+          if (Array.isArray(json)) {
+            points = json;
+          } else {
+            points = json.points || [];
+            if (json.segments) setTrackSegments(json.segments);
+          }
+
           setTrackPoints(points);
           const startPoint = points.find((p) => p.name === 'start');
           if (startPoint) {
@@ -460,11 +480,25 @@ export const RealtimePage = () => {
               <button
                 onClick={() => {
                   setIsPlaying(false); // Pause
-                  downloadSessionCSV(data, `session_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`);
+
+                  // Export as JSON with rich metadata
+                  downloadSessionJSON(
+                    data,
+                    coachMessagesRef.current,
+                    {
+                      track: "Thunderhill East", // Could be dynamic if we tracked it
+                      source: "Live Session",
+                      date: new Date().toISOString()
+                    },
+                    `session_${new Date().toISOString().replace(/[:.]/g, '-')}.json`
+                  );
+
                   // Auto-reset after save (maybe slight delay or immediately?)
                   // Immediate reset might feel abrupt?
                   // "on save, we auto reset" - User instruction.
                   resetSession();
+                  // Clear messages ref locally strictly speaking handled by reset but ref persists until overwritten?
+                  coachMessagesRef.current = [];
                 }}
                 className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded shadow-sm transition-colors text-xs font-bold uppercase tracking-wider animate-pulse"
                 title="Stop & Save Session"
@@ -510,6 +544,9 @@ export const RealtimePage = () => {
               showGhost={showGhost}
               idealLap={idealLap}
               laps={laps}
+              segments={trackSegments}
+              trackPoints={trackPoints}
+              projectionParams={projectionParams}
             />
           </div>
         )}
@@ -542,6 +579,9 @@ export const RealtimePage = () => {
               currentIndex={currentIndex}
               laps={laps}
               trackPoints={trackPoints}
+              onMessagesUpdate={(msgs) => {
+                coachMessagesRef.current = msgs;
+              }}
             />
           </div>
         )}

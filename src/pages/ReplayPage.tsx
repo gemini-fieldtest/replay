@@ -10,6 +10,13 @@ import { ReplayPitView } from './ReplayPitView';
 import { ReplayDriverView } from './ReplayDriverView';
 import { PerformanceCoach } from './PerformanceCoach';
 
+interface TrackSegment {
+  id: string;
+  startPoint: string;
+  endPoint: string;
+  type: 'straight' | 'corner';
+}
+
 import { useTheme } from '../components/ThemeProvider';
 import { Link } from 'react-router-dom';
 
@@ -58,6 +65,7 @@ export function ReplayPage() {
 
   const [showGhost, setShowGhost] = useState(true);
   const [trackPoints, setTrackPoints] = useState<TrackPoint[]>([]);
+  const [trackSegments, setTrackSegments] = useState<TrackSegment[]>([]);
   const [trackDetails, setTrackDetails] = useState<string>('');
 
   // Video State (Lifted for Report Generation)
@@ -93,7 +101,14 @@ export function ReplayPage() {
     // Load track points
     fetch('/tracks/thunderhill/points.json')
       .then(res => res.json())
-      .then(data => setTrackPoints(data))
+      .then(data => {
+        if (Array.isArray(data)) {
+          setTrackPoints(data);
+        } else {
+          setTrackPoints(data.points || []);
+          if (data.segments) setTrackSegments(data.segments);
+        }
+      })
       .catch(err => console.error('Failed to load track points:', err));
 
     // Load track details
@@ -485,6 +500,9 @@ export function ReplayPage() {
               idealLap={idealLap}
               laps={laps}
               isStacked={layoutMode === 'stacked'}
+              segments={trackSegments}
+              trackPoints={trackPoints}
+              projectionParams={projectionParams}
             />
           </div>
         )}
