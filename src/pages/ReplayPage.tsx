@@ -122,6 +122,16 @@ export function ReplayPage() {
     setPlaybackSpeed
   } = useTelemetry(selectedSource, startLine);
 
+  // --- Optimization: Refs for Imperative Updates ---
+  const currentIndexRef = useRef(currentIndex);
+
+  // Sync refs with state
+  useEffect(() => {
+     currentIndexRef.current = currentIndex;
+  }, [currentIndex]);
+  // ------------------------------------------------
+
+
   const toggleLayoutMode = (mode: 'grid' | 'stacked') => {
     localStorage.setItem('replay_layout_mode', mode);
     const params = new URLSearchParams(window.location.search);
@@ -550,6 +560,8 @@ export function ReplayPage() {
             <div className="flex-grow relative h-full flex flex-col">
               <ReplayDriverView
                 positions={trackPositions}
+                data={data}
+                currentIndexRef={currentIndexRef}
                 currentIndex={currentIndex}
                 currentFrame={currentFrame}
                 ghostFrame={ghostFrame}

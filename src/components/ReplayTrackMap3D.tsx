@@ -1,9 +1,10 @@
-import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react';
+import React, { useMemo, useRef, useEffect, useState, memo } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera, Line } from '@react-three/drei';
 import * as THREE from 'three';
 import { Video, Globe, ZoomIn } from 'lucide-react';
 import { useTheme } from './ThemeProvider';
+import { Line2 } from 'three-stdlib';
 
 // ... (Imports and other components)
 import type { TelemetryFrame } from '../utils/telemetryParser';
@@ -38,71 +39,238 @@ const Track: React.FC<TrackProps> = React.memo(({ positions, color = "#00ff00", 
   );
 });
 
-interface PathSegmentProps {
+// Imperative Path Segment
+interface ImperativePathSegmentProps {
   positions: Float32Array;
-  startIndex: number;
-  endIndex: number;
+  currentIndexRef: React.MutableRefObject<number>;
+  startIndexOffset: number;
+  endIndexOffset: number;
   color: string;
   lineWidth?: number;
-  fade?: 'in' | 'out'; // 'in' = start transparent -> end solid, 'out' = start solid -> end transparent
+  fade?: 'in' | 'out';
 }
 
-const PathSegment: React.FC<PathSegmentProps> = ({ positions, startIndex, endIndex, color, lineWidth = 3, fade }) => {
-  const { points, vertexColors } = useMemo(() => {
-    if (positions.length === 0 || startIndex >= endIndex) return { points: [], vertexColors: [] };
+const ImperativePathSegment: React.FC<ImperativePathSegmentProps> = ({ positions, currentIndexRef, startIndexOffset, endIndexOffset, color, lineWidth = 3, fade }) => {
+  const lineRef = useRef<Line2>(null);
 
-    const pts: [number, number, number][] = [];
-    const colors: [number, number, number][] = [];
-    const baseColor = new THREE.Color(color);
+  const baseColor = useMemo(() => new THREE.Color(color), [color]);
 
-    // Clamp indices
-    const start = Math.max(0, startIndex);
-    const end = Math.min(positions.length / 3, endIndex);
-    const length = end - start;
+  // Create initial points (just placeholders, size matters?)
+  // Line2 buffers can be resized but it's expensive.
+  // Best to allocate max size.
+  // The segment length is usually fixed (e.g. 50 or 100 points).
 
-    for (let i = start; i < end; i++) {
-      // Lift Y slightly to avoid z-fighting with base track
-      pts.push([positions[i*3], positions[i*3+1] + 0.5, positions[i*3+2]]);
+  const maxPoints = Math.abs(endIndexOffset - startIndexOffset) + 1;
 
-      if (fade) {
-        // Calculate opacity based on position in segment
-        const progress = (i - start) / length;
-        const opacity = fade === 'in' ? progress : 1 - progress;
+  const initialPoints = useMemo(() => {
+      const pts: [number, number, number][] = [];
+      for(let i=0; i<maxPoints; i++) pts.push([0, -1000, 0]); // Hide initially
+      return pts;
+  }, [maxPoints]);
 
-        const c = baseColor.clone().multiplyScalar(opacity); // Fade to black
-        colors.push([c.r, c.g, c.b]);
-      } else {
-        colors.push([baseColor.r, baseColor.g, baseColor.b]);
+  const initialColors = useMemo(() => {
+      // Pre-calculate fade colors if possible?
+      // Fade depends on relative index (0 to maxPoints).
+      // So colors are actually static if the window slides!
+      // YES! The colors relative to the *window* are constant.
+      // We only update positions.
+
+      const colors: [number, number, number][] = [];
+      for(let i=0; i<maxPoints; i++) {
+         if (fade) {
+            const progress = i / (maxPoints - 1 || 1);
+            const opacity = fade === 'in' ? progress : 1 - progress;
+            const c = baseColor.clone().multiplyScalar(opacity);
+            colors.push([c.r, c.g, c.b]);
+         } else {
+            colors.push([baseColor.r, baseColor.g, baseColor.b]);
+         }
       }
-    }
-    return { points: pts, vertexColors: colors };
-  }, [positions, startIndex, endIndex, color, fade]);
+      return colors;
+  }, [maxPoints, fade, baseColor]);
 
-  if (points.length === 0) return null;
+  useFrame(() => {
+     if (!lineRef.current) return;
+     const line = lineRef.current;
+     const currentIndex = currentIndexRef.current;
+
+     // Calculate indices
+     let start = currentIndex + startIndexOffset;
+     let end = currentIndex + endIndexOffset;
+
+     // Handle cases where start > end (shouldn't happen with offsets like -50, +1)
+     if (startIndexOffset > endIndexOffset) {
+         const t = start; start = end; end = t;
+     }
+
+     // Clamp
+     const maxIdx = (positions.length / 3);
+     const clampedStart = Math.max(0, Math.min(start, maxIdx));
+     const clampedEnd = Math.max(0, Math.min(end, maxIdx));
+
+     const count = clampedEnd - clampedStart;
+
+     if (count <= 0) {
+        // Hide
+        line.visible = false;
+        return;
+     }
+     line.visible = true;
+
+     // We need to update positions.
+     // Line2 uses `setPositions` which takes a flat array or array of points.
+     // Accessing `positions` (Float32Array) directly is fast.
+     // We need to extract the slice.
+
+     // Optimization: Can we pass the subarray directly?
+     // positions is x,y,z...
+     // We need to lift Y by 0.5. So we can't just copy.
+
+     const segmentPoints: number[] = [];
+     // We need exactly `maxPoints` to match the colors buffer if we want to avoid re-allocating colors?
+     // Or `Line2` handles mismatch? `Line2` geometry has `setPositions`.
+     // If we change number of points, we might need to update colors too?
+     // Colors buffer usually must match vertex count.
+
+     // If the actual segment is shorter than maxPoints (at start/end of track),
+     // we should pad with the last point or hide?
+     // Padding is easier.
+
+     for (let i = 0; i < maxPoints; i++) {
+         let idx = start + i;
+         if (idx < 0) idx = 0;
+         if (idx >= maxIdx) idx = maxIdx - 1;
+
+         // If "start" was negative, we might be padding the beginning.
+         // Effectively we are sliding the window.
+
+         segmentPoints.push(positions[idx*3], positions[idx*3+1] + 0.5, positions[idx*3+2]);
+     }
+
+     line.geometry.setPositions(segmentPoints);
+
+     // Colors are already set and don't need update if they are relative to window position!
+  });
 
   return (
     <Line
-      points={points}
-      color={fade ? undefined : color} // If using vertex colors, don't set base color
-      vertexColors={fade ? vertexColors : undefined}
+      ref={lineRef}
+      points={initialPoints}
+      vertexColors={initialColors}
+      color={undefined} // use vertex colors
       lineWidth={lineWidth}
       toneMapped={false}
+      frustumCulled={false} // Prevent flickering when updating geometry
     />
   );
 };
 
-interface CarProps {
-  position: [number, number, number];
-  rotation: THREE.Euler;
-  telemetry?: TelemetryFrame | null;
-  opacity?: number;
-  transparent?: boolean;
+
+interface ImperativeCarProps {
+  // We need data to calculate rotation/position
+  positions: Float32Array; // Track geometry
+  data: TelemetryFrame[]; // Telemetry frames for G-force
+  currentIndexRef: React.MutableRefObject<number>;
   color?: string;
+  transparent?: boolean;
+  opacity?: number;
 }
 
-const Car: React.FC<CarProps> = ({ position, rotation, telemetry, opacity = 1, transparent = false, color = "#3b82f6" }) => {
+const ImperativeCar: React.FC<ImperativeCarProps> = ({ positions, data, currentIndexRef, color="#3b82f6", transparent=false, opacity=1 }) => {
+    const groupRef = useRef<THREE.Group>(null);
+    const arrowLongRef = useRef<THREE.ArrowHelper>(null);
+    const arrowLatRef = useRef<THREE.ArrowHelper>(null);
+
+    // Reuse helper vectors
+    const vecPos = useMemo(() => new THREE.Vector3(), []);
+    const eulerRot = useMemo(() => new THREE.Euler(), []);
+
+    useFrame(() => {
+        if (!groupRef.current) return;
+        const idx = currentIndexRef.current;
+        const maxIdx = (positions.length / 3) - 1;
+        const safeIdx = Math.max(0, Math.min(idx, maxIdx));
+
+        // Position
+        vecPos.set(positions[safeIdx*3], positions[safeIdx*3+1], positions[safeIdx*3+2]);
+        groupRef.current.position.copy(vecPos);
+
+        // Rotation
+        // 1. Heading
+        let heading = 0;
+        if (safeIdx < maxIdx) {
+            const nextX = positions[(safeIdx+1)*3];
+            const nextZ = positions[(safeIdx+1)*3+2];
+            heading = Math.atan2(nextX - vecPos.x, nextZ - vecPos.z);
+        } else if (safeIdx > 0) {
+            const prevX = positions[(safeIdx-1)*3];
+            const prevZ = positions[(safeIdx-1)*3+2];
+            heading = Math.atan2(vecPos.x - prevX, vecPos.z - prevZ);
+        }
+
+        // 2. Slope
+        let slopePitch = 0;
+        if (safeIdx < maxIdx) {
+             const nextY = positions[(safeIdx + 1) * 3 + 1];
+             const nextX = positions[(safeIdx + 1) * 3];
+             const nextZ = positions[(safeIdx + 1) * 3 + 2];
+             const dy = nextY - vecPos.y;
+             const dist = Math.sqrt(Math.pow(nextX - vecPos.x, 2) + Math.pow(nextZ - vecPos.z, 2));
+             if (dist > 0.01) slopePitch = -Math.atan2(dy, dist);
+        }
+
+        // 3. Dynamic Tilt
+        const frame = data[safeIdx];
+        const dynamicPitch = (frame?.gForceLong || 0) * 0.08;
+        const dynamicRoll = (frame?.gForceLat || 0) * 0.15;
+
+        eulerRot.set(slopePitch + dynamicPitch, heading, dynamicRoll);
+        groupRef.current.rotation.copy(eulerRot);
+
+        // G-Force Arrows
+        if (frame) {
+            if (arrowLongRef.current) {
+                const gLong = frame.gForceLong || 0;
+                if (Math.abs(gLong) > 0.1) {
+                    arrowLongRef.current.visible = true;
+                    // Direction: -Z is forward. +G (Accel) -> Backward vector (Push back)?
+                    // Usually G-force vector visualizes the FORCE felt.
+                    // Accel (+Long) -> Felt Backwards.
+                    // Brake (-Long) -> Felt Forwards.
+                    // Original code: telemetry.gForceLong > 0 ? -1 : 1.
+                    // If > 0 (Accel), direction -1 (Forward??). No, -Z is forward in ThreeJS usually?
+                    // Let's stick to original logic:
+                    // telemetry.gForceLong > 0 ? -1 : 1
+                    const dirZ = gLong > 0 ? -1 : 1;
+                    arrowLongRef.current.setDirection(new THREE.Vector3(0, 0, dirZ));
+                    arrowLongRef.current.setLength(Math.min(Math.abs(gLong) * 5, 10), 1, 0.5);
+                    // Color is not easily mutable on ArrowHelper without accessing .line and .cone
+                    // But we can just assume colors are fixed or use two arrows?
+                    // Or recreate? Recreating is bad.
+                    // Let's just set color if we can.
+                    const color = gLong > 0 ? 0x00ff00 : 0xff0000;
+                    arrowLongRef.current.setColor(new THREE.Color(color));
+                } else {
+                    arrowLongRef.current.visible = false;
+                }
+            }
+
+            if (arrowLatRef.current) {
+                 const gLat = frame.gForceLat || 0;
+                 if (Math.abs(gLat) > 0.1) {
+                     arrowLatRef.current.visible = true;
+                     const dirX = gLat > 0 ? -1 : 1;
+                     arrowLatRef.current.setDirection(new THREE.Vector3(dirX, 0, 0));
+                     arrowLatRef.current.setLength(Math.min(Math.abs(gLat) * 5, 10), 1, 0.5);
+                 } else {
+                     arrowLatRef.current.visible = false;
+                 }
+            }
+        }
+    });
+
   return (
-    <group position={position} rotation={rotation}>
+    <group ref={groupRef}>
       {/* Car Body */}
       <mesh>
         <boxGeometry args={[2.5, 1.5, 5]} />
@@ -138,77 +306,43 @@ const Car: React.FC<CarProps> = ({ position, rotation, telemetry, opacity = 1, t
         <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={1} transparent={transparent} opacity={opacity} />
       </mesh>
 
-      {/* Dynamics Cage - Large wireframe box to visualize tilt/roll */}
+      {/* Dynamics Cage */}
       <mesh>
         <boxGeometry args={[12, 6, 16]} />
         <meshBasicMaterial color="white" wireframe opacity={0.05} transparent />
       </mesh>
 
-      {/* G-Force Vector Arrow */}
-      {telemetry && (
-        <group>
-          {/* Simple Arrows for now */}
-          {/* Longitudinal (Accel/Brake) */}
-          {Math.abs(telemetry.gForceLong) > 0.1 && (
-             <arrowHelper
-               args={[
-                 new THREE.Vector3(0, 0, telemetry.gForceLong > 0 ? -1 : 1), // Dir: -Z is forward
-                 new THREE.Vector3(0, 2, 0), // Origin: Above car
-                 Math.min(Math.abs(telemetry.gForceLong) * 5, 10), // Length
-                 telemetry.gForceLong > 0 ? 0x00ff00 : 0xff0000, // Color: Green (Accel), Red (Brake)
-                 1, // Head length
-                 0.5 // Head width
-               ]}
-             />
-          )}
-
-           {/* Lateral (Turning) */}
-           {Math.abs(telemetry.gForceLat) > 0.1 && (
-             <arrowHelper
-               args={[
-                 new THREE.Vector3(telemetry.gForceLat > 0 ? -1 : 1, 0, 0), // Dir: -X is Right? +X is Right?
-                 new THREE.Vector3(0, 2, 0),
-                 Math.min(Math.abs(telemetry.gForceLat) * 5, 10),
-                 0xffff00, // Yellow for turning
-                 1,
-                 0.5
-               ]}
-             />
-          )}
-        </group>
-      )}
+      {/* G-Force Vectors */}
+      <arrowHelper ref={arrowLongRef} args={[new THREE.Vector3(0,0,1), new THREE.Vector3(0,2,0), 0, 0xffff00]} />
+      <arrowHelper ref={arrowLatRef} args={[new THREE.Vector3(1,0,0), new THREE.Vector3(0,2,0), 0, 0xffff00]} />
     </group>
   );
 };
 
-interface GhostCarProps {
-  position: [number, number, number];
-  rotation: THREE.Euler;
-}
-
-const GhostCar: React.FC<GhostCarProps> = ({ position, rotation }) => {
-  // Reuse Car component but with specific props for "Ideal Lap" look (Solid, Gold)
-  return (
-      <Car position={position} rotation={rotation} color="#fbbf24" />
-  );
-};
 
 interface SceneContentProps {
   positions: Float32Array;
-  currentIndex: number;
+  data: TelemetryFrame[];
+  currentIndexRef: React.MutableRefObject<number>;
   followMode: boolean;
-  currentFrame: TelemetryFrame | null;
   ghostPosition: [number, number, number] | null;
   showGhost: boolean;
   zoomLevel: number;
 }
 
-const SceneContent: React.FC<SceneContentProps> = ({ positions, currentIndex, followMode, currentFrame, ghostPosition, showGhost, zoomLevel }) => {
+// Optimized Scene Content
+const SceneContent: React.FC<SceneContentProps> = ({ positions, data, currentIndexRef, followMode, ghostPosition, showGhost, zoomLevel }) => {
   const { camera } = useThree();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const controlsRef = useRef<any>(null);
-
   const targetLookAt = useRef(new THREE.Vector3());
+
+  // Helper vectors for camera logic (avoid GC)
+  const vecCarPos = useRef(new THREE.Vector3());
+  const vecDir = useRef(new THREE.Vector3());
+  const vecIdealOff = useRef(new THREE.Vector3());
+  const vecIdealPos = useRef(new THREE.Vector3());
+  const vecIdealLookAt = useRef(new THREE.Vector3());
 
   // Initial camera position
   useEffect(() => {
@@ -218,75 +352,37 @@ const SceneContent: React.FC<SceneContentProps> = ({ positions, currentIndex, fo
     }
   }, [camera, followMode]);
 
-  // Calculate car position
-  const currentPosVector = useMemo(() => {
-     if (positions.length === 0) return new THREE.Vector3(0,0,0);
-     const idx = Math.min(currentIndex, (positions.length / 3) - 1);
-     return new THREE.Vector3(positions[idx * 3], positions[idx * 3 + 1], positions[idx * 3 + 2]);
-  }, [positions, currentIndex]);
-
-  // Calculate Car Rotation
-  const getCarRotation = useCallback((frame: TelemetryFrame | null, pos: THREE.Vector3, idx: number) => {
-      if (!frame) return new THREE.Euler(0, 0, 0);
-
-      // 1. Calculate Yaw (Heading) from track geometry
-      let heading = 0;
-      if (idx < (positions.length / 3) - 1) {
-          const nextX = positions[(idx + 1) * 3];
-          const nextZ = positions[(idx + 1) * 3 + 2];
-          const dx = nextX - pos.x;
-          const dz = nextZ - pos.z;
-          heading = Math.atan2(dx, dz);
-      } else if (idx > 0) { // If at the end, use previous point
-          const prevX = positions[(idx - 1) * 3];
-          const prevZ = positions[(idx - 1) * 3 + 2];
-          const dx = pos.x - prevX;
-          const dz = pos.z - prevZ;
-          heading = Math.atan2(dx, dz);
-      }
-
-      // 2. Pitch & Roll (same as before)
-      let slopePitch = 0;
-      if (idx < (positions.length / 3) - 1) {
-         const nextY = positions[(idx + 1) * 3 + 1];
-         const nextX = positions[(idx + 1) * 3];
-         const nextZ = positions[(idx + 1) * 3 + 2];
-         const dy = nextY - pos.y;
-         const dist = Math.sqrt(Math.pow(nextX - pos.x, 2) + Math.pow(nextZ - pos.z, 2));
-         if (dist > 0.01) slopePitch = -Math.atan2(dy, dist);
-      }
-
-      const dynamicPitch = (frame.gForceLong || 0) * 0.08;
-      const dynamicRoll = (frame.gForceLat || 0) * 0.15;
-
-      return new THREE.Euler(slopePitch + dynamicPitch, heading, dynamicRoll);
-  }, [positions]);
-
-  const carRotation = useMemo(() => {
-      return getCarRotation(currentFrame, currentPosVector, currentIndex);
-  }, [currentFrame, currentPosVector, currentIndex, getCarRotation]);
-
-
   useFrame((_, delta) => {
+    // Get current car position (imperatively)
+    const idx = currentIndexRef.current;
+    const maxIdx = (positions.length / 3) - 1;
+    const safeIdx = Math.max(0, Math.min(idx, maxIdx));
+
+    vecCarPos.current.set(positions[safeIdx*3], positions[safeIdx*3+1], positions[safeIdx*3+2]);
+
     if (!followMode) {
        if (controlsRef.current) {
-           // Keep target focused on the car even in orbit mode
-           controlsRef.current.target.lerp(currentPosVector, 0.5);
+           controlsRef.current.target.lerp(vecCarPos.current, 0.5);
            controlsRef.current.update();
        }
        return;
     }
 
-    const carPos = currentPosVector;
+    // Calculate Heading for Camera
+    let heading = 0;
+    if (safeIdx < maxIdx) {
+        const nextX = positions[(safeIdx+1)*3];
+        const nextZ = positions[(safeIdx+1)*3+2];
+        heading = Math.atan2(nextX - vecCarPos.current.x, nextZ - vecCarPos.current.z);
+    } else if (safeIdx > 0) {
+        const prevX = positions[(safeIdx-1)*3];
+        const prevZ = positions[(safeIdx-1)*3+2];
+        heading = Math.atan2(vecCarPos.current.x - prevX, vecCarPos.current.z - prevZ);
+    }
 
-    // Calculate direction vector based on car rotation (Yaw)
-    const direction = new THREE.Vector3(Math.sin(carRotation.y), 0, Math.cos(carRotation.y));
+    vecDir.current.set(Math.sin(heading), 0, Math.cos(heading));
 
-    // Camera Offsets based on Zoom Level
-    // 0: Far (Chase)
-    // 1: Mid (Chase)
-    // 2: Close (Chase)
-    // 3: Bumper (First Person)
+    // Camera Offsets
     let distance = 100;
     let height = 40;
     let lookAhead = 50;
@@ -303,31 +399,24 @@ const SceneContent: React.FC<SceneContentProps> = ({ positions, currentIndex, fo
         lookAhead = 30;
         break;
       case 2: // Bumper
-        distance = -2; // In front of car center
+        distance = -2;
         height = 2;
-        lookAhead = 100; // Look further ahead
+        lookAhead = 100;
         break;
     }
 
-    // Smoothly interpolate camera position
-    const idealOffset = direction.clone().multiplyScalar(-distance).add(new THREE.Vector3(0, height, 0));
-    const idealPos = carPos.clone().add(idealOffset);
+    // idealOffset = direction * -distance + (0, height, 0)
+    vecIdealOff.current.copy(vecDir.current).multiplyScalar(-distance).add(new THREE.Vector3(0, height, 0));
+    vecIdealPos.current.copy(vecCarPos.current).add(vecIdealOff.current);
 
-    // Smooth look at point (slightly ahead of car)
-    const idealLookAt = carPos.clone().add(direction.clone().multiplyScalar(lookAhead));
+    // idealLookAt = carPos + direction * lookAhead
+    vecIdealLookAt.current.copy(vecCarPos.current).add(vecDir.current.clone().multiplyScalar(lookAhead));
 
-    // Lerp current camera position to ideal position
-    // Use a factor relative to delta for frame-rate independence
-    // Bumper cam needs to be snappier
     const damp = zoomLevel === 2 ? 15 * delta : 5 * delta;
 
-    camera.position.lerp(idealPos, damp);
-
-    // For lookAt, we can't easily lerp the "look at target" directly on the camera object
-    // But we can maintain a target vector and lerp that
-    targetLookAt.current.lerp(idealLookAt, damp);
+    camera.position.lerp(vecIdealPos.current, damp);
+    targetLookAt.current.lerp(vecIdealLookAt.current, damp);
     camera.lookAt(targetLookAt.current);
-
   });
 
 
@@ -337,42 +426,58 @@ const SceneContent: React.FC<SceneContentProps> = ({ positions, currentIndex, fo
       <ambientLight intensity={0.5} />
       <directionalLight position={[10, 20, 5]} intensity={1} />
 
-      {/* Base Track - Green (Original) */}
+      {/* Base Track */}
       <Track positions={positions} color="#00ff00" opacity={0.3} transparent />
 
-      {/* Past Trail - Orange (Where we have been) */}
-      <PathSegment
+      {/* Imperative Paths */}
+      <ImperativePathSegment
         positions={positions}
-        startIndex={currentIndex - 50}
-        endIndex={currentIndex + 1}
+        currentIndexRef={currentIndexRef}
+        startIndexOffset={-50}
+        endIndexOffset={1}
         color="#ffaa00"
         lineWidth={4}
         fade="in"
       />
 
-      {/* Future Path - Cyan (Where we are going) */}
-      <PathSegment
+      <ImperativePathSegment
         positions={positions}
-        startIndex={currentIndex}
-        endIndex={currentIndex + 100}
+        currentIndexRef={currentIndexRef}
+        startIndexOffset={0}
+        endIndexOffset={100}
         color="#00ffff"
         lineWidth={4}
         fade="out"
       />
 
-      {/* Main Car - Now Transparent/Ghost-like */}
-      <Car
-        position={[currentPosVector.x, currentPosVector.y, currentPosVector.z]}
-        rotation={carRotation}
-        telemetry={currentFrame}
-        transparent
-        opacity={0.5}
-        color="#3b82f6"
+      {/* Imperative Car */}
+      <ImperativeCar
+         positions={positions}
+         data={data}
+         currentIndexRef={currentIndexRef}
+         transparent
+         opacity={0.5}
+         color="#3b82f6"
       />
 
-      {/* Ghost Car - Now Solid (Ideal Lap) */}
+      {/* Ghost Car - Still React/Prop based for now? Or imperative?
+          Ghost position usually comes from complex logic in parent.
+          If we want to optimize ghost, we should pass ghostIndexRef.
+          But currently props pass `ghostPosition`.
+          `ghostPosition` is calculated in ReplayPage using `getGhostFrame`.
+          That calculation happens in render loop.
+          To optimize: Move ghost calculation to `useFrame` or worker?
+          For now, leave Ghost as is, it's just one object update per frame (parent render).
+          Wait, if we want to stop parent render, we must not depend on `ghostPosition` prop!
+      */}
       {showGhost && ghostPosition && (
-        <GhostCar position={ghostPosition} rotation={carRotation} />
+          // GhostCar is just a Car with different color.
+          // We can use standard Mesh here if we don't want to refactor Car more.
+          // But `GhostCar` component uses `Car` component.
+          <mesh position={ghostPosition}>
+             <boxGeometry args={[2.5, 1.5, 5]} />
+             <meshStandardMaterial color="#fbbf24" metalness={0.6} roughness={0.2} />
+          </mesh>
       )}
 
       {/* Ground Plane */}
@@ -413,18 +518,34 @@ const StartLine: React.FC<StartLineProps> = ({ position }) => {
 
 interface ReplayTrackMap3DProps {
   positions: Float32Array;
-  currentIndex: number;
+  // We need the full data for ImperativeCar
+  data?: TelemetryFrame[];
+
+  // Ref based inputs
+  currentIndexRef?: React.MutableRefObject<number>;
+
+  // Backward compatibility (if needed) or for initial render
+  currentIndex?: number;
   currentFrame?: TelemetryFrame | null;
-  ghostFrame?: TelemetryFrame | null;
+
   ghostPosition?: [number, number, number] | null;
   showGhost: boolean;
-  setShowGhost: (show: boolean) => void;
   startLinePos?: [number, number, number] | null;
 }
 
-export const ReplayTrackMap3D: React.FC<ReplayTrackMap3DProps> = ({ positions, currentIndex, currentFrame = null, ghostPosition = null, showGhost, startLinePos }) => {
+export const ReplayTrackMap3D: React.FC<ReplayTrackMap3DProps> = memo(({ positions, data = [], currentIndexRef, currentIndex = 0, currentFrame = null, ghostPosition = null, showGhost, startLinePos }) => {
   const [followMode, setFollowMode] = useState(true);
   const [zoomLevel, setZoomLevel] = useState(1); // Default to Mid
+
+  // Internal ref if not provided (fallback)
+  const localIndexRef = useRef(currentIndex);
+
+  // Sync local ref if prop changes (for fallback mode)
+  useEffect(() => {
+     localIndexRef.current = currentIndex;
+  }, [currentIndex]);
+
+  const effectiveRef = currentIndexRef || localIndexRef;
 
   const cycleZoom = () => {
     setZoomLevel((prev) => (prev + 1) % 3);
@@ -437,18 +558,17 @@ export const ReplayTrackMap3D: React.FC<ReplayTrackMap3DProps> = ({ positions, c
       <Canvas shadows dpr={[1, 2]} gl={{ antialias: true }}>
         <color attach="background" args={[theme === 'light' ? '#f3f4f6' : '#000000']} />
         <PerspectiveCamera makeDefault position={[0, 50, 0]} fov={50} />
+
         <SceneContent
             positions={positions}
-            currentIndex={currentIndex}
+            data={data}
+            currentIndexRef={effectiveRef}
             followMode={followMode}
-            currentFrame={currentFrame}
             ghostPosition={ghostPosition}
             showGhost={showGhost}
             zoomLevel={zoomLevel}
         />
-        {showGhost && ghostPosition && (
-            <GhostCar position={ghostPosition} rotation={new THREE.Euler(0,0,0)} />
-        )}
+
         {startLinePos && <StartLine position={startLinePos} />}
       </Canvas>
 
@@ -491,13 +611,23 @@ export const ReplayTrackMap3D: React.FC<ReplayTrackMap3DProps> = ({ positions, c
         )}
       </div>
 
-      {/* ... (Rest of component) */}
-
       <div className="absolute bottom-4 right-4 text-xs text-gray-500 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
         {followMode ? 'Camera follows car' : 'Left Click: Rotate | Right Click: Pan | Scroll: Zoom'}
       </div>
 
-      {/* Fixed HUD Overlay */}
+      {/* HUD Overlay - Still depends on currentFrame prop?
+          If we want to avoid re-renders, this should be a separate component or imperative.
+          BUT if the parent re-renders anyway, we can just use the prop.
+          The goal was to avoid Scene 3D re-renders.
+          The Canvas is inside this component. If this component re-renders, Canvas might re-render?
+          React-three-fiber manages its own loop.
+          If `ReplayTrackMap3D` re-renders, `SceneContent` will be re-rendered.
+          Since `SceneContent` uses `useFrame` for everything now and minimal props (refs),
+          it should be cheap.
+          However, `currentFrame` passed here is used for HUD.
+          Ideally HUD should be outside Canvas to not interfere?
+          It is outside Canvas (HTML overlay).
+      */}
       {currentFrame && (
         <div className="absolute top-4 right-4 z-10 bg-white/80 dark:bg-black/80 backdrop-blur-md p-3 rounded-lg border border-gray-200 dark:border-gray-700 text-xs font-mono text-gray-900 dark:text-white flex flex-col gap-2 shadow-xl min-w-[140px]">
           <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-1 mb-1">
@@ -527,4 +657,4 @@ export const ReplayTrackMap3D: React.FC<ReplayTrackMap3DProps> = ({ positions, c
       )}
     </div>
   );
-};
+});
