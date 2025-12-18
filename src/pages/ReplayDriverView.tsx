@@ -5,6 +5,8 @@ import { Video, Box, Upload, Settings2 } from 'lucide-react';
 
 interface ReplayDriverViewProps {
   positions: Float32Array;
+  data?: TelemetryFrame[]; // Added to pass full data for imperative updates
+  currentIndexRef?: React.MutableRefObject<number>; // Added ref support
   currentIndex: number;
   currentFrame: TelemetryFrame | null;
   ghostFrame?: TelemetryFrame | null;
@@ -16,11 +18,13 @@ interface ReplayDriverViewProps {
   videoOffset: number;
   setVideoOffset: (offset: number) => void;
   onVideoUpload: (file: File) => void;
-  isPlaying?: boolean; // We likely need to pass this down from ReplayPage or useTelemetry context
+  isPlaying?: boolean;
 }
 
 export const ReplayDriverView: React.FC<ReplayDriverViewProps> = ({
   positions,
+  data,
+  currentIndexRef,
   currentIndex,
   currentFrame,
   ghostFrame,
@@ -157,6 +161,8 @@ export const ReplayDriverView: React.FC<ReplayDriverViewProps> = ({
         {viewMode === '3d' ? (
           <ReplayTrackMap3D
             positions={positions}
+            data={data}
+            currentIndexRef={currentIndexRef}
             currentIndex={currentIndex}
             currentFrame={currentFrame}
             ghostFrame={ghostFrame}
