@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ReplayTrackMap3D } from '../components/ReplayTrackMap3D';
+import { ReplayHUD } from '../components/ReplayHUD';
 import type { TelemetryFrame } from '../utils/telemetryParser';
+import type { LapData } from '../utils/lapAnalysis';
 import { Video, Box, Upload, Settings2 } from 'lucide-react';
 
 interface ReplayDriverViewProps {
@@ -19,6 +21,11 @@ interface ReplayDriverViewProps {
   setVideoOffset: (offset: number) => void;
   onVideoUpload: (file: File) => void;
   isPlaying?: boolean;
+
+  // New props for optimized 3D
+  ghostPathPositions?: Float32Array;
+  idealLap?: LapData | null;
+  laps?: LapData[];
 }
 
 export const ReplayDriverView: React.FC<ReplayDriverViewProps> = ({
@@ -27,16 +34,16 @@ export const ReplayDriverView: React.FC<ReplayDriverViewProps> = ({
   currentIndexRef,
   currentIndex,
   currentFrame,
-  ghostFrame,
-  ghostPosition,
   showGhost,
-  setShowGhost,
   startLinePos,
   videoSrc,
   videoOffset,
   setVideoOffset,
   onVideoUpload,
-  isPlaying = false
+  isPlaying = false,
+  ghostPathPositions,
+  idealLap,
+  laps
 }) => {
   const [viewMode, setViewModeState] = useState<'3d' | 'video'>(() => {
     return (localStorage.getItem('driver_view_mode') as '3d' | 'video') || '3d';
@@ -159,18 +166,33 @@ export const ReplayDriverView: React.FC<ReplayDriverViewProps> = ({
 
       <div className="flex-grow relative min-h-0 overflow-hidden">
         {viewMode === '3d' ? (
-          <ReplayTrackMap3D
-            positions={positions}
-            data={data}
-            currentIndexRef={currentIndexRef}
-            currentIndex={currentIndex}
-            currentFrame={currentFrame}
-            ghostFrame={ghostFrame}
-            ghostPosition={ghostPosition}
-            showGhost={showGhost}
-            setShowGhost={setShowGhost}
-            startLinePos={startLinePos}
-          />
+          <>
+             <ReplayTrackMap3D
+                positions={positions}
+                data={data}
+                currentIndexRef={currentIndexRef}
+                currentIndex={currentIndex}
+
+                // Only pass ghostPosition if we want to support fallback or if we haven't fully migrated.
+                // But now we use imperative ghost inside.
+                // However, ReplayTrackMap3D still accepts ghostPosition for fallback?
+                // Let's pass null to force usage of imperative ghost if data is available?
+                // Or just pass it anyway, but the component prefers imperative if provided?
+                // The updated component renders ImperativeGhostCar if showGhost is true.
+                // It also renders prop-based ghost if showGhost && ghostPosition is true.
+                // We should probably remove ghostPosition from here to avoid double ghost.
+                ghostPosition={null}
+
+                showGhost={showGhost}
+                startLinePos={startLinePos}
+
+                ghostPositions={ghostPathPositions}
+                idealLap={idealLap}
+                laps={laps}
+              />
+              {/* Render HUD separately */}
+              <ReplayHUD currentFrame={currentFrame} />
+          </>
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-black">
             {!videoSrc ? (

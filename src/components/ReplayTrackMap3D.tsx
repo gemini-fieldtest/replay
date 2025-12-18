@@ -8,6 +8,7 @@ import { Line2 } from 'three-stdlib';
 
 // ... (Imports and other components)
 import type { TelemetryFrame } from '../utils/telemetryParser';
+import type { LapData } from '../utils/lapAnalysis';
 
 interface TrackProps {
   positions: Float32Array;
@@ -320,18 +321,115 @@ const ImperativeCar: React.FC<ImperativeCarProps> = ({ positions, data, currentI
 };
 
 
+interface ImperativeGhostCarProps {
+  ghostPositions: Float32Array;
+  idealLap: LapData | null;
+  laps: LapData[];
+  data: TelemetryFrame[];
+  currentIndexRef: React.MutableRefObject<number>;
+}
+
+const ImperativeGhostCar: React.FC<ImperativeGhostCarProps> = ({ ghostPositions, idealLap, laps, data, currentIndexRef }) => {
+  const meshRef = useRef<THREE.Mesh>(null);
+
+  useFrame(() => {
+    if (!meshRef.current || !idealLap || !laps.length || ghostPositions.length === 0) {
+      if (meshRef.current) meshRef.current.visible = false;
+      return;
+    }
+
+    const currentIndex = currentIndexRef.current;
+    if (currentIndex < 0 || currentIndex >= data.length) return;
+
+    const currentFrame = data[currentIndex];
+    const time = currentFrame.time;
+
+    // Find current lap
+    // Optimization: Store last known lap index in a ref to avoid scanning laps every frame?
+    // For now simple find is ok as laps array is small.
+    let currentLap = laps.find(l => time >= l.frames[0].time && time <= l.frames[l.frames.length - 1].time);
+
+    // Fallback logic from useTelemetry
+    if (!currentLap && laps.length > 0) {
+        const lastLap = laps[laps.length - 1];
+        if (time > lastLap.frames[lastLap.frames.length - 1].time) {
+            currentLap = lastLap;
+        } else if (time < laps[0].frames[0].time) {
+            // Before first lap
+            // Use start of ideal lap
+            const idx = 0;
+             if (idx < ghostPositions.length / 3) {
+                 meshRef.current.position.set(ghostPositions[idx*3], ghostPositions[idx*3+1] + 0.5, ghostPositions[idx*3+2]);
+                 meshRef.current.visible = true;
+             }
+             return;
+        }
+    }
+
+    if (!currentLap) {
+         meshRef.current.visible = false;
+         return;
+    }
+
+    const relativeTime = time - currentLap.frames[0].time;
+
+    // Binary search for closest frame in idealLap
+    let low = 0;
+    let high = idealLap.frames.length - 1;
+    let bestIdx = 0;
+
+    // Optimization: Store last index to start search from there?
+    // Given the playback is sequential, it should be close.
+    // But scrubbing breaks that assumption. Binary search is fast enough (log N for ~3000 points).
+
+    while (low <= high) {
+        const mid = (low + high) >>> 1;
+        if (idealLap.frames[mid].time < relativeTime) {
+            bestIdx = mid;
+            low = mid + 1;
+        } else {
+            high = mid - 1;
+        }
+    }
+
+    // Update position
+    // ghostPositions matches idealLap.frames indices
+    if (bestIdx < ghostPositions.length / 3) {
+        meshRef.current.position.set(ghostPositions[bestIdx*3], ghostPositions[bestIdx*3+1] + 0.5, ghostPositions[bestIdx*3+2]);
+        meshRef.current.visible = true;
+    } else {
+        meshRef.current.visible = false;
+    }
+  });
+
+  return (
+    <mesh ref={meshRef}>
+        <boxGeometry args={[2.5, 1.5, 5]} />
+        <meshStandardMaterial color="#fbbf24" metalness={0.6} roughness={0.2} />
+    </mesh>
+  );
+}
+
+
 interface SceneContentProps {
   positions: Float32Array;
   data: TelemetryFrame[];
   currentIndexRef: React.MutableRefObject<number>;
   followMode: boolean;
-  ghostPosition: [number, number, number] | null;
   showGhost: boolean;
   zoomLevel: number;
+
+  // New props for imperative ghost
+  ghostPositions: Float32Array;
+  idealLap: LapData | null;
+  laps: LapData[];
+
+  // Backwards compatibility
+  ghostPosition: [number, number, number] | null;
 }
 
 // Optimized Scene Content
-const SceneContent: React.FC<SceneContentProps> = ({ positions, data, currentIndexRef, followMode, ghostPosition, showGhost, zoomLevel }) => {
+const SceneContent: React.FC<SceneContentProps> = ({ positions, data, currentIndexRef, followMode, showGhost, zoomLevel, ghostPositions, idealLap, laps, ghostPosition }) => {
   const { camera } = useThree();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const controlsRef = useRef<any>(null);
@@ -460,20 +558,21 @@ const SceneContent: React.FC<SceneContentProps> = ({ positions, data, currentInd
          color="#3b82f6"
       />
 
-      {/* Ghost Car - Still React/Prop based for now? Or imperative?
-          Ghost position usually comes from complex logic in parent.
-          If we want to optimize ghost, we should pass ghostIndexRef.
-          But currently props pass `ghostPosition`.
-          `ghostPosition` is calculated in ReplayPage using `getGhostFrame`.
-          That calculation happens in render loop.
-          To optimize: Move ghost calculation to `useFrame` or worker?
-          For now, leave Ghost as is, it's just one object update per frame (parent render).
-          Wait, if we want to stop parent render, we must not depend on `ghostPosition` prop!
+      {/* Imperative Ghost Car */}
+      {showGhost && (
+        <ImperativeGhostCar
+            ghostPositions={ghostPositions}
+            idealLap={idealLap}
+            laps={laps}
+            data={data}
+            currentIndexRef={currentIndexRef}
+        />
+      )}
+
+      {/* Fallback Ghost Position (if passed) - Only if not using imperative?
+          Or overlay? For now, let's keep it if imperative is empty.
       */}
-      {showGhost && ghostPosition && (
-          // GhostCar is just a Car with different color.
-          // We can use standard Mesh here if we don't want to refactor Car more.
-          // But `GhostCar` component uses `Car` component.
+      {showGhost && ghostPosition && ghostPositions.length === 0 && (
           <mesh position={ghostPosition}>
              <boxGeometry args={[2.5, 1.5, 5]} />
              <meshStandardMaterial color="#fbbf24" metalness={0.6} roughness={0.2} />
@@ -526,14 +625,34 @@ interface ReplayTrackMap3DProps {
 
   // Backward compatibility (if needed) or for initial render
   currentIndex?: number;
-  currentFrame?: TelemetryFrame | null;
 
+  // Ghost Data
+  ghostPositions?: Float32Array;
+  idealLap?: LapData | null;
+  laps?: LapData[];
+
+  // Backwards compatibility
   ghostPosition?: [number, number, number] | null;
+
   showGhost: boolean;
   startLinePos?: [number, number, number] | null;
+  // Previously we used currentFrame for HUD, but that's gone now.
+  // We keep the prop type definition clean if other files used it, but we removed it.
+  currentFrame?: TelemetryFrame | null;
 }
 
-export const ReplayTrackMap3D: React.FC<ReplayTrackMap3DProps> = memo(({ positions, data = [], currentIndexRef, currentIndex = 0, currentFrame = null, ghostPosition = null, showGhost, startLinePos }) => {
+export const ReplayTrackMap3D: React.FC<ReplayTrackMap3DProps> = memo(({
+    positions,
+    data = [],
+    currentIndexRef,
+    currentIndex = 0,
+    ghostPositions = new Float32Array(0),
+    idealLap = null,
+    laps = [],
+    ghostPosition = null,
+    showGhost,
+    startLinePos
+}) => {
   const [followMode, setFollowMode] = useState(true);
   const [zoomLevel, setZoomLevel] = useState(1); // Default to Mid
 
@@ -564,9 +683,12 @@ export const ReplayTrackMap3D: React.FC<ReplayTrackMap3DProps> = memo(({ positio
             data={data}
             currentIndexRef={effectiveRef}
             followMode={followMode}
-            ghostPosition={ghostPosition}
             showGhost={showGhost}
             zoomLevel={zoomLevel}
+            ghostPositions={ghostPositions}
+            idealLap={idealLap}
+            laps={laps}
+            ghostPosition={ghostPosition}
         />
 
         {startLinePos && <StartLine position={startLinePos} />}
@@ -614,47 +736,6 @@ export const ReplayTrackMap3D: React.FC<ReplayTrackMap3DProps> = memo(({ positio
       <div className="absolute bottom-4 right-4 text-xs text-gray-500 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
         {followMode ? 'Camera follows car' : 'Left Click: Rotate | Right Click: Pan | Scroll: Zoom'}
       </div>
-
-      {/* HUD Overlay - Still depends on currentFrame prop?
-          If we want to avoid re-renders, this should be a separate component or imperative.
-          BUT if the parent re-renders anyway, we can just use the prop.
-          The goal was to avoid Scene 3D re-renders.
-          The Canvas is inside this component. If this component re-renders, Canvas might re-render?
-          React-three-fiber manages its own loop.
-          If `ReplayTrackMap3D` re-renders, `SceneContent` will be re-rendered.
-          Since `SceneContent` uses `useFrame` for everything now and minimal props (refs),
-          it should be cheap.
-          However, `currentFrame` passed here is used for HUD.
-          Ideally HUD should be outside Canvas to not interfere?
-          It is outside Canvas (HTML overlay).
-      */}
-      {currentFrame && (
-        <div className="absolute top-4 right-4 z-10 bg-white/80 dark:bg-black/80 backdrop-blur-md p-3 rounded-lg border border-gray-200 dark:border-gray-700 text-xs font-mono text-gray-900 dark:text-white flex flex-col gap-2 shadow-xl min-w-[140px]">
-          <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-1 mb-1">
-            <span className="text-gray-500 dark:text-gray-400 font-semibold">TELEMETRY</span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-gray-500 dark:text-gray-400">Speed</span>
-            <span className="font-bold text-blue-600 dark:text-blue-400 text-lg">{currentFrame.speed?.toFixed(0) ?? '0'} <span className="text-xs text-gray-500 dark:text-gray-500">km/h</span></span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-gray-500 dark:text-gray-400">G-Lat</span>
-            <span className={`font-bold ${Math.abs(currentFrame.gForceLat ?? 0) > 0.5 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
-              {currentFrame.gForceLat?.toFixed(2) ?? '0.00'}
-            </span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-gray-500 dark:text-gray-400">G-Long</span>
-            <span className={`font-bold ${Math.abs(currentFrame.gForceLong ?? 0) > 0.5 ? 'text-yellow-600 dark:text-yellow-400' : 'text-gray-900 dark:text-white'}`}>
-              {currentFrame.gForceLong?.toFixed(2) ?? '0.00'}
-            </span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-gray-500 dark:text-gray-400">Slope</span>
-            <span className="font-bold text-green-600 dark:text-green-400">{currentFrame.gradient?.toFixed(1) ?? '0.0'}%</span>
-          </div>
-        </div>
-      )}
     </div>
   );
 });

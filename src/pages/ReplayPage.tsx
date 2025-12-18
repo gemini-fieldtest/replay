@@ -186,7 +186,21 @@ export function ReplayPage() {
     return pos;
   }, [data, projectionParams]);
 
-  // Calculate Ghost Position
+  // Pre-calculate Ghost positions
+  const ghostPathPositions = useMemo(() => {
+     if (!idealLap || !projectionParams) return new Float32Array(0);
+     const { centerLat, centerLon, centerAlt, latScale, lonScale } = projectionParams;
+
+     const pos = new Float32Array(idealLap.frames.length * 3);
+     idealLap.frames.forEach((f, i) => {
+        pos[i * 3] = (f.longitude - centerLon) * lonScale;
+        pos[i * 3 + 1] = (f.altitude - centerAlt) * 5;
+        pos[i * 3 + 2] = -(f.latitude - centerLat) * latScale;
+     });
+     return pos;
+  }, [idealLap, projectionParams]);
+
+  // Calculate Ghost Position (Still needed for Pit View and Coach for now, or we can use ref there too later)
   const ghostFrame = useMemo(() => getGhostFrame(currentFrame), [currentFrame, getGhostFrame]);
 
   const ghostPosition = useMemo(() => {
@@ -575,6 +589,10 @@ export function ReplayPage() {
                 videoOffset={videoOffset}
                 setVideoOffset={handleVideoOffsetChange}
                 onVideoUpload={handleVideoUpload}
+                // Ghost Props for Optimized 3D
+                ghostPathPositions={ghostPathPositions}
+                idealLap={idealLap}
+                laps={laps}
               />
 
             </div>
