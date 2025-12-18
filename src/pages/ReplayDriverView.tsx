@@ -27,10 +27,8 @@ export const ReplayDriverView: React.FC<ReplayDriverViewProps> = ({
   currentIndexRef,
   currentIndex,
   currentFrame,
-  ghostFrame,
   ghostPosition,
   showGhost,
-  setShowGhost,
   startLinePos,
   videoSrc,
   videoOffset,
@@ -165,10 +163,8 @@ export const ReplayDriverView: React.FC<ReplayDriverViewProps> = ({
             currentIndexRef={currentIndexRef}
             currentIndex={currentIndex}
             currentFrame={currentFrame}
-            ghostFrame={ghostFrame}
             ghostPosition={ghostPosition}
             showGhost={showGhost}
-            setShowGhost={setShowGhost}
             startLinePos={startLinePos}
           />
         ) : (
