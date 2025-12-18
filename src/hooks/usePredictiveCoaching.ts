@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import type { LapData } from '../utils/lapAnalysis';
 import type { TelemetryFrame } from '../utils/telemetryParser';
 
+import type { TrackPoint } from './useTrackLocation';
+
 export interface MistakeZone {
     startDist: number;
     endDist: number;
@@ -10,6 +12,8 @@ export interface MistakeZone {
     severity: number; // 0-1
     advice: string;
     lapIndex: number; // Which lap this mistake is from (most recent?)
+    locationName?: string; // e.g., "Turn 1"
+    specificAdvice?: string; // New field for track-specific advice
 }
 
 interface UsePredictiveCoachingProps {
@@ -17,13 +21,17 @@ interface UsePredictiveCoachingProps {
     currentFrame: TelemetryFrame | null;
     idealLap: LapData | null;
     isEnabled: boolean;
+    trackPoints?: TrackPoint[];
 }
 
-export const usePredictiveCoaching = ({ laps, currentFrame, idealLap, isEnabled }: UsePredictiveCoachingProps) => {
+export const usePredictiveCoaching = ({ laps, currentFrame, idealLap, isEnabled, trackPoints = [] }: UsePredictiveCoachingProps) => {
     const [lastTriggeredZone, setLastTriggeredZone] = useState<number>(-1); // ID/StartDist of last triggered zone
 
     // 1. Analyze Past Laps to identify Mistake Zones
     const mistakeZones = useMemo(() => {
+        // [DEBUG] Pipeline Start
+        // console.log("PredictiveCoaching: Recalculating Zones", { enabled: isEnabled, laps: laps.length, ideal: !!idealLap });
+
         if (!isEnabled || laps.length < 1 || !idealLap) return [];
 
         const zones: MistakeZone[] = [];
@@ -36,8 +44,19 @@ export const usePredictiveCoaching = ({ laps, currentFrame, idealLap, isEnabled 
         // If 'laps' contains ONLY completed laps, then laps[last] is the previous lap.
         // If 'laps' includes current incomplete lap, we need to filter.
 
-        const referenceLap = laps.filter(l => l.isComplete).pop();
-        if (!referenceLap) return [];
+        // Filter laps to only include those completed BEFORE the current frame
+        // This handles Replay mode where 'laps' contains the full session history.
+        const validHistoryLaps = currentFrame
+            ? laps.filter(l => l.isComplete && l.frames[l.frames.length - 1].time < currentFrame.time)
+            : laps.filter(l => l.isComplete);
+
+        const referenceLap = validHistoryLaps.pop();
+        if (!referenceLap) {
+            console.log("PredictiveCoaching: No valid reference lap found before current time.");
+            return [];
+        }
+
+        console.log("PredictiveCoaching: Using Reference Lap", { index: referenceLap.lapIndex, time: referenceLap.lapTime });
 
         // Compare Reference Lap to Ideal Lap
         // We assume both are somewhat aligned or we align them by distance
@@ -99,15 +118,66 @@ export const usePredictiveCoaching = ({ laps, currentFrame, idealLap, isEnabled 
 
                     // Filter: Only significant zones (> 20 meters long?)
                     if ((currentMistake.endDist! - currentMistake.startDist!) > 20) {
-                        zones.push(currentMistake as MistakeZone);
+                        const zone = currentMistake as MistakeZone;
+                        console.log("PredictiveCoaching: Mistake Zone Found", zone);
+                        zones.push(zone);
                     }
                     currentMistake = null;
                 }
             }
         }
 
-        return zones;
-    }, [laps, idealLap, isEnabled]);
+        // Post-process zones to map to Track Points
+        return zones.map(zone => {
+            if (!trackPoints || trackPoints.length === 0) return zone;
+
+            // We need to find the lat/lon of the zone start.
+            // StartDist is known.
+            // Find frame in Reference Lap at StartDist.
+            let d = 0;
+            let startFrame = referenceLap.frames[0];
+
+            for (let i = 0; i < referenceLap.frames.length - 1; i++) {
+                d += calcDistance(referenceLap.frames[i], referenceLap.frames[i + 1]);
+                if (d >= zone.startDist) {
+                    startFrame = referenceLap.frames[i];
+                    break;
+                }
+            }
+
+            // Find nearest Track Point
+            let bestPoint: TrackPoint | null = null;
+            let minDist = Infinity;
+
+            for (const p of trackPoints) {
+                const dist = calcDistance(startFrame, { latitude: p.lat, longitude: p.long });
+                if (dist < minDist) {
+                    minDist = dist;
+                    bestPoint = p;
+                }
+            }
+
+            if (bestPoint && minDist < 150) { // Within 150m of a turn point
+                // Format name
+                let name = bestPoint.name;
+                if (!isNaN(parseInt(name))) {
+                    name = `Turn ${name}`;
+                }
+
+                // --- NEW LOGIC START ---
+                // If the user is losing speed at a known point, use the specific advice!
+                console.log("PredictiveCoaching: Mapped Zone to Point", { zoneStart: zone.startDist, point: name, advice: bestPoint.advice });
+
+                let specificAdvice = bestPoint.advice; // Directly use advice from TrackPoint
+
+                return { ...zone, locationName: name, specificAdvice };
+                // --- NEW LOGIC END ---
+            }
+
+            return zone;
+        });
+
+    }, [laps, idealLap, isEnabled, trackPoints]);
 
     // 2. Realtime Check
     const getAdvice = () => {
@@ -161,7 +231,8 @@ export const usePredictiveCoaching = ({ laps, currentFrame, idealLap, isEnabled 
 
         const currentDist = matchedDist;
         const speed = Math.max(currentFrame.speed, 50); // Min 50km/h for CALC
-        const lookaheadSeconds = 4;
+        // Increase lookahead to account for AI generation latency (1-4s) + user reaction time (3-4s)
+        const lookaheadSeconds = 8;
         const lookaheadMeters = (speed / 3.6) * lookaheadSeconds;
 
         const targetDist = currentDist + lookaheadMeters;
@@ -169,6 +240,8 @@ export const usePredictiveCoaching = ({ laps, currentFrame, idealLap, isEnabled 
         // Check Zones
         // We look for a zone that STARTS near targetDist
         // Tolerance: +/- 20m
+
+        // console.log("PredictiveCoaching: Checking for upcoming mistakes", { currentDist, targetDist, speed });
 
         const upcomingMistake = mistakeZones.find(z => {
             return (z.startDist >= targetDist - 30 && z.startDist <= targetDist + 30);
@@ -178,10 +251,17 @@ export const usePredictiveCoaching = ({ laps, currentFrame, idealLap, isEnabled 
             // Check cooldown
             if (upcomingMistake.startDist !== lastTriggeredZone) {
                 setLastTriggeredZone(upcomingMistake.startDist);
+                console.log("PredictiveCoaching: Triggering Advice", {
+                    dist: upcomingMistake.startDist,
+                    speedDelta: upcomingMistake.avgSpeedDelta,
+                    advice: getAdviceText(upcomingMistake)
+                });
                 return {
                     text: `Heads up: You lost ${Math.abs(upcomingMistake.avgSpeedDelta).toFixed(0)} km/h here last lap. ${getAdviceText(upcomingMistake)}`,
                     type: 'info' as const
                 };
+            } else {
+                console.log("PredictiveCoaching: Zone skipped (cooldown)", upcomingMistake.startDist);
             }
         } else {
             // Reset trigger if we are far past it? 
@@ -215,8 +295,16 @@ function calcDistSq(f1: { latitude: number, longitude: number }, f2: { latitude:
 }
 
 function getAdviceText(zone: MistakeZone): string {
-    if (zone.type === 'speed_loss') {
-        return "Focus on carrying more speed.";
+    const prefix = zone.locationName ? `At ${zone.locationName}: ` : "";
+
+    // --- NEW LOGIC ---
+    if (zone.specificAdvice) {
+        return `${prefix}${zone.specificAdvice}`;
     }
-    return "Check your line.";
+    // --- END NEW LOGIC ---
+
+    if (zone.type === 'speed_loss') {
+        return `${prefix}Focus on carrying more speed.`;
+    }
+    return `${prefix}Check your line.`;
 }

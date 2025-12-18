@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 
 // Use a loosely typed interface for now to avoid circular dependency issues, 
 // or redefine the minimal part of CoachMessage we need.

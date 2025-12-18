@@ -64,7 +64,8 @@ export const PerformanceCoach: React.FC<PerformanceCoachProps> = ({ currentFrame
         laps,
         currentFrame,
         idealLap,
-        isEnabled: strategy === 'predictive'
+        isEnabled: strategy === 'predictive',
+        trackPoints
     });
 
     // TTS Hook
@@ -474,7 +475,8 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
             contextString += `Status: ${performanceStats.isNewBest ? 'NEW BEST DETECTED' : performanceStats.isFaster ? 'GAINING TIME' : performanceStats.isGoodLine ? 'MATCHING PACE' : 'LOSING TIME'}\n`;
 
             // Use the determined messageText as base for AI or output directly if code
-            if (mode === 'code') {
+            // Predictive messages are pre-formulated and specific, so we bypass LLM summarization to ensure accuracy.
+            if (mode === 'code' || isPredictiveTrigger) {
                 // Direct generation
                 const newMessage: CoachMessage = {
                     id: now,
@@ -492,9 +494,11 @@ Delta: ${performanceStats.speedDelta.toFixed(1)} km/h
             else if (mode === 'nano' && nanoStatus.state === 'ready') {
                 (async () => {
                     const genStartTime = performance.now();
+                    const sanitizedLocation = trackLocation ? trackLocation.replace(/Turn\s+\d+.*|Turn\s+\d+/i, "Turn") : "Track";
+
                     const nanoInput = isPredictiveTrigger
-                        ? `Predictive Warning: ${messageText}.\n Context: ${contextString}`
-                        : `Trigger: ${triggerReason}.\n${contextString}`;
+                        ? `Predictive Warning: ${messageText}.\n Context: ${contextString.replace(trackLocation || '', sanitizedLocation)}`
+                        : `Trigger: ${triggerReason}.\n${contextString.replace(trackLocation || '', sanitizedLocation)}`;
 
                     const nanoText = await generateNano(nanoInput);
                     const genDuration = performance.now() - genStartTime;

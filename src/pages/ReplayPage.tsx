@@ -9,6 +9,14 @@ import { type TrackPoint } from '../hooks/useTrackLocation';
 import { ReplayPitView } from './ReplayPitView';
 import { ReplayDriverView } from './ReplayDriverView';
 import { PerformanceCoach } from './PerformanceCoach';
+import thunderhillEast from '../data/tracks/thunderhill_east.json';
+
+interface TrackSegment {
+  id: string;
+  startPoint: string;
+  endPoint: string;
+  type: 'straight' | 'corner';
+}
 
 import { useTheme } from '../components/ThemeProvider';
 import { Link } from 'react-router-dom';
@@ -58,6 +66,7 @@ export function ReplayPage() {
 
   const [showGhost, setShowGhost] = useState(true);
   const [trackPoints, setTrackPoints] = useState<TrackPoint[]>([]);
+  const [trackSegments] = useState<TrackSegment[]>([]);
   const [trackDetails, setTrackDetails] = useState<string>('');
 
   // Video State (Lifted for Report Generation)
@@ -90,17 +99,24 @@ export function ReplayPage() {
   }, [trackPoints]);
 
   useEffect(() => {
-    // Load track points
-    fetch('/tracks/thunderhill/points.json')
-      .then(res => res.json())
-      .then(data => setTrackPoints(data))
-      .catch(err => console.error('Failed to load track points:', err));
+    // Load track points from JSON
+    try {
+      const sectors = thunderhillEast.configurations[0].sectors;
+      const mappedPoints: TrackPoint[] = sectors.map((s: any) => ({
+        name: s.name,
+        lat: s.coordinates.latitude,
+        long: s.coordinates.longitude,
+        description: s.description,
+        advice: s.advice
+      }));
+      setTrackPoints(mappedPoints);
 
-    // Load track details
-    fetch('/tracks/thunderhill/details.txt')
-      .then(res => res.text())
-      .then(text => setTrackDetails(text))
-      .catch(err => console.error('Failed to load track details:', err));
+      // Track Details
+      setTrackDetails(thunderhillEast.description);
+
+    } catch (e) {
+      console.error("Failed to load track data", e);
+    }
   }, []);
 
   // Load telemetry data using hook
@@ -495,6 +511,9 @@ export function ReplayPage() {
               idealLap={idealLap}
               laps={laps}
               isStacked={layoutMode === 'stacked'}
+              segments={trackSegments}
+              trackPoints={trackPoints}
+              projectionParams={projectionParams}
             />
           </div>
         )}

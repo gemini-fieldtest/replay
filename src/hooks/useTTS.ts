@@ -8,26 +8,18 @@ interface TTSOptions {
   apiKey?: string;
 }
 
-interface WavConversionOptions {
-  numChannels: number;
-  sampleRate: number;
-  bitsPerSample: number;
-}
-
-interface TTSOptions {
-  apiKey?: string;
-}
-
-interface WavConversionOptions {
-  numChannels: number;
-  sampleRate: number;
-  bitsPerSample: number;
-}
+// WavConversionOptions removed as it was unused and duplicated
 
 export const useTTS = (options: TTSOptions = {}) => {
-  const [isEnabled, setIsEnabled] = useState(false);
-  const [provider, setProvider] = useState<TTSProvider>('browser');
-  const [voice, setVoice] = useState<string>('');
+  const [isEnabled, setIsEnabled] = useState(() => {
+    return localStorage.getItem('tts_enabled') === 'true';
+  });
+  const [provider, setProvider] = useState<TTSProvider>(() => {
+    return (localStorage.getItem('tts_provider') as TTSProvider) || 'browser';
+  });
+  const [voice, setVoice] = useState<string>(() => {
+    return localStorage.getItem('tts_voice') || '';
+  });
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
@@ -53,6 +45,19 @@ export const useTTS = (options: TTSOptions = {}) => {
     return () => {
       window.speechSynthesis.cancel();
     }
+  }, [voice]);
+
+  // Persistence Effects
+  useEffect(() => {
+    localStorage.setItem('tts_enabled', String(isEnabled));
+  }, [isEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem('tts_provider', provider);
+  }, [provider]);
+
+  useEffect(() => {
+    if (voice) localStorage.setItem('tts_voice', voice);
   }, [voice]);
 
   const apiKey = options.apiKey || import.meta.env.VITE_GEMINI_API_KEY || '';
