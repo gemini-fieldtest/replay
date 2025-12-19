@@ -11,25 +11,66 @@ self.onmessage = async (e: MessageEvent) => {
       // 1. Parse CSV
       const frames = await parseTelemetry(csvText);
 
-      // 1.1 Pre-calculate track geometry (Heading/Slope)
-      // This avoids doing it per-frame in the 3D view
-      // We assume frames are sequential in time/distance
-      // Convert to Cartesian (approximate) to calculate heading?
-      // Or just use lat/lon delta?
-      // For heading: atan2(dLon, dLat) works if scaling is correct, but conversion to meters is better.
-      // Actually TrackMap3D uses the 3D positions (Float32Array) which are converted from lat/lon.
-      // But we don't have the 3D positions here easily (they are converted in useTrackLocation or similar).
-      // However, we can estimate heading from Lat/Lon.
-      // But TrackMap3D uses the *Projected* positions for rendering.
-      // Using Lat/Lon heading might be slightly off from the projected visual heading if projection distorts.
-      // BUT, usually visual heading matches lat/lon heading.
+      // 1.1 Calculate Track Geometry (Heading and Slope)
+      // This is efficient to do once in the worker rather than per-frame in the UI
+      if (frames.length > 1) {
+          for (let i = 0; i < frames.length; i++) {
+              const current = frames[i];
 
-      // Let's postpone this specific pre-calculation if it requires the Projection logic which is in a Hook or Component.
-      // UseTrackLocation uses `d3-geo` or similar? No, let's check.
-      // If we can't do it here easily, we can do it in the Component ONCE when positions are generated.
-      // That is also efficient.
+              // Determine next and previous points for smooth calculation
+              // We use a small window if possible, or just next point
+              const prev = frames[Math.max(0, i - 1)];
+              const next = frames[Math.min(frames.length - 1, i + 1)];
 
-      // So let's stick to parsing and lap analysis here.
+              // 1. Heading (Track Angle)
+              // Note: This is geographic heading.
+              // We can convert Lat/Lon delta to local meters to get accurate heading
+              // R = 6371e3
+              // x = dLon * cos(lat) * R
+              // z = dLat * R
+
+              // We use next point for heading if available, otherwise fallback to prev (end of track)
+              let p1 = current;
+              let p2 = next;
+
+              if (i === frames.length - 1) {
+                  p1 = prev;
+                  p2 = current;
+              }
+
+              const dLat = (p2.latitude - p1.latitude) * (Math.PI / 180);
+              const dLon = (p2.longitude - p1.longitude) * (Math.PI / 180);
+
+              // Simple flat earth projection for heading is usually sufficient for short distances
+              // But let's be proper with scaling
+              const latRad = current.latitude * (Math.PI / 180);
+              const dx = dLon * Math.cos(latRad);
+              const dy = dLat;
+
+              // Heading: 0 is North (Positive Y), 90 is East (Positive X)
+              // atan2(x, y) gives angle from Y axis (North)
+              // But standard Math.atan2(y, x) gives angle from X axis.
+              // Let's store standard math angle (radians from East) or visual Heading?
+              // The 3D component usually expects 0 = North? Or just aligns mesh?
+              // The 3D component does: Math.atan2(dx, dz) where Z is forward?
+              // Let's stick to what we used to calculate: Geographic Heading.
+
+              // current.trackHeading = Math.atan2(dx, dy); // This is approximate heading
+
+              // 2. Slope (Gradient)
+              // Rise / Run
+              // Run = Distance
+              const R = 6371e3;
+              const dist = Math.sqrt(dx*dx + dy*dy) * R;
+              const dAlt = p2.altitude - p1.altitude;
+
+              if (dist > 0.1) {
+                  current.trackSlope = Math.atan2(dAlt, dist);
+              } else {
+                  current.trackSlope = 0;
+              }
+          }
+      }
 
       // 2. Detect Laps
       const laps = detectLaps(frames, startLine);
