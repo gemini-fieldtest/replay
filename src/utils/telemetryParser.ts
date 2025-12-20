@@ -29,10 +29,14 @@ export interface TelemetryFrame {
   trackSlope?: number;   // Calculated from track geometry (radians)
 }
 
+// Pre-compiled regex for coordinate parsing
+const COORD_REGEX = /(\d+)°([\d.]+)\s*([NSEW])/;
+
 // Helper to parse coordinate string like "35°29.340126 N" to decimal degrees
 function parseCoordinate(coord: string): number {
   if (!coord) return 0;
-  const match = coord.match(/(\d+)°([\d.]+)\s*([NSEW])/);
+  // Optimization: use pre-compiled regex
+  const match = coord.match(COORD_REGEX);
   if (!match) return 0;
 
   const degrees = parseFloat(match[1]);
