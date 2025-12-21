@@ -5,6 +5,7 @@ import { Video, Box, Upload, Settings2 } from 'lucide-react';
 
 interface ReplayDriverViewProps {
   positions: Float32Array;
+  rotations?: Float32Array;
   data?: TelemetryFrame[]; // Added to pass full data for imperative updates
   currentIndexRef?: React.MutableRefObject<number>; // Added ref support
   currentIndex: number;
@@ -23,6 +24,7 @@ interface ReplayDriverViewProps {
 
 export const ReplayDriverView: React.FC<ReplayDriverViewProps> = ({
   positions,
+  rotations,
   data,
   currentIndexRef,
   currentIndex,
@@ -159,6 +161,7 @@ export const ReplayDriverView: React.FC<ReplayDriverViewProps> = ({
         {viewMode === '3d' ? (
           <ReplayTrackMap3D
             positions={positions}
+            rotations={rotations}
             data={data}
             currentIndexRef={currentIndexRef}
             currentIndex={currentIndex}

@@ -186,20 +186,77 @@ export function ReplayPage() {
     return { centerLat, centerLon, centerAlt, latScale, lonScale };
   }, [data]);
 
-  const trackPositions = useMemo(() => {
-    if (!data || data.length === 0 || !projectionParams) return new Float32Array(0);
+  const { trackPositions, trackRotations } = useMemo(() => {
+    if (!data || data.length === 0 || !projectionParams) return { trackPositions: new Float32Array(0), trackRotations: new Float32Array(0) };
 
     const { centerLat, centerLon, centerAlt, latScale, lonScale } = projectionParams;
 
-    const pos = new Float32Array(data.length * 3);
+    const positions = new Float32Array(data.length * 3);
+    const rotations = new Float32Array(data.length * 2); // [slope, heading]
 
-    data.forEach((f, i) => {
-      pos[i * 3] = (f.longitude - centerLon) * lonScale;
-      pos[i * 3 + 1] = (f.altitude - centerAlt) * 5; // Y is up
-      pos[i * 3 + 2] = -(f.latitude - centerLat) * latScale; // Z is forward/back
-    });
+    for (let i = 0; i < data.length; i++) {
+        const f = data[i];
 
-    return pos;
+        const x = (f.longitude - centerLon) * lonScale;
+        const y = (f.altitude - centerAlt) * 5; // Y is up
+        const z = -(f.latitude - centerLat) * latScale; // Z is forward/back
+
+        positions[i * 3] = x;
+        positions[i * 3 + 1] = y;
+        positions[i * 3 + 2] = z;
+    }
+
+    // Pre-calculate headings and slopes
+    // Heading: atan2(dx, dz)
+    // Slope: atan2(dy, dist)
+
+    for (let i = 0; i < data.length; i++) {
+        let heading = 0;
+        let slope = 0;
+
+        const x = positions[i * 3];
+        const y = positions[i * 3 + 1];
+        const z = positions[i * 3 + 2];
+
+        // Look ahead
+        if (i < data.length - 1) {
+            const nx = positions[(i + 1) * 3];
+            const ny = positions[(i + 1) * 3 + 1];
+            const nz = positions[(i + 1) * 3 + 2];
+
+            const dx = nx - x;
+            const dy = ny - y;
+            const dz = nz - z;
+
+            heading = Math.atan2(dx, dz);
+
+            const dist = Math.sqrt(dx*dx + dz*dz);
+            if (dist > 0.01) {
+                slope = -Math.atan2(dy, dist);
+            }
+        } else if (i > 0) {
+             // Use previous for last point
+             const px = positions[(i - 1) * 3];
+             const py = positions[(i - 1) * 3 + 1];
+             const pz = positions[(i - 1) * 3 + 2];
+
+             const dx = x - px;
+             const dy = y - py;
+             const dz = z - pz;
+
+             heading = Math.atan2(dx, dz);
+
+             const dist = Math.sqrt(dx*dx + dz*dz);
+             if (dist > 0.01) {
+                slope = -Math.atan2(dy, dist);
+            }
+        }
+
+        rotations[i * 2] = slope;
+        rotations[i * 2 + 1] = heading;
+    }
+
+    return { trackPositions: positions, trackRotations: rotations };
   }, [data, projectionParams]);
 
   // Calculate Ghost Position
@@ -579,6 +636,7 @@ export function ReplayPage() {
             <div className="flex-grow relative h-full flex flex-col">
               <ReplayDriverView
                 positions={trackPositions}
+                rotations={trackRotations}
                 data={data}
                 currentIndexRef={currentIndexRef}
                 currentIndex={currentIndex}
